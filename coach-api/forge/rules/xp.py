@@ -22,10 +22,9 @@ MOMENTUM_CAP = 1.25
 # comptent plein, la quatrième à moitié, les suivantes plus du tout.
 DEGRESSIVITY = (1.0, 1.0, 1.0, 0.5)
 
-RANKS = (
-    ("F", 1), ("E", 5), ("D", 10), ("C", 17),
-    ("B", 25), ("A", 35), ("S", 50), ("SS", 75),
-)
+# Le rang ne vit plus ici : il mesure la fiabilité, pas le volume, et se calcule
+# dans ``forge/rules/ranks.py`` sur les semaines d'engagements tenus (SPEC §4.4).
+# L'XP garde les niveaux, le loot, les dégâts au boss et le score de saison.
 
 
 @dataclass
@@ -110,13 +109,6 @@ def level_for(total_xp: int) -> int:
     return level
 
 
-def rank_for(level: int) -> str:
-    code = RANKS[0][0]
-    for name, floor in RANKS:
-        if level >= floor:
-            code = name
-    return code
-
 
 def progression(total_xp: int) -> dict:
     """Tout ce dont la barre d'XP a besoin, calculé une seule fois côté serveur."""
@@ -127,7 +119,6 @@ def progression(total_xp: int) -> dict:
     return {
         "total_xp": total_xp,
         "level": level,
-        "rank": rank_for(level),
         "level_floor_xp": floor_xp,
         "next_level_xp": next_xp,
         "into_level": total_xp - floor_xp,

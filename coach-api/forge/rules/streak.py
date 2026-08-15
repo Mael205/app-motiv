@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 
-MAX_SHIELDS = 3
+MAX_SHIELDS = 3          # +1 au rang D (SPEC §4.4), passé en argument par le service
 DAYS_PER_SHIELD = 5
 COMEBACK_MISSED_THRESHOLD = 3   # nombre de jours ratés qui déclenche le retour
 FLOOR_MINUTES = 25

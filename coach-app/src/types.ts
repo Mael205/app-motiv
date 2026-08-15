@@ -20,6 +20,17 @@ export interface Progression {
   ratio: number
 }
 
+/** Le rang mesure la fiabilité, pas le volume (SPEC §4.4). */
+export interface RankState {
+  code: string
+  weeks_kept: number
+  slots: number
+  extra_shields: number
+  extra_days_off: number
+  next: { code: string; weeks_left: number } | null
+  next_unlock: string | null
+}
+
 export interface RoadmapStepView {
   id: number
   label: string
@@ -220,6 +231,7 @@ export interface HomeState {
   minutes_today: number
   streak: Streak
   progression: Progression
+  rank: RankState
   season: SeasonState | null
   boss: BossState | null
   evening: Evening

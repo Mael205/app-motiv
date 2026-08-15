@@ -17,21 +17,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from . import ranks
+
 BASE_SLOTS = 3
 ABSOLUTE_MAX_SLOTS = 5
 MAX_PER_DOMAIN = 2
 
-# Rang requis et régularité exigée pour chaque slot supplémentaire (SPEC §4.3).
-# Le rang seul ne suffit jamais : l'XP monte avec le volume, et le volume est le
-# mode de défaillance du §0.2. Ce qui débloque, c'est la régularité tenue.
-SLOT_UNLOCKS = (
-    (4, "A", 3, 4),      # 4ᵉ slot : rang A, 3 semaines tenues sur les 4 dernières
-    (5, "S", 6, 8),      # 5ᵉ slot : rang S, 6 sur les 8 dernières
-)
+# La piste Corps a ses propres slots, et ils ne bougent jamais : quatre activités
+# physiques en parallèle sont de la dispersion au même titre que quatre projets
+# (SPEC §11.4).
+CORPS_SLOTS = 2
 
-RANK_ORDER = ("F", "E", "D", "C", "B", "A", "S", "SS")
-
-# Rétro-compatibilité : la limite de base, pour les appels qui n'ont pas de rang.
+# Rétro-compatibilité : la limite de base, pour les appels sans rang.
 MAX_ACTIVE = BASE_SLOTS
 
 CODE = "code"
@@ -51,40 +48,21 @@ DOMAIN_LABELS = {
 }
 
 
-def unlocked_slots(rank: str, *, weeks_kept: int = 0, weeks_window: int = 0) -> int:
-    """Combien de slots sont ouverts, compte tenu du rang **et** de la régularité.
+def unlocked_slots(rank: str) -> int:
+    """Combien de slots d'atelier sont ouverts à ce rang.
 
-    Débloquer sur l'XP seule récompenserait la dispersion par la permission de
-    se disperser davantage (SPEC §4.3). Le droit de tenir quatre projets
-    s'obtient en démontrant qu'on en tient trois.
+    Le rang **est** la régularité depuis la refonte du §4.4 : il se calcule sur
+    les semaines d'engagements tenus, pas sur l'XP. Une seule condition suffit
+    donc ici, là où il en fallait deux quand le rang mesurait le volume.
     """
-    if rank not in RANK_ORDER:
-        return BASE_SLOTS
-    niveau = RANK_ORDER.index(rank)
-
-    total = BASE_SLOTS
-    for slots, rang_requis, tenues, fenetre in SLOT_UNLOCKS:
-        assez_haut = niveau >= RANK_ORDER.index(rang_requis)
-        assez_regulier = weeks_window >= fenetre and weeks_kept >= tenues
-        if assez_haut and assez_regulier:
-            total = max(total, slots)
-    return min(total, ABSOLUTE_MAX_SLOTS)
+    return min(ranks.rewards_for(rank).slots, ABSOLUTE_MAX_SLOTS)
 
 
-def next_unlock(rank: str, *, weeks_kept: int = 0, weeks_window: int = 0) -> str | None:
-    """Ce qui manque pour le prochain slot. Un fait, jamais une carotte."""
-    ouverts = unlocked_slots(rank, weeks_kept=weeks_kept, weeks_window=weeks_window)
-    for slots, rang_requis, tenues, fenetre in SLOT_UNLOCKS:
-        if slots <= ouverts:
-            continue
-        niveau = RANK_ORDER.index(rank) if rank in RANK_ORDER else 0
-        manques = []
-        if niveau < RANK_ORDER.index(rang_requis):
-            manques.append(f"rang {rang_requis}")
-        if weeks_kept < tenues:
-            manques.append(f"{tenues} semaines d'engagements tenus sur {fenetre} (tu en as {weeks_kept})")
-        return f"{slots}ᵉ slot : il manque " + " et ".join(manques) if manques else None
-    return None
+def slots_for_track(kind: str, rank: str) -> int:
+    """Les slots d'une piste. Seul l'Atelier grandit avec le rang (SPEC §11.4)."""
+    if kind == "corps":
+        return CORPS_SLOTS
+    return unlocked_slots(rank)
 
 
 def assign_slot(

@@ -38,6 +38,7 @@ from .models import (
 )
 from . import filescan, gitscan
 from .rules import gardes as garde_rules
+from .rules import ranks as rank_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import seasons as season_rules
@@ -474,6 +475,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     minutes_today = sum(s.actual_minutes for s in sessions_today if s.status == Session.DONE)
 
     total_xp = Session.objects.filter(user=user, status=Session.DONE).aggregate(t=Sum("xp_awarded"))["t"] or 0
+    rang = rank_state(user, today=today)
     running = next((s for s in sessions_today if s.status == Session.RUNNING), None)
 
     blocks = [
@@ -503,7 +505,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             "sanction_level": state.sanction_level,
             "message": streak_rules.message_for(state),
         },
-        "progression": xp_rules.progression(total_xp),
+        "progression": {**xp_rules.progression(total_xp), "rank": rang["code"]},
+        "rank": rang,
         "season": (
             {
                 "index": season.index,
@@ -589,6 +592,32 @@ def preview_project(markdown: str) -> dict:
     }
 
 
+def rank_state(user, *, today: date) -> dict:
+    """Le rang de l'utilisateur, calculé sur les engagements tenus (SPEC §4.4).
+
+    Cumulatif et monotone : une mauvaise semaine n'en retire aucune. Le §17
+    interdit tout retrait rétroactif de rang.
+    """
+    semaines = [
+        (c.week_start, c.done_sessions >= c.planned_sessions)
+        for c in Commitment.objects.filter(project__user=user, week_start__lt=week_start(today))
+    ]
+    tenues = rank_rules.weeks_kept(semaines)
+    code = rank_rules.rank_for(tenues)
+    recompenses = rank_rules.rewards_for(code)
+    suivant = rank_rules.next_rank(tenues)
+
+    return {
+        "code": code,
+        "weeks_kept": tenues,
+        "slots": recompenses.slots,
+        "extra_shields": recompenses.extra_shields,
+        "extra_days_off": recompenses.extra_days_off,
+        "next": {"code": suivant[0], "weeks_left": suivant[1]} if suivant else None,
+        "next_unlock": rank_rules.unlock_label(code),
+    }
+
+
 def taken_slots(user) -> list[tuple[int, str]]:
     """Les ``(slot, domaine)`` actuellement occupés."""
     return list(
@@ -598,13 +627,15 @@ def taken_slots(user) -> list[tuple[int, str]]:
     )
 
 
-def free_slot(user, domain: str = slot_rules.CODE) -> int | None:
+def free_slot(user, domain: str = slot_rules.CODE, *, today: date | None = None) -> int | None:
     """Le slot qu'un projet de ce domaine peut prendre, ou rien (SPEC §4.3).
 
-    Deux limites dures s'appliquent : trois projets actifs, et deux slots par
-    domaine.
+    Deux limites s'appliquent : le nombre de slots ouverts — qui dépend du rang,
+    donc des engagements tenus — et deux slots par domaine.
     """
-    return slot_rules.assign_slot(taken_slots(user), domain)
+    today = today or timezone.now().date()
+    ouverts = rank_state(user, today=today)["slots"]
+    return slot_rules.assign_slot(taken_slots(user), domain, total_slots=ouverts)
 
 
 @transaction.atomic

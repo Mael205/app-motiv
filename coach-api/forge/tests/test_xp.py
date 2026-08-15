@@ -8,7 +8,6 @@ from forge.rules.xp import (
     level_for,
     momentum,
     progression,
-    rank_for,
     session_xp,
     xp_threshold,
 )
@@ -101,18 +100,17 @@ class TestNiveauxEtRangs:
         assert level_for(299) == 2
         assert level_for(300) == 3
 
-    def test_echelle_de_rangs(self):
-        assert rank_for(1) == "F"
-        assert rank_for(9) == "E"
-        assert rank_for(25) == "B"
-        assert rank_for(80) == "SS"
+    def test_l_xp_ne_decide_plus_du_rang(self):
+        """Le rang mesure la fiabilité, pas le volume (SPEC §4.4).
 
-    def test_rang_ne_redescend_jamais(self):
-        niveaux = list(range(1, 120))
-        rangs = [rank_for(n) for n in niveaux]
-        ordre = ["F", "E", "D", "C", "B", "A", "S", "SS"]
-        indices = [ordre.index(r) for r in rangs]
-        assert indices == sorted(indices)
+        Ce test garde la séparation : si quelqu'un réintroduit un rang calculé
+        depuis l'XP, le système recommencera à récompenser la dispersion.
+        """
+        from forge.rules import xp as module
+
+        assert not hasattr(module, "rank_for")
+        assert not hasattr(module, "RANKS")
+        assert "rank" not in progression(50_000)
 
     def test_progression_prete_pour_la_barre_dxp(self):
         p = progression(150)

@@ -114,59 +114,37 @@ class TestCreationAvecDomaine:
         assert any("jardinage" in w for w in apercu["warnings"])
 
 
-class TestSlotsGagnes:
-    """Un slot supplémentaire se gagne sur la régularité, jamais sur l'XP seule.
+class TestSlotsOuverts:
+    """L'échelle des rangs vit dans ``ranks.py`` ; ici on vérifie le branchement.
 
-    C'est le point central du §4.3 : débloquer sur le rang seul récompenserait
-    la dispersion par la permission de se disperser davantage, puisque l'XP monte
-    avec le volume et que le volume est le mode de défaillance du §0.2.
+    Depuis la refonte du §4.4, une seule condition suffit : le rang **est** la
+    régularité, il n'y a plus de double critère à croiser.
     """
 
-    def test_trois_slots_par_defaut(self):
+    def test_le_socle_est_de_trois(self):
         from forge.rules.slots import BASE_SLOTS, unlocked_slots
 
         assert unlocked_slots("F") == BASE_SLOTS
-        assert unlocked_slots("SS") == BASE_SLOTS, "le rang seul ne débloque rien"
+        assert unlocked_slots("C") == BASE_SLOTS
 
-    def test_le_rang_sans_regularite_ne_debloque_pas(self):
+    def test_le_rang_B_ouvre_le_quatrieme(self):
         from forge.rules.slots import unlocked_slots
 
-        assert unlocked_slots("A", weeks_kept=1, weeks_window=4) == 3
-        assert unlocked_slots("S", weeks_kept=0, weeks_window=8) == 3
+        assert unlocked_slots("B") == 4
 
-    def test_la_regularite_sans_le_rang_ne_debloque_pas_non_plus(self):
-        from forge.rules.slots import unlocked_slots
+    def test_le_rang_A_ouvre_le_cinquieme_et_c_est_le_plafond(self):
+        from forge.rules.slots import ABSOLUTE_MAX_SLOTS, unlocked_slots
 
-        assert unlocked_slots("C", weeks_kept=4, weeks_window=4) == 3
+        assert unlocked_slots("A") == 5
+        assert unlocked_slots("SS") == ABSOLUTE_MAX_SLOTS == 5
 
-    def test_quatrieme_slot_au_rang_A_avec_trois_semaines_tenues(self):
-        from forge.rules.slots import unlocked_slots
+    def test_la_piste_corps_ne_grandit_jamais(self):
+        """Quatre activités physiques sont de la dispersion aussi (SPEC §11.4)."""
+        from forge.rules.slots import CORPS_SLOTS, slots_for_track
 
-        assert unlocked_slots("A", weeks_kept=3, weeks_window=4) == 4
-
-    def test_cinquieme_slot_au_rang_S(self):
-        from forge.rules.slots import unlocked_slots
-
-        assert unlocked_slots("S", weeks_kept=6, weeks_window=8) == 5
-
-    def test_le_plafond_absolu_est_cinq(self):
-        from forge.rules.slots import unlocked_slots
-
-        assert unlocked_slots("SS", weeks_kept=50, weeks_window=50) == 5
-
-    def test_une_fenetre_trop_courte_ne_compte_pas(self):
-        """Trois semaines tenues sur trois ne valent pas trois sur quatre."""
-        from forge.rules.slots import unlocked_slots
-
-        assert unlocked_slots("A", weeks_kept=3, weeks_window=3) == 3
-
-    def test_le_prochain_deblocage_dit_ce_qui_manque(self):
-        from forge.rules.slots import next_unlock
-
-        message = next_unlock("B", weeks_kept=4, weeks_window=4)
-        assert "rang A" in message
-        message = next_unlock("A", weeks_kept=1, weeks_window=4)
-        assert "engagements tenus" in message and "tu en as 1" in message
+        assert slots_for_track("corps", "F") == CORPS_SLOTS == 2
+        assert slots_for_track("corps", "SS") == 2, "le rang n'ouvre pas de slot Corps"
+        assert slots_for_track("atelier", "SS") == 5
 
     def test_les_slots_ouverts_sont_reellement_attribuables(self):
         from forge.rules.slots import CODE, CORPS, SAVOIR, assign_slot

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import type { Progression, SeasonState, Streak } from '../types'
+import type { Progression, RankState, SeasonState, Streak } from '../types'
 import './CharacterHeader.css'
 
 /** La fiche de personnage : rang, niveau, barre d'XP, streak et boucliers.
@@ -11,11 +11,19 @@ export function CharacterHeader({
   progression,
   streak,
   season,
+  rank,
 }: {
   progression: Progression
   streak: Streak
   season: SeasonState | null
+  rank: RankState
 }) {
+  // Le rang dit ce qu'il a coûté, pas seulement sa lettre : sans ça, il
+  // ressemble à une récompense d'XP, ce qu'il n'est justement plus (SPEC §4.4).
+  const rankTitle = `Rang ${rank.code} — ${rank.weeks_kept} semaine${
+    rank.weeks_kept > 1 ? 's' : ''
+  } d'engagements tenus`
+
   return (
     <section className="hero panel panel--accent">
       {season && (
@@ -26,7 +34,7 @@ export function CharacterHeader({
       )}
 
       <div className="row hero__main">
-        <div className="rank" title={`Rang ${progression.rank}`}>
+        <div className="rank" title={rankTitle}>
           <span className="rank__code display">{progression.rank}</span>
           <span className="rank__level num">{progression.level}</span>
         </div>

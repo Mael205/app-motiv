@@ -21,6 +21,13 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
     <>
       <SeasonBanner season={state.season} progression={state.progression} streak={state.streak} />
 
+      {state.rank.next_unlock && (
+        <p className="muted rank-next">
+          {state.rank.weeks_kept} semaine{state.rank.weeks_kept > 1 ? 's' : ''} d'engagements tenus.{' '}
+          {state.rank.next_unlock}
+        </p>
+      )}
+
       {state.streak.message && (
         <div className={`notice notice--${state.streak.sanction_level >= 2 ? 'hard' : 'soft'}`}>
           {state.streak.message}

@@ -139,12 +139,14 @@ Trois slots au départ. Un quatrième et un cinquième s'obtiennent avec le rang
 
 L'XP monte avec le volume, or le volume est précisément le mode de défaillance du §0.2 : le sur-régime du jour 2 produit l'abandon du jour 6. Débloquer un slot sur l'XP seule reviendrait donc à **récompenser la dispersion par la permission de se disperser davantage**. Le déblocage exige en plus des **engagements tenus** : avoir promis un nombre de sessions et l'avoir fait, plusieurs semaines de suite.
 
-| Slot | Rang requis | Et surtout |
+| Slot | Rang requis | Ce que ce rang représente |
 |---|---|---|
-| 4ᵉ | A | 3 semaines sur les 4 dernières avec tous les engagements tenus |
-| 5ᵉ | S | 6 semaines sur les 8 dernières |
+| 4ᵉ | **B** | 6 semaines d'engagements tenus — une saison et demie |
+| 5ᵉ | **A** | 9 semaines |
 
-Autrement dit : le droit de tenir quatre projets s'obtient en démontrant qu'on en tient trois. C'est la seule preuve qui vaille, et elle ne s'achète pas en enchaînant les sessions sur un seul projet.
+Autrement dit : le droit de tenir quatre projets s'obtient en démontrant qu'on en tient trois. C'est la seule preuve qui vaille, et elle ne s'achète pas en enchaînant les sessions sur un seul projet — depuis le §4.4, le rang ne mesure plus le volume.
+
+Les seuils sont délibérément atteignables. Adossés aux rangs A et S de l'ancienne échelle liée à l'XP, ils auraient demandé **un an et deux ans** de rythme soutenu : des récompenses hors de portée ne sont pas de l'exigence, ce sont des mécaniques mortes.
 
 - Un slot débloqué **ne se reprend jamais** rétroactivement (§17).
 - Il se **verrouille temporairement** au palier 2 de décrochage (§14) : les projets ne sont pas supprimés, le slot est gelé jusqu'à la reprise. Une sanction éteint, elle n'efface pas.
@@ -167,7 +169,30 @@ base       = minutes effectives
 
 - **Le plafond manquant est ici.** À partir de la 4ᵉ session du jour l'XP est divisée par deux, à partir de la 5ᵉ elle est nulle. La session reste enregistrée, les heures comptent, la roadmap avance — seule la récompense s'éteint. Répond au diagnostic §0.2 : le sur-régime du jour 2 est ce qui produit l'abandon du jour 6.
 - Un message factuel accompagne le dépassement : *"4ᵉ session. Ton rythme tenable observé est de 2,3 sessions/jour. Au-delà, l'XP ne compte plus."*
-- **Niveaux** à courbe croissante, **rangs F→SS** (§12.3), titres de saison.
+- **Niveaux** à courbe croissante, alimentés par l'XP. Titres de saison.
+
+**Deux axes séparés, et c'est structurant.** L'XP mesure le **volume** ; or le volume est le mode de défaillance du §0.2 — le sur-régime du jour 2 produit l'abandon du jour 6. Un système qui débloque des droits sur l'XP récompense donc exactement ce qui fait décrocher.
+
+| Axe | Ce qu'il mesure | Ce qu'il paie |
+|---|---|---|
+| **XP et niveaux** | Combien j'ai fait | Loot cosmétique, dégâts au boss, Éclats, score de saison. **Aucune règle.** |
+| **Rang F→SS** | Est-ce qu'on peut compter sur moi | Slots de projet, boucliers, jours off |
+
+Le rang se calcule sur les **semaines d'engagements tenus** — avoir promis un nombre de sessions et l'avoir fait — et sur rien d'autre. Une semaine ne compte que si *tous* les engagements ont été tenus : en tenir deux sur trois n'est pas tenir sa semaine. Une semaine sans engagement pris ne compte pas non plus, ne rien promettre n'étant pas tenir sa parole.
+
+| Rang | Semaines tenues | Ce que ça ouvre |
+|---|---|---|
+| E | 1 | — |
+| D | 2 | un bouclier de plus en réserve |
+| C | 4 | un jour off de plus par saison |
+| B | 6 | **4ᵉ slot de projet** |
+| A | 9 | **5ᵉ slot de projet** |
+| S | 14 | prestige, identité de saison |
+| SS | 20 | prestige |
+
+Les paliers intermédiaires donnent de la **souplesse**, jamais de la puissance : un bouclier et un jour off supplémentaires aident à rester, ils ne rendent pas le travail plus rentable. C'est la différence entre soutenir quelqu'un et le pousser à forcer.
+
+Le rang **ne redescend jamais** : il compte les semaines tenues cumulées, pas l'état courant (§17). Une soirée de sur-régime donne de l'XP, du loot et des dégâts au boss — aucun droit supplémentaire.
 - **Quêtes du jour** : 1 quête plancher (obligatoire), 1 quête bonus contextuelle. Plus une **quête hebdomadaire** plus ambitieuse, posée le dimanche.
 - **Loot cosmétique** au passage de niveau et en fin de semaine (§12.6). Aucune récompense ne donne d'XP sans travail réel.
 - **Aucune XP pour l'usage de l'app** : planifier, éditer la roadmap, ranger le frigo, configurer un thème ne rapportent rien. Sinon le système récompense l'optimisation du système.
@@ -455,6 +480,7 @@ La musculation ne doit **pas** occuper un des 3 slots — sinon elle tue un proj
 
 - Piste **Atelier** : 3 slots, streak propre, plancher 1 session/jour.
 - Piste **Corps** : objectif hebdomadaire (2 séances par défaut), streak hebdomadaire propre, mode dégradé = 15 min à la maison.
+- **Deux slots sur la piste Corps**, et ils ne bougent jamais avec le rang. Musculation, danse, course, foot : quatre activités physiques menées de front sont de la dispersion au même titre que quatre projets. Les autres attendent au frigo de la piste.
 - **Règle dure : une séance de sport ne valide jamais le streak Atelier**, et réciproquement.
 - Les deux pistes apparaissent côte à côte sur l'accueil, jamais fusionnées en un score unique.
 
