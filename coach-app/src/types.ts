@@ -115,6 +115,42 @@ export interface Quest {
   done: boolean
 }
 
+/** Une routine de la piste Entretien, telle que le panneau du jour l'affiche. */
+export interface RoutineEntry {
+  id: number
+  name: string
+  checked: boolean
+  week_done: number
+  week_target: number
+  week_label: string
+  week_held: boolean
+  slack: number
+  shards_if_checked: number
+}
+
+export interface RoutineGroup {
+  anchor: string
+  label: string
+  routines: RoutineEntry[]
+}
+
+/** Piste Entretien (SPEC §11.9). Aucun streak ici : la semaine et le cumul, rien d'autre. */
+export interface EntretienPanel {
+  day: string
+  held_weeks: number
+  week_held: boolean
+  due_today: number
+  done_today: number
+  groups: RoutineGroup[]
+}
+
+export interface RoutineCheckResult {
+  created?: boolean
+  removed?: boolean
+  shards: number
+  panel: EntretienPanel
+}
+
 export interface HomeState {
   day: string
   now: string
@@ -129,6 +165,7 @@ export interface HomeState {
   running_session: RunningSession | null
   proposal: Proposal | null
   quests: Quest[]
+  entretien: EntretienPanel
   relax_used: boolean
 }
 

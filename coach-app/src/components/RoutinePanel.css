@@ -1,0 +1,121 @@
+/* Panneau d'entretien.
+ *
+ * Volontairement secondaire : il ne doit jamais concurrencer visuellement le
+ * bloc de décision du soir. Trois minutes de skincare ne se disputent pas
+ * l'attention avec une session de 25 minutes (SPEC §11.1).
+ */
+
+.routines {
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.routines__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.routines__title {
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.routines__count {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+.routines__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.routines__anchor {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.routines__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Cible tactile pleine largeur : la coche se fait au pouce, sans viser. */
+.routine {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: color 140ms, background-color 140ms;
+}
+
+.routine:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.routine:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.routine__mark {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.routine__name {
+  flex: 1;
+}
+
+.routine__week {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.routine__week--held {
+  color: var(--turquoise);
+}
+
+/* Une routine faite s'efface, elle ne se célèbre pas. Le ton reste factuel. */
+.routine--done .routine__name {
+  color: var(--dim);
+}
+
+.routine--done .routine__mark {
+  color: var(--turquoise);
+}
+
+.routines__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.routines__flash {
+  font-family: var(--mono);
+  color: var(--turquoise);
+}

@@ -329,7 +329,7 @@ User(id, timezone, day_rollover_hour=4, buddy_channel, buddy_disable_requested_a
 DayWindow(user, weekday, start_time, end_time)              # fenêtre du soir par jour
 Device(id, user, kind[pc|phone], name, paired_at, push_subscription)
 
-Track(id, user, kind[atelier|corps])
+Track(id, user, kind[atelier|corps|entretien])
 Project(id, user, track, name, status[active|fridge|archived], slot[1..3|null], color,
         emblem, is_coach_project, created_at, archived_at)
 ProjectRepo(id, project, path, remote)
@@ -360,6 +360,11 @@ SeasonScore(id, season, hours, sessions, steps_done, commitments_kept, xp, final
 Ghost(id, season, day_index, cumulative_xp, cumulative_hours)            # courbe de référence
 Quest(id, user, scope[jour|semaine], date_or_week, kind[plancher|bonus|hebdo], label,
       target, progress, state, reward_xp)
+
+Routine(id, user, track, name, anchor[reveil|apres_douche|avant_coucher|fin_de_session|libre],
+        weekdays[], weekly_target, reward_shards, order, active, created_at, archived_at)
+RoutineCheck(id, routine, day, checked_at, source, shards_awarded)      # unique (routine, day)
+RoutineWeek(id, routine, week_start, done, target, held, bonus_awarded) # semaines tenues, cumulatif
 
 RankState(user, code[F|E|D|C|B|A|S|SS], level, xp_total)
 SkillBranch(id, user, key, hours, tier)
@@ -445,6 +450,40 @@ Ce projet est excitant, technique, avec de l'IA dedans : exactement le profil de
 - Déclaration d'énergie en un tap au démarrage (3 niveaux), heure de coucher optionnelle.
 - Les analyses peuvent signaler une corrélation observée, en restant factuelles.
 - **L'app ne diagnostique rien et ne donne aucun conseil médical.** Une fatigue persistante relève d'une prise de sang, pas d'un tracker.
+
+### 11.9 Piste Entretien — les routines courtes
+
+Skincare, étirements, et les gestes du même ordre : courts, quotidiens ou presque, à coût de démarrage nul. Ils ne relèvent ni de l'Atelier ni du Corps, et ils sont **le pire terrain possible pour une mécanique de streak**. Une session de travail ratée a une excuse — la fatigue, la soirée qui déborde. Une routine de trois minutes n'en a aucune : l'oubli est pur, donc la rupture fait plus mal (§0.3). Une chaîne quotidienne cassable posée sur du skincare est le chemin le plus court vers « j'ai oublié une fois, donc j'arrête ».
+
+D'où une piste séparée, dont les règles sont délibérément différentes des deux autres.
+
+**Structure.** Troisième `Track`, `kind = entretien`, à côté d'Atelier et Corps. La règle dure du §11.4 s'étend telle quelle : **une routine cochée ne valide jamais le streak Atelier ni le streak Corps**, et réciproquement. Les trois pistes ne fusionnent jamais en un score unique.
+
+**Rythme et seuil sont deux réglages distincts.** Chaque routine porte :
+
+- les **jours où elle est proposée** — tous les jours, ou certains jours de semaine ;
+- son **objectif hebdomadaire** — le nombre de fois qui rend la semaine *tenue*.
+
+Les deux ne sont pas liés, et c'est là que se loge l'anti-fragilité. Une routine proposée les 7 jours avec un objectif à 6 est *quotidienne* dans la présentation et *indulgente* dans le score : elle apparaît tous les soirs, et un oubli isolé ne coûte rien. Le battement joue ici le rôle que le bouclier joue au §4.2 — même intention, mécanique adaptée au rythme.
+
+**Aucun compteur ne redescend.** Il n'existe pas de streak d'entretien. La semaine est *tenue* ou *non tenue*, et le seul compteur affiché en grand est le **total cumulé de semaines tenues**, qui ne diminue jamais. Une mauvaise semaine ne retire rien : elle n'ajoute pas. C'est la seule progression du système qui soit strictement monotone, et c'est volontaire.
+
+**Récompense en Éclats, jamais en XP.**
+
+- Quelques Éclats par routine cochée, **dans la limite de l'objectif hebdomadaire**. Au-delà, la coche est enregistrée et l'historique la garde, mais elle ne rapporte plus — même principe que la dégressivité du §4.4 : le plafond éteint la récompense, jamais le fait.
+- Bonus d'Éclats à la semaine tenue, routine par routine.
+- **Aucune XP, en aucun cas.** Cocher des routines ne doit jamais compenser une soirée sans session. L'XP mesure le travail réel ; le niveau et le rang restent adossés à l'Atelier et au Corps. Sans cette règle, la piste Entretien devient le moyen le moins cher de monter en niveau, et le système récompense le contournement.
+
+**Ancrage sur un geste, pas sur une heure.** Le §11.2 impose des rendez-vous horaires aux projets, parce qu'une session se planifie. Une routine, non : elle tient par chaînage à un geste déjà présent dans la journée — après la douche, avant le coucher, au réveil. Chaque routine déclare donc son **ancre**, et le panneau les regroupe par ancre plutôt que par heure. Une notification à 22h30 arrive quand il est déjà ailleurs ; « après la douche » arrive au bon moment sans horloge.
+
+**Présentation : le panneau de quêtes.** Registre Solo Leveling assumé, cohérent avec le §12.2 et le §0.10.
+
+- Un panneau unique, ouvert d'un tap depuis l'accueil, listant les routines attendues aujourd'hui, groupées par ancre.
+- Coche en un tap, sans confirmation, sans écran intermédiaire.
+- Sous chaque ligne, l'état de la semaine en clair : *4 / 6 cette semaine*.
+- **Aucune pénalité, aucun compte à rebours menaçant, aucune mise en scène de l'échec.** Le registre visuel est emprunté, la mécanique punitive ne l'est pas (§17). Le panneau d'une journée où rien n'est coché est identique à celui d'une journée pleine, à la coche près.
+
+**Ce que la piste ne fait pas.** Elle ne consomme aucun des 3 slots (§4.3), ne pèse sur aucun engagement hebdomadaire, ne déclenche pas le gardien du soir (§5.4), et n'apparaît pas dans le bilan envoyé à l'ami (§4.7) — l'ami reçoit un état du travail, pas un relevé d'hygiène.
 
 ---
 
@@ -643,7 +682,7 @@ Table de traçabilité à tenir à jour. Toute mécanique retirée doit être v�
 |---|---|---|---|
 | 1 | Aucune contrainte interne, tout venait de l'extérieur | Bilan hebdo à l'ami avec désarmement à 24h (§4.7) · créneaux fixes (§11.2) · gardien du soir (§5.4) · sanctions du §14 · saison à échéance datée (§12.1) | Il ne reste que la bonne volonté, c'est-à-dire ce qui a déjà échoué |
 | 2 | Trop de motivation, crash au jour 5-7 | Plafond d'XP dégressif (§4.4) · détection de sur-régime (§13.5) · 3 slots · engagements ajustés au réel observé (§5.3) | Le sur-régime revient, et avec lui l'abandon du jour 6 |
-| 3 | « J'ai raté une fois, donc j'arrête » | Boucliers (§4.2) · jours neutres · saisons de 4 semaines avec redémarrage à 8 jours (§12.1) · palier 3 du §14 · haut fait *Retour du néant* | Le produit devient un Duolingo, c'est-à-dire un générateur d'abandon |
+| 3 | « J'ai raté une fois, donc j'arrête » | Boucliers (§4.2) · jours neutres · saisons de 4 semaines avec redémarrage à 8 jours (§12.1) · palier 3 du §14 · haut fait *Retour du néant* · objectif hebdomadaire indulgent et absence totale de streak sur la piste Entretien (§11.9) | Le produit devient un Duolingo, c'est-à-dire un générateur d'abandon |
 | 4 | Concentration ≈ 1h | Durées plafonnées à 50 min · plancher à 25 · dégradé à 10 · bouton prolonger (§4.1) | Des sessions trop longues, donc non démarrées |
 | 5 | Fuite de temps : scroll passif, 3h/soir | Jauge du soir (§7) · sas de détente cadré (§4.6) · blocage ciblé (§8.5, §9.1) · rapport de fuite de temps PC/web/mobile (§13.2) · détection de migration du scroll | La fuite redevient invisible, donc infinie |
 | 6 | Contraintes acceptées : streak public, bilan hebdo | Non-falsifiabilité (§6) · bilan dominical avec accusé de lecture (§4.7) | Le seul point d'appui externe disparaît |
@@ -699,6 +738,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de saisie manuelle d'une session terminée dans le passé.
 - Pas d'écran ouvert du type « qu'est-ce que tu veux faire ce soir ? », pas de champ libre à remplir avant de démarrer, pas de liste de tâches à arbitrer soi-même. Toute décision que le système peut prendre à sa place, il la prend (§0.9). Un espace vide au démarrage est un mode de défaillance, pas de la liberté.
 - Pas d'XP ni de récompense pour l'usage de l'app elle-même.
+- Pas de streak quotidien cassable sur les routines d'entretien, et pas d'XP pour une routine cochée (§11.9). Une routine se mesure à la semaine et se paie en Éclats — sinon le skincare devient un moyen de monter en niveau sans travailler.
 - Pas de cosmétique qui modifie une règle. Le loot est de l'apparence, jamais du pouvoir — sinon le système récompense la chance et plus le travail.
 - Pas d'argent réel en jeu. La mise est en Éclats.
 - Pas de qualité de session, de temps d'écran ni de fuite de temps dans le bilan envoyé à l'ami.

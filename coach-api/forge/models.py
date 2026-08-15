@@ -13,6 +13,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from forge.rules import routines as rules_routines
+
 
 class Profile(models.Model):
     """Réglages de l'utilisateur. Un seul au départ, modélisé proprement."""
@@ -53,11 +55,16 @@ class DayWindow(models.Model):
 
 
 class Track(models.Model):
-    """Atelier et Corps, deux pistes indépendantes qui ne se valident jamais l'une l'autre."""
+    """Atelier, Corps et Entretien : des pistes indépendantes qui ne se valident jamais l'une l'autre.
+
+    La règle dure du §11.4, étendue à l'Entretien par le §11.9 : une routine
+    cochée ne valide aucun streak, et aucune session ne coche de routine.
+    """
 
     ATELIER = "atelier"
     CORPS = "corps"
-    KINDS = [(ATELIER, "Atelier"), (CORPS, "Corps")]
+    ENTRETIEN = "entretien"
+    KINDS = [(ATELIER, "Atelier"), (CORPS, "Corps"), (ENTRETIEN, "Entretien")]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tracks")
     kind = models.CharField(max_length=16, choices=KINDS)
@@ -320,6 +327,75 @@ class Quest(models.Model):
     @property
     def done(self) -> bool:
         return self.progress >= self.target
+
+
+class Routine(models.Model):
+    """Une routine courte de la piste Entretien (SPEC §11.9).
+
+    Le rythme (``weekdays``) et le seuil (``weekly_target``) sont deux réglages
+    distincts : c'est l'écart entre les deux qui absorbe les oublis, à la place
+    du bouclier du §4.2.
+    """
+
+    ANCHORS = [
+        (rules_routines.REVEIL, "Au réveil"),
+        (rules_routines.APRES_DOUCHE, "Après la douche"),
+        (rules_routines.FIN_DE_SESSION, "En fin de session"),
+        (rules_routines.AVANT_COUCHER, "Avant le coucher"),
+        (rules_routines.LIBRE, "Dans la journée"),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="routines")
+    track = models.ForeignKey(Track, on_delete=models.PROTECT, related_name="routines")
+    name = models.CharField(max_length=120)
+    anchor = models.CharField(max_length=24, choices=ANCHORS, default=rules_routines.LIBRE)
+    weekdays = models.JSONField(
+        default=list, blank=True, help_text="Jours où elle est proposée, 0 = lundi. Vide = tous les jours."
+    )
+    weekly_target = models.PositiveSmallIntegerField(
+        default=6, help_text="Nombre de fois par semaine qui rend la semaine tenue"
+    )
+    reward_shards = models.PositiveSmallIntegerField(default=rules_routines.SHARDS_PER_CHECK)
+    order = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self) -> str:
+        return self.name
+
+    def to_rule(self) -> rules_routines.Routine:
+        """Projection vers la logique pure — aucune règle ne vit dans le modèle."""
+        return rules_routines.Routine(
+            key=str(self.pk),
+            name=self.name,
+            weekly_target=self.weekly_target,
+            weekdays=tuple(self.weekdays or ()),
+            anchor=self.anchor,
+        )
+
+
+class RoutineCheck(models.Model):
+    """Une routine cochée un jour donné. Une seule coche par journée du coach."""
+
+    APP, TELEGRAM, AGENT = "app", "telegram", "agent"
+    SOURCES = [(APP, "App"), (TELEGRAM, "Telegram"), (AGENT, "Agent")]
+
+    routine = models.ForeignKey(Routine, on_delete=models.CASCADE, related_name="checks")
+    day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
+    checked_at = models.DateTimeField(default=timezone.now)
+    source = models.CharField(max_length=16, choices=SOURCES, default=APP)
+    shards_awarded = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("routine", "day")
+        ordering = ("-day", "routine_id")
+
+    def __str__(self) -> str:
+        return f"{self.routine} — {self.day}"
 
 
 class Achievement(models.Model):

@@ -15,6 +15,8 @@ urlpatterns = [
     path("api/sessions/<int:session_id>/end", api.end_session),
     path("api/sessions/<int:session_id>/abandon", api.abandon_session),
     path("api/steps/<int:step_id>/complete", api.complete_step),
+    path("api/routines", api.routines),
+    path("api/routines/<int:routine_id>/check", api.routine_check),
     path("api/fridge", api.fridge),
     path("api/journal", api.journal),
     path("api/relax/start", api.start_relax),

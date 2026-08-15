@@ -19,11 +19,22 @@ from forge.models import (
     Project,
     Quest,
     RoadmapStep,
+    Routine,
     Season,
     TimeSlot,
     Track,
 )
 from forge.rules.calendar import coach_day
+
+# Piste Entretien. « Rythme » et « seuil » sont deux réglages séparés (SPEC
+# §11.9) : ces routines sont proposées les sept jours, mais leur objectif
+# hebdomadaire laisse du battement — c'est lui qui absorbe les oublis, à la
+# place du bouclier du §4.2.
+ROUTINES = [
+    {"name": "Skincare du matin", "anchor": "reveil", "weekly_target": 5},
+    {"name": "Étirements", "anchor": "fin_de_session", "weekly_target": 4},
+    {"name": "Skincare du soir", "anchor": "avant_coucher", "weekly_target": 6},
+]
 
 PROJETS = [
     {
@@ -119,10 +130,25 @@ class Command(BaseCommand):
             Project.objects.filter(user=user).delete()
             Season.objects.filter(user=user).delete()
             Quest.objects.filter(user=user).delete()
+            Routine.objects.filter(user=user).delete()
             self.stdout.write("Données métier vidées.")
 
         atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
         Track.objects.get_or_create(user=user, kind=Track.CORPS)
+        entretien, _ = Track.objects.get_or_create(user=user, kind=Track.ENTRETIEN)
+
+        for order, spec in enumerate(ROUTINES):
+            Routine.objects.update_or_create(
+                user=user,
+                name=spec["name"],
+                defaults={
+                    "track": entretien,
+                    "anchor": spec["anchor"],
+                    "weekly_target": spec["weekly_target"],
+                    "weekdays": spec.get("weekdays", []),
+                    "order": order,
+                },
+            )
 
         for spec in PROJETS:
             project, _ = Project.objects.update_or_create(

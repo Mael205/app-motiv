@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, F, Max, Sum
 from django.utils import timezone
 
 from .models import (
@@ -23,11 +23,14 @@ from .models import (
     Project,
     Quest,
     RelaxWindow,
+    Routine,
+    RoutineCheck,
     Season,
     SeasonBoss,
     Session,
     Track,
 )
+from .rules import routines as routine_rules
 from .rules import seasons as season_rules
 from .rules import streak as streak_rules
 from .rules import xp as xp_rules
@@ -535,7 +538,123 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             }
             for q in Quest.objects.filter(user=user, date=today)
         ],
+        "entretien": routine_panel(user, today=today),
         "relax_used": RelaxWindow.objects.filter(user=user, coach_day=today).exists(),
+    }
+
+
+# --------------------------------------------------------------------------
+# Piste Entretien (SPEC §11.9)
+# --------------------------------------------------------------------------
+
+def _checks_by_routine(user) -> dict[str, list[date]]:
+    """Toutes les coches de l'utilisateur, indexées par routine."""
+    out: dict[str, list[date]] = {}
+    for routine_id, day in RoutineCheck.objects.filter(routine__user=user).values_list("routine_id", "day"):
+        out.setdefault(str(routine_id), []).append(day)
+    return out
+
+
+def routine_panel(user, *, today: date) -> dict:
+    """Le panneau de quêtes d'entretien du jour, groupé par ancre.
+
+    Ne renvoie que ce qui est dû aujourd'hui : une routine hors de son rythme
+    n'apparaît pas, plutôt que d'apparaître grisée (SPEC §0.9).
+    """
+    routines = list(Routine.objects.filter(user=user, active=True))
+    rules = [r.to_rule() for r in routines]
+    checks = _checks_by_routine(user)
+    entries = routine_rules.today_panel(rules, checks, today)
+
+    groups: list[dict] = []
+    for entry in entries:
+        anchor = entry.routine.anchor
+        if not groups or groups[-1]["anchor"] != anchor:
+            groups.append(
+                {
+                    "anchor": anchor,
+                    "label": routine_rules.ANCHOR_LABELS.get(anchor, anchor),
+                    "routines": [],
+                }
+            )
+        groups[-1]["routines"].append(
+            {
+                "id": int(entry.routine.key),
+                "name": entry.routine.name,
+                "checked": entry.checked_today,
+                "week_done": entry.week.done,
+                "week_target": entry.week.target,
+                "week_label": entry.week.label,
+                "week_held": entry.week.held,
+                "slack": entry.routine.slack,
+                "shards_if_checked": entry.shards_if_checked,
+            }
+        )
+
+    return {
+        "day": today.isoformat(),
+        "held_weeks": routine_rules.piste_held_weeks(rules, checks),
+        "week_held": routine_rules.piste_week_held(rules, checks, today),
+        "due_today": len(entries),
+        "done_today": sum(1 for e in entries if e.checked_today),
+        "groups": groups,
+    }
+
+
+@transaction.atomic
+def check_routine(routine: Routine, *, day: date, source: str = RoutineCheck.APP) -> dict:
+    """Coche une routine pour une journée du coach.
+
+    Idempotent : recocher le même jour ne rapporte rien de plus. Les Éclats
+    s'arrêtent à l'objectif hebdomadaire, et la semaine tenue paie son bonus une
+    seule fois — celui de la coche qui atteint le seuil.
+    """
+    rule = routine.to_rule()
+    days = list(RoutineCheck.objects.filter(routine=routine).values_list("day", flat=True))
+    if day in days:
+        return {"created": False, "shards": 0, "week": _week_payload(rule, days, day)}
+
+    before = routine_rules.week_state(rule, days, day).done
+    shards = routine_rules.shards_for_check(rule, checks_before_in_week=before)
+    if before + 1 == rule.weekly_target:
+        shards += routine_rules.WEEK_HELD_BONUS
+
+    RoutineCheck.objects.create(routine=routine, day=day, source=source, shards_awarded=shards)
+    if shards:
+        Profile.objects.filter(user=routine.user).update(shards=F("shards") + shards)
+
+    return {"created": True, "shards": shards, "week": _week_payload(rule, days + [day], day)}
+
+
+@transaction.atomic
+def uncheck_routine(routine: Routine, *, day: date) -> dict:
+    """Annule une coche du jour — correction d'un tap, pas une sanction.
+
+    Les Éclats effectivement crédités par cette coche sont repris, ni plus ni
+    moins. Rien d'autre n'est retiré (SPEC §17 : pas de sanction rétroactive).
+    """
+    check = RoutineCheck.objects.filter(routine=routine, day=day).first()
+    if check is None:
+        days = list(RoutineCheck.objects.filter(routine=routine).values_list("day", flat=True))
+        return {"removed": False, "shards": 0, "week": _week_payload(routine.to_rule(), days, day)}
+
+    shards = check.shards_awarded
+    check.delete()
+    if shards:
+        Profile.objects.filter(user=routine.user).update(shards=F("shards") - shards)
+
+    days = list(RoutineCheck.objects.filter(routine=routine).values_list("day", flat=True))
+    return {"removed": True, "shards": -shards, "week": _week_payload(routine.to_rule(), days, day)}
+
+
+def _week_payload(rule: routine_rules.Routine, days: list[date], day: date) -> dict:
+    week = routine_rules.week_state(rule, days, day)
+    return {
+        "done": week.done,
+        "target": week.target,
+        "label": week.label,
+        "held": week.held,
+        "remaining": week.remaining,
     }
 
 

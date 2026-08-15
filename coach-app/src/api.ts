@@ -1,4 +1,11 @@
-import type { HomeState, JournalEntry, ProjectDetail, SessionResult } from './types'
+import type {
+  EntretienPanel,
+  HomeState,
+  JournalEntry,
+  ProjectDetail,
+  RoutineCheckResult,
+  SessionResult,
+} from './types'
 
 const TOKEN_KEY = 'coach.access'
 const REFRESH_KEY = 'coach.refresh'
@@ -107,6 +114,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+
+  routines: () => request<EntretienPanel>('/routines'),
+
+  checkRoutine: (id: number) =>
+    request<RoutineCheckResult>(`/routines/${id}/check`, { method: 'POST' }),
+
+  uncheckRoutine: (id: number) =>
+    request<RoutineCheckResult>(`/routines/${id}/check`, { method: 'DELETE' }),
 
   startRelax: () =>
     request<{ started_at: string; ends_at: string }>('/relax/start', { method: 'POST' }),

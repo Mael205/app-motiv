@@ -15,8 +15,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
-from .models import FridgeIdea, Project, RoadmapStep, Session
+from .models import FridgeIdea, Project, RoadmapStep, Routine, Session
 from .rules.calendar import coach_day, week_start
+
+
+def _today(request) -> date:
+    """La journée du coach de l'utilisateur — jamais ``date.today()`` (SPEC §1)."""
+    profile = request.user.profile
+    return coach_day(timezone.now(), profile.timezone_name, profile.day_rollover_hour)
 
 
 @api_view(["GET"])
@@ -166,6 +172,35 @@ def complete_step(request, step_id: int):
         season.boss.save(update_fields=["damage_taken"])
 
     return Response({"id": step.id, "state": step.state, "boss_damage": damage})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def routines(request):
+    """Le panneau de quêtes d'entretien du jour (SPEC §11.9)."""
+    return Response(services.routine_panel(request.user, today=_today(request)))
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def routine_check(request, routine_id: int):
+    """Coche ou décoche une routine pour la journée en cours.
+
+    Le jour n'est jamais fourni par le client : une coche antidatée n'existe pas,
+    au même titre qu'une session saisie après coup (SPEC §17).
+    """
+    routine = Routine.objects.filter(user=request.user, id=routine_id, active=True).first()
+    if not routine:
+        return Response({"detail": "Routine introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    today = _today(request)
+    if request.method == "DELETE":
+        result = services.uncheck_routine(routine, day=today)
+    else:
+        result = services.check_routine(routine, day=today)
+
+    result["panel"] = services.routine_panel(request.user, today=today)
+    return Response(result)
 
 
 @api_view(["GET", "POST"])

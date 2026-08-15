@@ -2,6 +2,7 @@ import type { HomeState } from '../types'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { NightHud } from '../components/NightHud'
 import { RelaxGate } from '../components/RelaxGate'
+import { RoutinePanel } from '../components/RoutinePanel'
 import { SeasonBanner } from '../components/SeasonBanner'
 import './Home.css'
 
@@ -58,6 +59,8 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
           ))}
         </ul>
       )}
+
+      <RoutinePanel initial={state.entretien} />
     </>
   )
 }
