@@ -22,7 +22,6 @@ navigateur ne marquera donc jamais une journée à lui seul.
 
 from __future__ import annotations
 
-import base64
 import json
 import urllib.error
 import urllib.request
@@ -49,19 +48,62 @@ class Burst:
         return max(MIN_BURST_MINUTES, int(round(span)))
 
 
-def _request(url: str, username: str, password: str) -> dict | None:
-    """Appelle l'API AdGuard. Rend ``None`` plutôt que de lever.
+class ProbeError(Exception):
+    """Une raison précise de ne pas avoir pu lire le résolveur.
 
-    Un résolveur éteint n'est pas une erreur du système : c'est une absence de
-    mesure, et le §11.10 interdit d'en conclure quoi que ce soit.
+    « Injoignable » et « identifiants refusés » demandent des gestes opposés :
+    les confondre fait chercher un problème de réseau là où il faut corriger un
+    mot de passe. Le message doit donc porter la distinction — sans jamais
+    contenir l'identifiant lui-même.
     """
-    credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
-    request = urllib.request.Request(url, headers={"Authorization": f"Basic {credentials}"})
+
+
+def _login(base: str, username: str, password: str) -> str:
+    """Ouvre une session et rend le cookie.
+
+    AdGuard n'accepte pas l'authentification Basic sur son API : il faut passer
+    par ``/control/login`` et réutiliser le cookie de session. Un 401 renvoyé
+    sans en-tête ``WWW-Authenticate`` est le signe de ce fonctionnement.
+    """
+    payload = json.dumps({"name": username, "password": password}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{base}/control/login",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.headers.get("Set-Cookie", "")
+    except urllib.error.HTTPError as error:
+        if error.code in (400, 401, 403):
+            raise ProbeError(
+                "identifiants refusés par AdGuard — corrige [adguard] dans config.local.toml"
+            ) from error
+        raise ProbeError(f"AdGuard a répondu {error.code} à la connexion") from error
+    except (urllib.error.URLError, OSError) as error:
+        raise ProbeError("AdGuard injoignable — le service tourne-t-il ?") from error
+
+    cookie = raw.split(";", 1)[0].strip() if raw else ""
+    if not cookie:
+        raise ProbeError("AdGuard n'a pas renvoyé de cookie de session")
+    return cookie
+
+
+def _get(url: str, cookie: str) -> dict:
+    """Appel authentifié par le cookie de session."""
+    request = urllib.request.Request(url, headers={"Cookie": cookie})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return json.load(response)
-    except (urllib.error.URLError, OSError, ValueError):
-        return None
+    except urllib.error.HTTPError as error:
+        if error.code in (401, 403):
+            raise ProbeError("session AdGuard refusée ou expirée") from error
+        raise ProbeError(f"AdGuard a répondu {error.code}") from error
+    except (urllib.error.URLError, OSError) as error:
+        raise ProbeError("AdGuard injoignable — le service tourne-t-il ?") from error
+    except ValueError as error:
+        raise ProbeError("réponse d'AdGuard illisible") from error
 
 
 def _domain_of(entry: dict) -> str:
@@ -72,13 +114,15 @@ def _domain_of(entry: dict) -> str:
 
 def fetch_queries(
     base_url: str, username: str, password: str, *, since: datetime
-) -> list[tuple[datetime, str]] | None:
+) -> list[tuple[datetime, str]]:
     """Requêtes DNS depuis ``since``, sous forme de ``(instant, domaine)``.
 
-    Rend ``None`` si le résolveur est injoignable — à distinguer d'une liste
-    vide, qui signifie « joignable, et rien vu ».
+    Lève ``ProbeError`` si le résolveur n'a pas pu être lu. Une liste vide
+    signifie « lu, et rien vu » — les deux ne permettent pas les mêmes
+    conclusions (SPEC §11.10).
     """
     base = base_url.rstrip("/")
+    cookie = _login(base, username, password)
     out: list[tuple[datetime, str]] = []
     older_than = ""
 
@@ -87,9 +131,12 @@ def fetch_queries(
         if older_than:
             url += f"&older_than={older_than}"
 
-        payload = _request(url, username, password)
-        if payload is None:
-            return None if not out else out
+        try:
+            payload = _get(url, cookie)
+        except ProbeError:
+            if out:
+                break          # première page lue : on garde ce qu'on a
+            raise
 
         entries = payload.get("data") or []
         if not entries:

@@ -146,14 +146,15 @@ def poll_adguard(config: dict, categoriser: Categoriser, *, since: datetime, ver
     if not section.get("url"):
         return
 
-    queries = adguard.fetch_queries(
-        section["url"],
-        section.get("username", ""),
-        section.get("password", ""),
-        since=since,
-    )
-    if queries is None:
-        print("AdGuard Home injoignable — aucune mesure réseau. Rien n'en est déduit.")
+    try:
+        queries = adguard.fetch_queries(
+            section["url"],
+            section.get("username", ""),
+            section.get("password", ""),
+            since=since,
+        )
+    except adguard.ProbeError as error:
+        print(f"AdGuard : {error}. Aucune mesure réseau, et rien n'en est déduit.")
         return
 
     # La traduction domaine → catégorie se fait sur cette machine, et le domaine
