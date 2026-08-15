@@ -36,6 +36,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from . import slots
+
 MAX_SESSIONS_PER_STEP = 3
 DEFAULT_ESTIMATE = 2
 DEFAULT_COLOR = "#E8A33D"
@@ -59,6 +61,7 @@ _META_KEYS = {
     "couleur": "color",
     "embleme": "emblem",
     "engagement": "weekly_commitment",
+    "domaine": "domain",
 }
 
 _MARKS = {" ": TODO, "": TODO, ">": DOING, "x": DONE, "X": DONE}
@@ -81,6 +84,7 @@ class ParsedProject:
 
     name: str = ""
     branch: str = ""
+    domain: str = slots.CODE
     color: str = DEFAULT_COLOR
     emblem: str = DEFAULT_EMBLEM
     weekly_commitment: int = DEFAULT_COMMITMENT
@@ -166,6 +170,15 @@ def _apply_meta(parsed: ParsedProject, key: str, value: str) -> None:
             parsed.weekly_commitment = max(1, min(7, int(digits.group())))
     elif field_name == "emblem":
         parsed.emblem = value[:8]
+    elif field_name == "domain":
+        candidate = _strip_accents(value).strip()
+        if candidate in slots.DOMAINS:
+            parsed.domain = candidate
+        else:
+            parsed.warnings.append(
+                f"Domaine « {value} » inconnu, « code » retenu par défaut. "
+                f"Attendus : {', '.join(slots.DOMAINS)}."
+            )
     else:
         parsed.branch = value[:32]
 

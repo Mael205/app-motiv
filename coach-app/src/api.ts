@@ -1,5 +1,6 @@
 import type {
   EntretienPanel,
+  GardesPanel,
   HomeState,
   JournalEntry,
   ProjectDetail,
@@ -127,6 +128,14 @@ export const api = {
     request<ProjectImportResult>('/projects/import', {
       method: 'POST',
       body: JSON.stringify({ markdown }),
+    }),
+
+  gardes: () => request<GardesPanel>('/gardes'),
+
+  declareGarde: (id: number, occurred: boolean) =>
+    request<GardesPanel>(`/gardes/${id}/declare`, {
+      method: 'POST',
+      body: JSON.stringify({ occurred }),
     }),
 
   routines: () => request<EntretienPanel>('/routines'),

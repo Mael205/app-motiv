@@ -146,16 +146,25 @@ class TestCreation:
     def test_les_slots_se_remplissent_dans_l_ordre(self, user):
         from forge import services
 
-        slots = [services.create_project_from_markdown(user, f"# P{i}\n\n- [ ] Étape\n").slot for i in range(3)]
+        # Domaines variés : la règle de diversité du §4.3 est testée à part.
+        domaines = ("code", "code", "corps")
+        slots = [
+            services.create_project_from_markdown(
+                user, f"# P{i}\n\nDomaine: {d}\n\n- [ ] Étape\n"
+            ).slot
+            for i, d in enumerate(domaines)
+        ]
         assert slots == [1, 2, 3]
 
     def test_le_quatrieme_projet_part_au_frigo(self, user):
         from forge import services
         from forge.models import Project
 
-        for i in range(3):
-            services.create_project_from_markdown(user, f"# P{i}\n\n- [ ] Étape\n")
-        quatrieme = services.create_project_from_markdown(user, "# Quatrième\n\n- [ ] Étape\n")
+        for i, d in enumerate(("code", "code", "corps")):
+            services.create_project_from_markdown(user, f"# P{i}\n\nDomaine: {d}\n\n- [ ] Étape\n")
+        quatrieme = services.create_project_from_markdown(
+            user, "# Quatrième\n\nDomaine: savoir\n\n- [ ] Étape\n"
+        )
         assert quatrieme.status == Project.FRIDGE
         assert quatrieme.slot is None
 

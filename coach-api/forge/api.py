@@ -15,7 +15,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
-from .models import FridgeIdea, Project, RoadmapStep, Routine, Session
+from .models import FridgeIdea, Garde, Project, RoadmapStep, Routine, Session
+from .rules import slots as slot_rules
 from .rules.calendar import coach_day, week_start
 
 
@@ -57,6 +58,8 @@ def projects(request):
                 "color": project.color,
                 "emblem": project.emblem,
                 "track": project.track.kind,
+                "domain": project.domain,
+                "domain_label": slot_rules.DOMAIN_LABELS.get(project.domain, project.domain),
                 "completion": project.completion,
                 "weekly_commitment": project.weekly_commitment,
                 "is_coach_project": project.is_coach_project,
@@ -189,6 +192,7 @@ def preview_project(request):
 def import_project(request):
     """Crée le projet et sa roadmap. Au frigo si les trois slots sont pris."""
     markdown = request.data.get("markdown", "")
+    before = services.taken_slots(request.user)
     try:
         project = services.create_project_from_markdown(request.user, markdown)
     except ValueError as error:
@@ -200,15 +204,39 @@ def import_project(request):
             "name": project.name,
             "status": project.status,
             "slot": project.slot,
+            "domain": project.domain,
             "steps": project.steps.count(),
             "detail": (
                 f"Projet créé sur le slot {project.slot}."
                 if project.slot
-                else "Les trois slots sont pris : le projet part au frigo. L'échange se fait le dimanche."
+                else slot_rules.refused_reason(before, project.domain) or "Projet envoyé au frigo."
             ),
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def gardes(request):
+    """L'état des gardes du jour (SPEC §11.10)."""
+    return Response(services.gardes_panel(request.user, today=_today(request)))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def declare_garde(request, garde_id: int):
+    """Déclare la journée en cours pour une garde : tenue, ou marquée.
+
+    Comme pour une session, la journée n'est jamais fournie par le client : on
+    déclare aujourd'hui, pas hier (SPEC §17).
+    """
+    garde = Garde.objects.filter(user=request.user, id=garde_id, active=True).first()
+    if not garde:
+        return Response({"detail": "Garde introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    occurred = bool(request.data.get("occurred", False))
+    return Response(services.declare_garde(garde, day=_today(request), occurred=occurred))
 
 
 @api_view(["GET"])

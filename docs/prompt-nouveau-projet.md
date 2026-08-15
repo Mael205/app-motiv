@@ -4,6 +4,10 @@ Le coach n'a pas encore sa couche IA (SPEC §5.6). En attendant, l'interrogation
 qui produit une bonne roadmap se fait dans un chat, et le résultat se colle dans
 l'app : **Projets → Nouveau projet → coller → confirmer**.
 
+> Le prompt est aussi **embarqué dans l'app**, copiable en un tap depuis l'écran
+> « Nouveau projet ». C'est la version à utiliser sur le téléphone : ce fichier
+> sert de référence, pas de source unique.
+
 Ce prompt existe pour une raison précise. Une roadmap dont l'étape courante est
 floue est traitée par le §4.5 comme un **défaut du système**, pas comme un état
 normal : le soir, le coach doit pouvoir proposer « étape 3, écrire le test de
@@ -40,6 +44,7 @@ sont là pour empêcher ça.
 > ```markdown
 > # Nom du projet
 >
+> Domaine: code
 > Branche: backend
 > Couleur: #4FC4B4
 > Emblème: ◈
@@ -54,9 +59,14 @@ sont là pour empêcher ça.
 > ```
 >
 > Règles de format : `[ ]` à faire, `[>]` en cours, `[x]` fait. Le nombre entre
-> parenthèses est l'estimation en sessions de 25 minutes. `Branche` est une
-> parmi `moteur_de_jeu`, `backend`, `data_rl`, `web`, `cyber`, `corps`.
-> `Engagement` est le nombre de sessions visées par semaine, entre 1 et 7.
+> parenthèses est l'estimation en sessions de 25 minutes.
+>
+> `Domaine` est un parmi `code`, `corps`, `creatif`, `savoir`, `pratique`. Il sert
+> à garder mes trois projets actifs variés : je ne peux pas avoir plus de deux
+> projets du même domaine en même temps. Demande-le-moi si ce n'est pas évident.
+>
+> `Branche` est une parmi `moteur_de_jeu`, `backend`, `data_rl`, `web`, `cyber`,
+> `corps`. `Engagement` est le nombre de sessions visées par semaine, entre 1 et 7.
 
 ---
 
@@ -72,10 +82,12 @@ que ce soit, avec les avertissements :
 
 Aucun de ces avertissements ne bloque la création. Ils se montrent, tu décides.
 
-**Slots.** Si un des trois slots est libre, le projet y atterrit et devient
-actif. Si les trois sont pris, il part **au frigo** — la limite du §4.3 ne se
-contourne pas, mais l'idée ne se perd pas. L'échange de slot reste un geste du
-dimanche.
+**Slots.** Si un slot compatible est libre, le projet y atterrit et devient
+actif. Deux limites dures s'appliquent (§4.3) : trois projets actifs au maximum,
+et **deux slots au maximum par domaine** — trois projets de code dans les trois
+slots, c'est une seule vie déguisée en trois. Sinon, le projet part **au frigo** :
+la limite ne se contourne pas, mais l'idée ne se perd pas. L'échange de slot
+reste un geste du dimanche.
 
 **Le format est stable.** Le jour où la couche IA du §5.6 existera, la
 conversation se fera dans l'app et produira exactement ce même markdown, lu par

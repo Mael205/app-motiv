@@ -36,6 +36,8 @@ export interface ProjectDetail {
   color: string
   emblem: string
   track: string
+  domain: string
+  domain_label: string
   completion: number
   weekly_commitment: number
   is_coach_project: boolean
@@ -127,6 +129,8 @@ export interface ProjectPreview {
   valid: boolean
   name: string
   branch: string
+  domain: string
+  domain_label: string
   color: string
   emblem: string
   weekly_commitment: number
@@ -142,6 +146,28 @@ export interface ProjectImportResult {
   slot: number | null
   steps: number
   detail: string
+}
+
+/** Une garde : un comportement à réduire, mesuré par un budget hebdomadaire (SPEC §11.10). */
+export interface GardeEntry {
+  id: number
+  name: string
+  budget: number
+  declared_today: boolean
+  occurred_today: boolean
+  week_marked: number
+  week_label: string
+  week_held: boolean
+  week_left: number
+  held_days: number
+  held_weeks: number
+  message: string
+}
+
+export interface GardesPanel {
+  day: string
+  gardes: GardeEntry[]
+  to_declare: number
 }
 
 /** Une routine de la piste Entretien, telle que le panneau du jour l'affiche. */
@@ -195,6 +221,7 @@ export interface HomeState {
   proposal: Proposal | null
   quests: Quest[]
   entretien: EntretienPanel
+  gardes: GardesPanel
   relax_used: boolean
 }
 

@@ -1,5 +1,6 @@
 import type { HomeState } from '../types'
 import { DecisionBlock } from '../components/DecisionBlock'
+import { GardePanel } from '../components/GardePanel'
 import { NightHud } from '../components/NightHud'
 import { RelaxGate } from '../components/RelaxGate'
 import { RoutinePanel } from '../components/RoutinePanel'
@@ -61,6 +62,8 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
       )}
 
       <RoutinePanel initial={state.entretien} />
+
+      <GardePanel initial={state.gardes} />
     </>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { PROJECT_PROMPT } from '../lib/projectPrompt'
 import type { ProjectPreview } from '../types'
 import './NewProject.css'
 
@@ -19,8 +20,22 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false)
   const [markdown, setMarkdown] = useState('')
   const [preview, setPreview] = useState<ProjectPreview | null>(null)
+  const [showPrompt, setShowPrompt] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(PROJECT_PROMPT)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // Presse-papiers refusé (contexte non sécurisé, permission) : on montre
+      // le texte, l'utilisateur le sélectionne à la main.
+      setShowPrompt(true)
+    }
+  }
 
   async function analyse() {
     setBusy(true)
@@ -62,9 +77,19 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
   return (
     <div className="newproject">
       <p className="section-hint">
-        Fais-toi interroger dans un chat avec le prompt de{' '}
-        <code>docs/prompt-nouveau-projet.md</code>, puis colle le markdown ici.
+        Copie le prompt, fais-toi interroger dans un chat, puis colle le markdown obtenu ici.
       </p>
+
+      <div className="row">
+        <button className="ghost" onClick={copyPrompt}>
+          {copied ? 'Prompt copié' : 'Copier le prompt'}
+        </button>
+        <button className="ghost" onClick={() => setShowPrompt((v) => !v)}>
+          {showPrompt ? 'Masquer' : 'Le lire'}
+        </button>
+      </div>
+
+      {showPrompt && <pre className="newproject__prompt">{PROJECT_PROMPT}</pre>}
 
       <textarea
         className="newproject__input"
@@ -101,8 +126,8 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
             <span style={{ color: preview.color }}>{preview.emblem}</span> {preview.name || 'Sans titre'}
           </h3>
           <p className="label">
-            {preview.branch || 'branche non précisée'} · {preview.weekly_commitment} sessions/semaine ·{' '}
-            {preview.open_steps} étape(s) ouverte(s)
+            {preview.domain_label} · {preview.branch || 'branche non précisée'} ·{' '}
+            {preview.weekly_commitment} sessions/semaine · {preview.open_steps} étape(s) ouverte(s)
           </p>
 
           <ul className="newproject__steps">

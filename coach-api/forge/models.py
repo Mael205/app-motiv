@@ -10,10 +10,13 @@ from __future__ import annotations
 from datetime import time
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from forge.rules import gardes as rules_gardes
 from forge.rules import routines as rules_routines
+from forge.rules import slots as rules_slots
 
 
 class Profile(models.Model):
@@ -88,6 +91,12 @@ class Project(models.Model):
     color = models.CharField(max_length=7, default="#E8A33D")
     emblem = models.CharField(max_length=8, default="◆", help_text="Glyphe affiché sur la jauge")
     branch = models.CharField(max_length=32, blank=True, help_text="Branche de l'arbre de compétences")
+    domain = models.CharField(
+        max_length=16,
+        choices=[(d, rules_slots.DOMAIN_LABELS[d]) for d in rules_slots.DOMAINS],
+        default=rules_slots.CODE,
+        help_text="Deux slots au maximum par domaine (SPEC §4.3)",
+    )
     is_coach_project = models.BooleanField(default=False)
     weekly_commitment = models.PositiveSmallIntegerField(default=3)
     created_at = models.DateTimeField(default=timezone.now)
@@ -396,6 +405,65 @@ class RoutineCheck(models.Model):
 
     def __str__(self) -> str:
         return f"{self.routine} — {self.day}"
+
+
+class Garde(models.Model):
+    """Un comportement à réduire, mesuré par un budget hebdomadaire (SPEC §11.10).
+
+    Le budget ne descend jamais à zéro : viser « plus jamais » transforme la
+    première fois en abandon complet. La contrainte est portée par la base, pas
+    seulement par le formulaire.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="gardes")
+    name = models.CharField(max_length=120)
+    weekly_budget = models.PositiveSmallIntegerField(
+        default=2,
+        validators=[
+            MinValueValidator(rules_gardes.MIN_BUDGET),
+            MaxValueValidator(rules_gardes.MAX_BUDGET),
+        ],
+        help_text="Jours tolérés par semaine. Jamais zéro (SPEC §11.10).",
+    )
+    order = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("order", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(weekly_budget__gte=rules_gardes.MIN_BUDGET),
+                name="garde_budget_jamais_zero",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def to_rule(self) -> rules_gardes.Garde:
+        return rules_gardes.Garde(
+            key=str(self.pk),
+            name=self.name,
+            weekly_budget=self.weekly_budget,
+        )
+
+
+class GardeDay(models.Model):
+    """Une journée déclarée pour une garde. Non déclarée = ni tenue ni marquée."""
+
+    garde = models.ForeignKey(Garde, on_delete=models.CASCADE, related_name="days")
+    day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
+    occurred = models.BooleanField(default=False, help_text="Le comportement a eu lieu ce jour-là")
+    declared_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("garde", "day")
+        ordering = ("-day", "garde_id")
+
+    def __str__(self) -> str:
+        return f"{self.garde} — {self.day} — {'marqué' if self.occurred else 'tenu'}"
 
 
 class Achievement(models.Model):

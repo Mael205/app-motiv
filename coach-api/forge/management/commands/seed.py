@@ -15,6 +15,7 @@ from django.utils import timezone
 from forge import services
 from forge.models import (
     DayWindow,
+    Garde,
     Profile,
     Project,
     Quest,
@@ -36,9 +37,19 @@ ROUTINES = [
     {"name": "Skincare du soir", "anchor": "avant_coucher", "weekly_target": 6},
 ]
 
+
+# Les gardes (SPEC §11.10). Un budget hebdomadaire, jamais zéro : viser
+# « plus jamais » transforme la première fois en abandon complet.
+GARDES = [
+    {"name": "Réseaux sociaux", "weekly_budget": 2},
+    {"name": "Scroll passif le soir", "weekly_budget": 2},
+    {"name": "Porno", "weekly_budget": 1},
+]
+
 PROJETS = [
     {
         "name": "Prototype UE5 — 4v1 asymétrique",
+        "domain": "code",
         "color": "#E8A33D",
         "emblem": "⬢",
         "branch": "moteur_de_jeu",
@@ -53,6 +64,7 @@ PROJETS = [
     },
     {
         "name": "Outils Dofus 3 — rentabilité craft",
+        "domain": "code",
         "color": "#4FC4B4",
         "emblem": "◈",
         "branch": "backend",
@@ -67,6 +79,7 @@ PROJETS = [
     },
     {
         "name": "Bot Slay the Spire 2 — RL",
+        "domain": "code",
         "color": "#8A6FB0",
         "emblem": "✦",
         "branch": "data_rl",
@@ -80,6 +93,7 @@ PROJETS = [
     },
     {
         "name": "Développement du coach",
+        "domain": "code",
         "color": "#DE5F7E",
         "emblem": "◆",
         "branch": "backend",
@@ -131,11 +145,19 @@ class Command(BaseCommand):
             Season.objects.filter(user=user).delete()
             Quest.objects.filter(user=user).delete()
             Routine.objects.filter(user=user).delete()
+            Garde.objects.filter(user=user).delete()
             self.stdout.write("Données métier vidées.")
 
         atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
         Track.objects.get_or_create(user=user, kind=Track.CORPS)
         entretien, _ = Track.objects.get_or_create(user=user, kind=Track.ENTRETIEN)
+
+        for order, spec in enumerate(GARDES):
+            Garde.objects.update_or_create(
+                user=user,
+                name=spec["name"],
+                defaults={"weekly_budget": spec["weekly_budget"], "order": order},
+            )
 
         for order, spec in enumerate(ROUTINES):
             Routine.objects.update_or_create(
@@ -159,6 +181,7 @@ class Command(BaseCommand):
                     "color": spec["color"],
                     "emblem": spec["emblem"],
                     "branch": spec["branch"],
+                    "domain": spec.get("domain", "code"),
                     "slot": spec["slot"],
                     "is_coach_project": spec.get("is_coach_project", False),
                     "weekly_commitment": 3,

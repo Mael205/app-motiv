@@ -124,7 +124,8 @@ function ProjectCard({
         <div className="pcard__titles">
           <h3 className="pcard__name">{project.name}</h3>
           <span className="label">
-            {project.slot ? `Slot ${project.slot}` : 'Hors slot'} · {done} sur {project.steps.length} étapes
+            {project.slot ? `Slot ${project.slot}` : 'Hors slot'} · {project.domain_label} · {done} sur{' '}
+            {project.steps.length} étapes
           </span>
           <span className="pcard__commit">
             <Icon.target size={13} /> {project.weekly_commitment} sessions visées par semaine

@@ -18,6 +18,8 @@ from .models import (
     Achievement,
     Commitment,
     DayOff,
+    Garde,
+    GardeDay,
     JournalEntry,
     Profile,
     Project,
@@ -31,9 +33,11 @@ from .models import (
     Session,
     Track,
 )
+from .rules import gardes as garde_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import seasons as season_rules
+from .rules import slots as slot_rules
 from .rules import streak as streak_rules
 from .rules import xp as xp_rules
 from .rules.calendar import coach_day, day_bounds, evening_window, week_start
@@ -541,6 +545,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             for q in Quest.objects.filter(user=user, date=today)
         ],
         "entretien": routine_panel(user, today=today),
+        "gardes": gardes_panel(user, today=today),
         "relax_used": RelaxWindow.objects.filter(user=user, coach_day=today).exists(),
     }
 
@@ -556,6 +561,8 @@ def preview_project(markdown: str) -> dict:
         "valid": parsed.valid,
         "name": parsed.name,
         "branch": parsed.branch,
+        "domain": parsed.domain,
+        "domain_label": slot_rules.DOMAIN_LABELS.get(parsed.domain, parsed.domain),
         "color": parsed.color,
         "emblem": parsed.emblem,
         "weekly_commitment": parsed.weekly_commitment,
@@ -573,14 +580,22 @@ def preview_project(markdown: str) -> dict:
     }
 
 
-def free_slot(user) -> int | None:
-    """Le premier slot libre, ou rien. La limite de 3 est dure (SPEC §4.3)."""
-    taken = set(
+def taken_slots(user) -> list[tuple[int, str]]:
+    """Les ``(slot, domaine)`` actuellement occupés."""
+    return list(
         Project.objects.filter(user=user, status=Project.ACTIVE)
         .exclude(slot=None)
-        .values_list("slot", flat=True)
+        .values_list("slot", "domain")
     )
-    return next((s for s in (1, 2, 3) if s not in taken), None)
+
+
+def free_slot(user, domain: str = slot_rules.CODE) -> int | None:
+    """Le slot qu'un projet de ce domaine peut prendre, ou rien (SPEC §4.3).
+
+    Deux limites dures s'appliquent : trois projets actifs, et deux slots par
+    domaine.
+    """
+    return slot_rules.assign_slot(taken_slots(user), domain)
 
 
 @transaction.atomic
@@ -596,7 +611,7 @@ def create_project_from_markdown(user, markdown: str) -> Project:
         raise ValueError("; ".join(parsed.warnings) or "Markdown illisible.")
 
     track, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
-    slot = free_slot(user)
+    slot = free_slot(user, parsed.domain)
 
     project = Project.objects.create(
         user=user,
@@ -607,6 +622,7 @@ def create_project_from_markdown(user, markdown: str) -> Project:
         color=parsed.color,
         emblem=parsed.emblem,
         branch=parsed.branch,
+        domain=parsed.domain,
         weekly_commitment=parsed.weekly_commitment,
     )
     for order, step in enumerate(parsed.steps):
@@ -619,6 +635,70 @@ def create_project_from_markdown(user, markdown: str) -> Project:
             done_at=timezone.now() if step.state == RoadmapStep.DONE else None,
         )
     return project
+
+
+# --------------------------------------------------------------------------
+# Les gardes (SPEC §11.10)
+# --------------------------------------------------------------------------
+
+def _garde_days(user) -> tuple[dict[str, list[date]], dict[str, list[date]]]:
+    """Jours déclarés et jours marqués, indexés par garde."""
+    declared: dict[str, list[date]] = {}
+    marked: dict[str, list[date]] = {}
+    rows = GardeDay.objects.filter(garde__user=user).values_list("garde_id", "day", "occurred")
+    for garde_id, day, occurred in rows:
+        key = str(garde_id)
+        declared.setdefault(key, []).append(day)
+        if occurred:
+            marked.setdefault(key, []).append(day)
+    return declared, marked
+
+
+def gardes_panel(user, *, today: date) -> dict:
+    """L'état des gardes du jour. Ne sort jamais de l'app (SPEC §11.10)."""
+    gardes = list(Garde.objects.filter(user=user, active=True))
+    declared, marked = _garde_days(user)
+
+    payload = []
+    for garde in gardes:
+        rule = garde.to_rule()
+        key = str(garde.pk)
+        week = garde_rules.week_state(rule, marked.get(key, []), today)
+        total = garde_rules.held_days(declared.get(key, []), marked.get(key, []))
+        today_row = next((d for d in declared.get(key, []) if d == today), None)
+        payload.append(
+            {
+                "id": garde.pk,
+                "name": garde.name,
+                "budget": garde.weekly_budget,
+                "declared_today": today_row is not None,
+                "occurred_today": today in marked.get(key, []),
+                "week_marked": week.marked,
+                "week_label": week.label,
+                "week_held": week.held,
+                "week_left": week.left,
+                "held_days": total,
+                "held_weeks": garde_rules.held_weeks(rule, declared.get(key, []), marked.get(key, [])),
+                "message": garde_rules.message_for(week, total),
+            }
+        )
+
+    return {
+        "day": today.isoformat(),
+        "gardes": payload,
+        "to_declare": sum(1 for g in payload if not g["declared_today"]),
+    }
+
+
+@transaction.atomic
+def declare_garde(garde: Garde, *, day: date, occurred: bool) -> dict:
+    """Déclare une journée. Redéclarer le même jour corrige, ça n'empile pas."""
+    GardeDay.objects.update_or_create(
+        garde=garde,
+        day=day,
+        defaults={"occurred": occurred, "declared_at": timezone.now()},
+    )
+    return gardes_panel(garde.user, today=day)
 
 
 # --------------------------------------------------------------------------

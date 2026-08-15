@@ -17,6 +17,8 @@ urlpatterns = [
     path("api/steps/<int:step_id>/complete", api.complete_step),
     path("api/projects/preview", api.preview_project),
     path("api/projects/import", api.import_project),
+    path("api/gardes", api.gardes),
+    path("api/gardes/<int:garde_id>/declare", api.declare_garde),
     path("api/routines", api.routines),
     path("api/routines/<int:routine_id>/check", api.routine_check),
     path("api/fridge", api.fridge),

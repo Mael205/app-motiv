@@ -123,6 +123,7 @@ L'anti-fragilité est la mécanique la plus importante du produit.
 ### 4.3 Trois slots actifs + le frigo
 
 - **Maximum 3 projets actifs.** Hard limit. C'est le cœur du dispositif anti-dispersion.
+- **Maximum 2 slots par domaine.** Deuxième limite dure : trois projets de code dans les trois slots, c'est une seule vie déguisée en trois. Le troisième slot doit venir d'un autre domaine — `code`, `corps`, `creatif`, `savoir`, `pratique`. Un projet qui ne trouve pas de slot compatible part au frigo, comme un quatrième projet. La règle se vérifie au moment où un projet prend un slot, pas après coup.
 - **Le frigo** : capture illimitée d'idées de projets. Champ libre, 5 secondes, accessible en un tap depuis le téléphone ou en un message Telegram.
 - **Échange de slot uniquement le dimanche.** Le reste de la semaine, le bouton est désactivé avec la date du prochain créneau. Un projet sorti d'un slot va en archive, pas à la poubelle : ses heures et son journal restent.
 - Chaque projet actif porte un **engagement hebdo** : nombre de sessions visées cette semaine (défaut 3). La somme des engagements est plafonnée à ce que la fenêtre du soir permet réellement — refuse et affiche l'incohérence s'il sur-engage.
@@ -333,7 +334,8 @@ Device(id, user, kind[pc|phone], name, paired_at, push_subscription)
 
 Track(id, user, kind[atelier|corps|entretien])
 Project(id, user, track, name, status[active|fridge|archived], slot[1..3|null], color,
-        emblem, is_coach_project, created_at, archived_at)
+        emblem, domain[code|corps|creatif|savoir|pratique], is_coach_project,
+        created_at, archived_at)
 ProjectRepo(id, project, path, remote)
 WorkProfile(id, project, executables[], folders[], urls[], commands[])
 RoadmapStep(id, project, order, label, state[todo|doing|done], estimated_sessions,
@@ -365,6 +367,8 @@ Quest(id, user, scope[jour|semaine], date_or_week, kind[plancher|bonus|hebdo], l
 
 Routine(id, user, track, name, anchor[reveil|apres_douche|avant_coucher|fin_de_session|libre],
         weekdays[], weekly_target, reward_shards, order, active, created_at, archived_at)
+Garde(id, user, name, weekly_budget, order, active, created_at, archived_at)  # §11.10
+GardeDay(id, garde, day, occurred, declared_at)                        # unique (garde, day)
 RoutineCheck(id, routine, day, checked_at, source, shards_awarded)      # unique (routine, day)
 RoutineWeek(id, routine, week_start, done, target, held, bonus_awarded) # semaines tenues, cumulatif
 
@@ -486,6 +490,27 @@ Les deux ne sont pas liés, et c'est là que se loge l'anti-fragilité. Une rout
 - **Aucune pénalité, aucun compte à rebours menaçant, aucune mise en scène de l'échec.** Le registre visuel est emprunté, la mécanique punitive ne l'est pas (§17). Le panneau d'une journée où rien n'est coché est identique à celui d'une journée pleine, à la coche près.
 
 **Ce que la piste ne fait pas.** Elle ne consomme aucun des 3 slots (§4.3), ne pèse sur aucun engagement hebdomadaire, ne déclenche pas le gardien du soir (§5.4), et n'apparaît pas dans le bilan envoyé à l'ami (§4.7) — l'ami reçoit un état du travail, pas un relevé d'hygiène.
+
+### 11.10 Les gardes — ce qu'il s'agit de ne pas faire
+
+Réseaux sociaux, porno, et ce qui fonctionne de la même manière : des comportements dont l'utilisateur veut réduire la fréquence. C'est le miroir du §11.9, et le piège y est plus dangereux encore.
+
+**Un objectif à zéro pour toujours est refusé par construction.** « Plus jamais » est une promesse qu'on tient jusqu'à la première fois, et la première fois devient alors une preuve d'échec total — exactement le mécanisme du §0.3, appliqué au sujet où il fait le plus de dégâts. Le système ne le propose donc pas, même si l'utilisateur le demande.
+
+**Une garde porte un budget hebdomadaire, pas une interdiction.** Un plafond de jours par semaine : deux pour les réseaux, un pour le reste, ajustables. Rester sous le plafond **est** l'objectif atteint, pas un échec toléré. C'est la même mécanique que le plafond d'XP du §4.4 : le système donne une limite tenable plutôt qu'un idéal qui sera raté.
+
+**Déclaration quotidienne, dans le panneau du soir.** Pour chaque garde active, une coche : la journée est tenue ou elle ne l'est pas. Une journée non déclarée n'est ni l'un ni l'autre — elle ne compte nulle part, et ne se rattrape pas le lendemain.
+
+**Deux compteurs, aucun qui ne redescende.**
+
+- Le grand chiffre est le **cumul de jours tenus**, strictement monotone. Une semaine au-dessus du budget n'en retire aucun.
+- La semaine est **tenue** si le nombre de jours marqués est inférieur ou égal au budget. Le cumul de semaines tenues suit la même règle qu'au §11.9.
+
+**Ton.** Le dépassement s'affiche comme un fait, jamais comme un jugement : *« 3 jours cette semaine, budget 2. La semaine ne compte pas. Les 47 jours tenus restent acquis. »* Aucune mention de volonté, de rechute, de discipline, de progrès perdu. Le §17 interdit déjà la culpabilisation ; ici c'est la règle la plus importante du sous-système.
+
+**Confidentialité.** Les gardes ne sortent **jamais** de l'app : ni dans le bilan hebdomadaire envoyé à l'ami (§4.7), ni dans les exports, ni dans les notifications qui pourraient s'afficher sur un écran verrouillé. Le §17 exclut déjà le temps d'écran de ce bilan ; l'exclusion des gardes est plus stricte encore et ne se paramètre pas.
+
+**Pas de surveillance.** La déclaration est manuelle. Aucune détection automatique, aucune capture, aucun historique de navigation lu pour vérifier une garde — le §17 l'interdit déjà pour l'agent, et cela vaut ici sans exception. Le système croit ce qui est déclaré.
 
 ---
 
@@ -741,6 +766,9 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas d'écran ouvert du type « qu'est-ce que tu veux faire ce soir ? », pas de champ libre à remplir avant de démarrer, pas de liste de tâches à arbitrer soi-même. Toute décision que le système peut prendre à sa place, il la prend (§0.9). Un espace vide au démarrage est un mode de défaillance, pas de la liberté.
 - Pas d'XP ni de récompense pour l'usage de l'app elle-même.
 - Pas de streak quotidien cassable sur les routines d'entretien, et pas d'XP pour une routine cochée (§11.9). Une routine se mesure à la semaine et se paie en Éclats — sinon le skincare devient un moyen de monter en niveau sans travailler.
+- Pas de garde à objectif zéro, pas de compteur « jours depuis la dernière fois » remis à zéro, pas un mot de jugement sur un dépassement (§11.10). Une garde a un budget hebdomadaire tenable, et le cumul de jours tenus ne redescend jamais.
+- Pas de garde dans le bilan envoyé à l'ami, dans un export ou dans une notification lisible sur écran verrouillé. Aucun paramètre ne permet de l'activer.
+- Pas de trois projets du même domaine dans les trois slots (§4.3).
 - Pas de cosmétique qui modifie une règle. Le loot est de l'apparence, jamais du pouvoir — sinon le système récompense la chance et plus le travail.
 - Pas d'argent réel en jeu. La mise est en Éclats.
 - Pas de qualité de session, de temps d'écran ni de fuite de temps dans le bilan envoyé à l'ami.

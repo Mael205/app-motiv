@@ -54,13 +54,20 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 cd coach-api && .venv/Scripts/python -m pytest
 ```
 
-143 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+179 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
-les deux invariants de la piste Entretien — aucun compteur qui redescend, aucune
-XP pour une routine — et la lecture du markdown de création de projet. La logique
-vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est dupliquée
-nulle part ailleurs — surtout pas côté client.
+la lecture du markdown de création de projet et les deux limites dures de
+l'attribution de slot.
+
+Trois d'entre eux gardent des promesses plutôt que des calculs, et ce sont
+peut-être les plus importants : aucun compteur d'Entretien ne redescend, aucune
+routine ne rapporte d'XP, et aucun message de dépassement d'une garde ne contient
+un mot de jugement. Ces règles-là se perdent au premier refactoring si personne
+ne les surveille.
+
+La logique vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est
+dupliquée nulle part ailleurs — surtout pas côté client.
 
 ## Ce qui est déjà là
 
@@ -75,8 +82,13 @@ nulle part ailleurs — surtout pas côté client.
 - Piste Entretien : routines courtes ancrées sur un geste, mesurées à la semaine,
   sans streak cassable, payées en Éclats et jamais en XP (§11.9).
 - Création d'un projet en collant le markdown produit par un chat, avec aperçu
-  avant écriture. Le prompt à utiliser est dans
-  [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
+  avant écriture. Le prompt est embarqué dans l'app, copiable en un tap, et
+  documenté dans [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
+- Deux limites dures sur les slots : trois projets actifs, et deux au maximum
+  par domaine — pas trois projets de code en même temps (§4.3).
+- Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
+  qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
+  de l'app (§11.10).
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session
