@@ -20,6 +20,7 @@ from .models import FridgeIdea, Garde, Project, ProjectRepo, RoadmapStep, Routin
 from .probeauth import ProbeTokenAuthentication
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
+from .rules import verification as verification_rules
 from .rules.calendar import coach_day, week_start
 
 
@@ -63,6 +64,11 @@ def projects(request):
                 "track": project.track.kind,
                 "domain": project.domain,
                 "domain_label": slot_rules.DOMAIN_LABELS.get(project.domain, project.domain),
+                "verification": project.verification,
+                "verification_label": verification_rules.LABELS.get(
+                    project.verification, project.verification
+                ),
+                "repos": project.repos.count(),
                 "completion": project.completion,
                 "weekly_commitment": project.weekly_commitment,
                 "is_coach_project": project.is_coach_project,

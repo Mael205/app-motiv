@@ -42,6 +42,7 @@ from .rules import routines as routine_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
+from .rules import verification as verification_rules
 from .rules import streak as streak_rules
 from .rules import xp as xp_rules
 from .rules.calendar import coach_day, day_bounds, evening_window, week_start
@@ -567,6 +568,9 @@ def preview_project(markdown: str) -> dict:
         "branch": parsed.branch,
         "domain": parsed.domain,
         "domain_label": slot_rules.DOMAIN_LABELS.get(parsed.domain, parsed.domain),
+        "verification": parsed.verification,
+        "verification_label": verification_rules.LABELS.get(parsed.verification, parsed.verification),
+        "repo_path": parsed.repo_path,
         "color": parsed.color,
         "emblem": parsed.emblem,
         "weekly_commitment": parsed.weekly_commitment,
@@ -627,8 +631,13 @@ def create_project_from_markdown(user, markdown: str) -> Project:
         emblem=parsed.emblem,
         branch=parsed.branch,
         domain=parsed.domain,
+        verification=parsed.verification,
         weekly_commitment=parsed.weekly_commitment,
     )
+    if parsed.repo_path:
+        # Déclaré à la création : la vérification marche dès la première
+        # session, sans réglage supplémentaire.
+        ProjectRepo.objects.get_or_create(project=project, path=parsed.repo_path)
     for order, step in enumerate(parsed.steps):
         RoadmapStep.objects.create(
             project=project,

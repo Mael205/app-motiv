@@ -16,6 +16,11 @@ Contraintes non négociables sur le résultat :
 - Les étapes sont ordonnées : la première doit être démarrable ce soir, sans rien attendre.
 - Une seule étape en cours au maximum.
 - Entre 4 et 12 étapes. Si le projet en demande plus, réduis-le à un premier jalon livrable.
+- Comment ce projet prouve qu'on a travaillé dessus. C'est un vrai choix, pose-moi la question si ce n'est pas évident. Quatre valeurs possibles pour Vérification :
+  - git — des commits pendant la session. Le plus fort. Exige la ligne Dépôt : le chemin local du dépôt.
+  - fichiers — des fichiers du dossier ont été modifiés. Pour ce qui ne se commite pas : assets, maquettes, notes. Exige la ligne Dépôt aussi.
+  - premier_plan — l'application était au premier plan. Le plus faible : être devant un éditeur n'est pas travailler.
+  - manuelle — aucune preuve automatique, et c'est assumé. Choisis-la franchement plutôt que d'annoncer git sur un projet qui ne commite jamais.
 
 Quand tout est clair, rends-moi uniquement un bloc markdown à ce format, sans commentaire autour :
 
@@ -23,6 +28,8 @@ Quand tout est clair, rends-moi uniquement un bloc markdown à ce format, sans c
 # Nom du projet
 
 Domaine: code
+Vérification: git
+Dépôt: C:/Dev/mon-projet
 Branche: backend
 Couleur: #4FC4B4
 Emblème: ◈
@@ -40,4 +47,6 @@ Règles de format : [ ] à faire, [>] en cours, [x] fait. Le nombre entre parent
 
 Domaine est un parmi : code, corps, creatif, savoir, pratique. Il sert à garder mes trois projets actifs variés — je ne peux pas avoir plus de deux projets du même domaine en même temps. Demande-le-moi si ce n'est pas évident.
 
-Branche est une parmi : moteur_de_jeu, backend, data_rl, web, cyber, corps. Engagement est le nombre de sessions visées par semaine, entre 1 et 7.`
+Branche est une parmi : moteur_de_jeu, backend, data_rl, web, cyber, corps. Engagement est le nombre de sessions visées par semaine, entre 1 et 7.
+
+Omets la ligne Dépôt si la vérification est premier_plan ou manuelle.`

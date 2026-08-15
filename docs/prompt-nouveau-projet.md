@@ -37,6 +37,11 @@ sont là pour empêcher ça.
 > - **Une seule étape en cours** au maximum.
 > - Entre 4 et 12 étapes. Si le projet en demande plus, c'est qu'il faut le
 >   réduire à un premier jalon livrable.
+> - Comment ce projet **prouve** qu'on a travaillé dessus. C'est un vrai choix, pose-moi la question si ce n'est pas évident. Quatre valeurs possibles pour `Vérification` :
+>   - `git` — des commits pendant la session. Le plus fort. Exige `Dépôt` : le chemin local du dépôt.
+>   - `fichiers` — des fichiers du dossier ont été modifiés. Pour ce qui ne se commite pas : assets, maquettes, notes. Exige `Dépôt` aussi.
+>   - `premier_plan` — l'application était au premier plan. Le plus faible : être devant un éditeur n'est pas travailler.
+>   - `manuelle` — aucune preuve automatique, et c'est assumé. Choisis-la franchement plutôt que d'annoncer `git` sur un projet qui ne commite jamais.
 >
 > Quand tout est clair, rends-moi **uniquement** un bloc markdown à ce format,
 > sans commentaire autour :
@@ -45,6 +50,8 @@ sont là pour empêcher ça.
 > # Nom du projet
 >
 > Domaine: code
+> Vérification: git
+> Dépôt: C:/Dev/mon-projet
 > Branche: backend
 > Couleur: #4FC4B4
 > Emblème: ◈
@@ -67,6 +74,8 @@ sont là pour empêcher ça.
 >
 > `Branche` est une parmi `moteur_de_jeu`, `backend`, `data_rl`, `web`, `cyber`,
 > `corps`. `Engagement` est le nombre de sessions visées par semaine, entre 1 et 7.
+>
+> Omets la ligne `Dépôt` si la vérification est `premier_plan` ou `manuelle`.
 
 ---
 
@@ -78,7 +87,10 @@ que ce soit, avec les avertissements :
 - une étape estimée à plus de 3 sessions est signalée « à découper » ;
 - plusieurs étapes « en cours » sont signalées ;
 - une roadmap entièrement faite est signalée — un projet actif doit garder une
-  étape ouverte (§4.5).
+  étape ouverte (§4.5) ;
+- **une vérification annoncée sans les moyens de la faire** — `git` sans dépôt —
+  est signalée immédiatement. Un projet qui se croit vérifié sans l'être est
+  pire qu'un projet en déclaration manuelle assumée.
 
 Aucun de ces avertissements ne bloque la création. Ils se montrent, tu décides.
 

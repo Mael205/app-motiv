@@ -36,7 +36,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from . import slots
+from . import slots, verification
 
 MAX_SESSIONS_PER_STEP = 3
 DEFAULT_ESTIMATE = 2
@@ -62,6 +62,8 @@ _META_KEYS = {
     "embleme": "emblem",
     "engagement": "weekly_commitment",
     "domaine": "domain",
+    "verification": "verification",
+    "depot": "repo_path",
 }
 
 _MARKS = {" ": TODO, "": TODO, ">": DOING, "x": DONE, "X": DONE}
@@ -85,6 +87,8 @@ class ParsedProject:
     name: str = ""
     branch: str = ""
     domain: str = slots.CODE
+    verification: str = verification.MANUELLE
+    repo_path: str = ""
     color: str = DEFAULT_COLOR
     emblem: str = DEFAULT_EMBLEM
     weekly_commitment: int = DEFAULT_COMMITMENT
@@ -170,6 +174,17 @@ def _apply_meta(parsed: ParsedProject, key: str, value: str) -> None:
             parsed.weekly_commitment = max(1, min(7, int(digits.group())))
     elif field_name == "emblem":
         parsed.emblem = value[:8]
+    elif field_name == "verification":
+        kind = verification.normalise(value)
+        if kind:
+            parsed.verification = kind
+        else:
+            parsed.warnings.append(
+                f"Vérification « {value} » inconnue, « manuelle » retenue. "
+                f"Attendues : {', '.join(verification.KINDS)}."
+            )
+    elif field_name == "repo_path":
+        parsed.repo_path = value[:500]
     elif field_name == "domain":
         candidate = _strip_accents(value).strip()
         if candidate in slots.DOMAINS:
@@ -202,6 +217,10 @@ def _add_warnings(parsed: ParsedProject) -> None:
         parsed.warnings.append(
             "Toutes les étapes sont faites : un projet actif doit garder une étape à faire ou en cours (§4.5)."
         )
+
+    ready = verification.readiness(parsed.verification, has_path=bool(parsed.repo_path))
+    if not ready.ready:
+        parsed.warnings.append(ready.detail)
 
     doing = sum(1 for s in parsed.steps if s.state == DOING)
     if doing > 1:

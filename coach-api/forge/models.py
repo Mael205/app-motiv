@@ -20,6 +20,7 @@ from forge.rules import gardes as rules_gardes
 from forge.rules import routines as rules_routines
 from forge.rules import signals as rules_signals
 from forge.rules import slots as rules_slots
+from forge.rules import verification as rules_verification
 
 
 class Profile(models.Model):
@@ -99,6 +100,12 @@ class Project(models.Model):
         choices=[(d, rules_slots.DOMAIN_LABELS[d]) for d in rules_slots.DOMAINS],
         default=rules_slots.CODE,
         help_text="Deux slots au maximum par domaine (SPEC §4.3)",
+    )
+    verification = models.CharField(
+        max_length=16,
+        choices=[(k, rules_verification.LABELS[k]) for k in rules_verification.KINDS],
+        default=rules_verification.MANUELLE,
+        help_text="Comment ce projet prouve qu'on a travaillé dessus (SPEC §6)",
     )
     is_coach_project = models.BooleanField(default=False)
     weekly_commitment = models.PositiveSmallIntegerField(default=3)

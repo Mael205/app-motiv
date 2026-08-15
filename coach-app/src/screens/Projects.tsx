@@ -130,6 +130,10 @@ function ProjectCard({
           <span className="pcard__commit">
             <Icon.target size={13} /> {project.weekly_commitment} sessions visées par semaine
           </span>
+          <span className="label">
+            Vérification : {project.verification_label}
+            {project.verification !== 'manuelle' && project.repos === 0 && ' — aucun dépôt déclaré'}
+          </span>
         </div>
       </header>
 

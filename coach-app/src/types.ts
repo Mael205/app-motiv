@@ -38,6 +38,9 @@ export interface ProjectDetail {
   track: string
   domain: string
   domain_label: string
+  verification: string
+  verification_label: string
+  repos: number
   completion: number
   weekly_commitment: number
   is_coach_project: boolean
@@ -131,6 +134,9 @@ export interface ProjectPreview {
   branch: string
   domain: string
   domain_label: string
+  verification: string
+  verification_label: string
+  repo_path: string
   color: string
   emblem: string
   weekly_commitment: number

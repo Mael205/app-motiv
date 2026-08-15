@@ -52,6 +52,7 @@ PROJETS = [
     {
         "name": "Prototype UE5 — 4v1 asymétrique",
         "domain": "code",
+        "verification": "git",
         "color": "#E8A33D",
         "emblem": "⬢",
         "branch": "moteur_de_jeu",
@@ -67,6 +68,7 @@ PROJETS = [
     {
         "name": "Outils Dofus 3 — rentabilité craft",
         "domain": "code",
+        "verification": "git",
         "color": "#4FC4B4",
         "emblem": "◈",
         "branch": "backend",
@@ -82,6 +84,7 @@ PROJETS = [
     {
         "name": "Bot Slay the Spire 2 — RL",
         "domain": "code",
+        "verification": "git",
         "color": "#8A6FB0",
         "emblem": "✦",
         "branch": "data_rl",
@@ -96,6 +99,7 @@ PROJETS = [
     {
         "name": "Développement du coach",
         "domain": "code",
+        "verification": "git",
         "color": "#DE5F7E",
         "emblem": "◆",
         "branch": "backend",
@@ -188,6 +192,7 @@ class Command(BaseCommand):
                     "emblem": spec["emblem"],
                     "branch": spec["branch"],
                     "domain": spec.get("domain", "code"),
+                    "verification": spec.get("verification", "manuelle"),
                     "slot": spec["slot"],
                     "is_coach_project": spec.get("is_coach_project", False),
                     "weekly_commitment": 3,

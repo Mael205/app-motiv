@@ -129,6 +129,10 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
             {preview.domain_label} · {preview.branch || 'branche non précisée'} ·{' '}
             {preview.weekly_commitment} sessions/semaine · {preview.open_steps} étape(s) ouverte(s)
           </p>
+          <p className="label">
+            Vérification : {preview.verification_label}
+            {preview.repo_path && ` · ${preview.repo_path}`}
+          </p>
 
           <ul className="newproject__steps">
             {preview.steps.map((step, i) => (
