@@ -10,7 +10,7 @@ rassurant. Plusieurs tests existent uniquement pour rendre cette erreur bruyante
 si quelqu'un l'écrit un jour.
 """
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -25,6 +25,8 @@ from forge.rules.signals import (
     Signal,
     certifies_held,
     minutes_by_category,
+    overlap_minutes,
+    session_coverage,
     verdict_for,
 )
 
@@ -45,9 +47,20 @@ class TestValidation:
             Signal(source=AGENT, category=RESEAUX, minutes=-1, day=LUNDI)
 
     def test_aucun_champ_ne_transporte_de_contenu(self):
-        """Un signal ne sait pas représenter une URL : c'est la garantie."""
+        """Un signal ne sait pas représenter une URL : c'est la garantie.
+
+        La liste blanche est explicite : ajouter un champ à ``Signal`` doit
+        obliger à passer ici et à se demander s'il transporte du contenu.
+        """
         champs = set(Signal.__dataclass_fields__)
-        assert champs == {"source", "category", "minutes", "day"}
+        autorises = {"source", "category", "minutes", "day", "started_at", "ended_at"}
+        assert champs == autorises
+
+        interdits = ("url", "title", "titre", "host", "domain", "domaine", "path", "content", "label")
+        for champ in champs:
+            assert not any(mot in champ for mot in interdits), (
+                f"« {champ} » a un nom qui laisse penser qu'il peut transporter du contenu"
+            )
 
 
 class TestVerdict:
@@ -188,3 +201,175 @@ class TestIngestionEtMarquage:
             services.ingest_signals(
                 user, source=AGENT, entries=[{"category": "reddit.com/r/x", "minutes": 5}], day=LUNDI
             )
+
+
+class TestFenetreEtCouverture:
+    """La fenêtre horaire est ce qui permet de rattacher un signal à une session.
+
+    Sans elle, un signal reste utile pour marquer une journée mais ne dit rien
+    d'une session précise — et le code doit refuser de faire semblant plutôt que
+    de répartir un total journalier au prorata.
+    """
+
+    def signal(self, *, minutes, debut_h, fin_h, category=TRAVAIL_PROJET):
+        base = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        return Signal(
+            source=AGENT,
+            category=category,
+            minutes=minutes,
+            day=LUNDI,
+            started_at=base + timedelta(hours=debut_h),
+            ended_at=base + timedelta(hours=fin_h),
+        )
+
+    def test_un_signal_sans_fenetre_n_est_jamais_attribue(self):
+        sans = Signal(source=AGENT, category=TRAVAIL_PROJET, minutes=50, day=LUNDI)
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        assert overlap_minutes(sans, debut, debut + timedelta(hours=1)) == 0
+
+    def test_un_signal_entierement_dans_la_session_compte_en_entier(self):
+        s = self.signal(minutes=20, debut_h=0, fin_h=0.5)
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        assert overlap_minutes(s, debut, debut + timedelta(hours=1)) == 20
+
+    def test_un_signal_hors_session_ne_compte_pas(self):
+        s = self.signal(minutes=30, debut_h=3, fin_h=4)
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        assert overlap_minutes(s, debut, debut + timedelta(hours=1)) == 0
+
+    def test_un_signal_a_cheval_est_proratise_sur_le_recouvrement(self):
+        # Signal de 60 min d'usage sur 2h ; la session n'en couvre qu'une heure.
+        s = self.signal(minutes=60, debut_h=0, fin_h=2)
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        assert overlap_minutes(s, debut, debut + timedelta(hours=1)) == 30
+
+    def test_une_fenetre_inversee_est_refusee(self):
+        base = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        with pytest.raises(ValueError, match="avant de commencer"):
+            Signal(
+                source=AGENT,
+                category=TRAVAIL_PROJET,
+                minutes=5,
+                day=LUNDI,
+                started_at=base,
+                ended_at=base - timedelta(hours=1),
+            )
+
+    def test_la_couverture_se_calcule_sur_la_bonne_categorie(self):
+        # Fenêtres de signal entièrement contenues dans la session : aucun
+        # prorata ne vient brouiller ce que ce test vérifie.
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        signaux = [
+            self.signal(minutes=20, debut_h=0, fin_h=0.5),
+            self.signal(minutes=20, debut_h=0, fin_h=0.5, category=RESEAUX),
+        ]
+        couverture = session_coverage(
+            signaux, category=TRAVAIL_PROJET, start=debut, end=debut + timedelta(minutes=30)
+        )
+        assert couverture.covered_minutes == 20, "seul travail_projet compte"
+        assert couverture.session_minutes == 30
+
+    def test_le_ratio_est_plafonne_a_cent_pour_cent(self):
+        """Deux sondes qui voient la même heure ne font pas deux heures."""
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        signaux = [
+            self.signal(minutes=25, debut_h=0, fin_h=0.5),
+            self.signal(minutes=25, debut_h=0, fin_h=0.5),
+        ]
+        couverture = session_coverage(
+            signaux, category=TRAVAIL_PROJET, start=debut, end=debut + timedelta(minutes=25)
+        )
+        assert couverture.percent == 100
+
+    def test_les_signaux_sans_fenetre_sont_comptes_et_annonces(self):
+        debut = datetime(2026, 3, 2, 20, 0, tzinfo=UTC)
+        signaux = [Signal(source=MOBILE, category=TRAVAIL_PROJET, minutes=40, day=LUNDI)]
+        couverture = session_coverage(
+            signaux, category=TRAVAIL_PROJET, start=debut, end=debut + timedelta(minutes=25)
+        )
+        assert couverture.covered_minutes == 0
+        assert couverture.ignored_signals == 1
+        assert "sans fenêtre horaire" in couverture.label
+
+
+@pytest.mark.django_db
+class TestQualiteDeSession:
+    """La preuve « premier_plan » du §6, de bout en bout.
+
+    Elle n'invalide jamais une session : elle s'affiche, elle ne juge pas.
+    """
+
+    @pytest.fixture
+    def projet(self, django_user_model):
+        from forge.models import Profile, Project, Track
+
+        user = django_user_model.objects.create_user(username="arthur", password="coach")
+        Profile.objects.create(user=user)
+        track = Track.objects.create(user=user, kind=Track.ATELIER)
+        return Project.objects.create(
+            user=user, track=track, name="Roadmap cyber", slot=1, verification="premier_plan"
+        )
+
+    def test_la_couverture_est_calculee_depuis_les_signaux_fenetres(self, projet):
+        from django.utils import timezone as dj_timezone
+
+        from forge import services
+
+        session = services.start_session(projet.user, projet, planned_minutes=25)
+        debut = dj_timezone.now() - timedelta(minutes=30)
+        session.started_at = debut
+        session.ended_at = debut + timedelta(minutes=25)
+        session.save(update_fields=["started_at", "ended_at"])
+
+        services.ingest_signals(
+            projet.user,
+            source=AGENT,
+            entries=[
+                {
+                    "category": TRAVAIL_PROJET,
+                    "minutes": 20,
+                    "started_at": debut.isoformat(),
+                    "ended_at": (debut + timedelta(minutes=25)).isoformat(),
+                }
+            ],
+            day=session.coach_day,
+        )
+
+        evidence = services.session_evidence(session)
+        assert evidence["coverage"]["covered_minutes"] == 20
+        assert evidence["coverage"]["percent"] == 80
+        assert "80 %" in evidence["detail"]
+
+    def test_des_signaux_sans_fenetre_ne_produisent_aucune_couverture(self, projet):
+        from django.utils import timezone as dj_timezone
+
+        from forge import services
+
+        session = services.start_session(projet.user, projet, planned_minutes=25)
+        debut = dj_timezone.now() - timedelta(minutes=30)
+        session.started_at = debut
+        session.ended_at = debut + timedelta(minutes=25)
+        session.save(update_fields=["started_at", "ended_at"])
+
+        services.ingest_signals(
+            projet.user,
+            source=MOBILE,
+            entries=[{"category": TRAVAIL_PROJET, "minutes": 40}],
+            day=session.coach_day,
+        )
+
+        evidence = services.session_evidence(session)
+        assert evidence["coverage"]["covered_minutes"] == 0
+        assert evidence["coverage"]["ignored_signals"] == 1
+        assert "sans fenêtre horaire" in evidence["detail"]
+
+    def test_une_couverture_nulle_n_invalide_pas_la_session(self, projet):
+        """Le §6 est explicite : la preuve d'activité ne juge pas."""
+        from forge.models import Session
+        from forge import services
+
+        session = services.start_session(projet.user, projet, planned_minutes=25)
+        services.session_evidence(session)
+        session.refresh_from_db()
+        assert session.status == Session.RUNNING
+        assert session.verification == Session.SERVER

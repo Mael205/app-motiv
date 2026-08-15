@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 from django.db import transaction
 from django.db.models import Count, F, Max, Sum
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .models import (
     Achievement,
@@ -668,6 +669,8 @@ def ingest_signals(user, *, source: str, entries: list[dict], day: date) -> dict
             category=entry.get("category", ""),
             minutes=int(entry.get("minutes", 0)),
             day=day,
+            started_at=parse_datetime(entry["started_at"]) if entry.get("started_at") else None,
+            ended_at=parse_datetime(entry["ended_at"]) if entry.get("ended_at") else None,
         )
         if checked.minutes <= 0:
             continue
@@ -677,6 +680,8 @@ def ingest_signals(user, *, source: str, entries: list[dict], day: date) -> dict
             category=checked.category,
             minutes=checked.minutes,
             day=day,
+            started_at=checked.started_at,
+            ended_at=checked.ended_at,
         )
         created += 1
 
@@ -745,6 +750,7 @@ def session_evidence(session: Session) -> dict:
         "unavailable": [],
         "suggested_note": "",
         "detail": "",
+        "coverage": None,
     }
 
     if kind == verification_rules.MANUELLE:
@@ -752,10 +758,23 @@ def session_evidence(session: Session) -> dict:
         return payload
 
     if kind == verification_rules.PREMIER_PLAN:
-        payload["detail"] = (
-            "La preuve par temps au premier plan n'est pas encore rattachée à une session : "
-            "les signaux des sondes sont agrégés à la journée, pas à la fenêtre."
+        observed = [
+            s.to_rule()
+            for s in Signal.objects.filter(user=session.user, day=session.coach_day)
+        ]
+        coverage = signal_rules.session_coverage(
+            observed,
+            category=signal_rules.TRAVAIL_PROJET,
+            start=session.started_at,
+            end=end,
         )
+        payload["coverage"] = {
+            "percent": coverage.percent,
+            "covered_minutes": coverage.covered_minutes,
+            "session_minutes": coverage.session_minutes,
+            "ignored_signals": coverage.ignored_signals,
+        }
+        payload["detail"] = coverage.label
         return payload
 
     if not paths:

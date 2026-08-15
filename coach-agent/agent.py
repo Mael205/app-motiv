@@ -116,12 +116,27 @@ def aggregate(events: list[tuple[str, float]], categoriser: Categoriser) -> dict
     }
 
 
-def post_signals(base_url: str, token: str, entries: dict[str, int]) -> dict:
+def post_signals(
+    base_url: str, token: str, entries: dict[str, int], *, since: datetime, until: datetime
+) -> dict:
+    """Envoie les totaux **avec la fenêtre observée**.
+
+    Sans elle, le serveur ne pourrait pas rattacher ce temps à une session : il
+    saurait « 20 minutes dans la journée » sans savoir lesquelles (SPEC §6).
+    """
     import json
 
     payload = {
         "source": "agent",
-        "entries": [{"category": c, "minutes": m} for c, m in entries.items()],
+        "entries": [
+            {
+                "category": c,
+                "minutes": m,
+                "started_at": since.isoformat(),
+                "ended_at": until.isoformat(),
+            }
+            for c, m in entries.items()
+        ],
     }
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/signals",
@@ -134,7 +149,8 @@ def post_signals(base_url: str, token: str, entries: dict[str, int]) -> dict:
 
 
 def cycle(config: dict, categoriser: Categoriser, *, window_minutes: int, verbose: bool) -> None:
-    since = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    until = datetime.now(timezone.utc)
+    since = until - timedelta(minutes=window_minutes)
     events = activitywatch_events(since)
 
     if not events:
@@ -154,7 +170,9 @@ def cycle(config: dict, categoriser: Categoriser, *, window_minutes: int, verbos
         return
 
     try:
-        result = post_signals(config["api_url"], config["token"], entries)
+        result = post_signals(
+            config["api_url"], config["token"], entries, since=since, until=until
+        )
     except (urllib.error.URLError, OSError, KeyError) as error:
         print(f"Envoi impossible ({error}). Les signaux de cette fenêtre sont perdus.")
         return

@@ -17,6 +17,7 @@ const IDLE_SECONDS = 120
 
 let current = { category: AUTRE, since: Date.now() }
 let buffer = {}
+let bufferSince = Date.now()
 
 async function settings() {
   const stored = await chrome.storage.local.get(['apiUrl', 'token', 'rules'])
@@ -53,6 +54,13 @@ async function flush() {
   const entries = toEntries(buffer)
   if (entries.length === 0) return
 
+  // La fenêtre du tampon : sans elle, le serveur saurait « 14 minutes dans la
+  // journée » sans savoir lesquelles, et ne pourrait rien rattacher à une
+  // session (SPEC §6).
+  const windowStart = new Date(bufferSince).toISOString()
+  const windowEnd = new Date().toISOString()
+  const dated = entries.map((entry) => ({ ...entry, started_at: windowStart, ended_at: windowEnd }))
+
   const { apiUrl, token } = await settings()
   if (!token) return                     // pas configurée : on garde le tampon
 
@@ -60,7 +68,7 @@ async function flush() {
     const response = await fetch(`${apiUrl.replace(/\/$/, '')}/api/signals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Probe-Token': token },
-      body: JSON.stringify({ source: 'ext', entries }),
+      body: JSON.stringify({ source: 'ext', entries: dated }),
     })
     if (response.status === 401) {
       // Jeton mort : inutile de réessayer en boucle avec un secret périmé.
@@ -69,6 +77,7 @@ async function flush() {
     }
     if (!response.ok) return             // on garde le tampon pour le prochain envoi
     buffer = {}
+    bufferSince = Date.now()
     await chrome.storage.local.set({ lastFlush: new Date().toISOString(), lastError: '' })
   } catch {
     // Serveur éteint : le tampon reste, rien n'est perdu.

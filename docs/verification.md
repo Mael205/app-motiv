@@ -29,7 +29,7 @@ Légende : ✅ prêt · 🔨 à coder · ⛔ pas de solution honnête.
 | Développement du coach | `git` | ✅ | Déjà déclaré, dépôt `C:\Dev\app-motiv`. |
 | App Django préfecture | `git` | ✅ | Si le dépôt est local. S'il est sur une machine du travail, `manuelle` assumée. |
 | Roadmap cybersécurité | `fichiers` sur les notes | ✅ | Apprendre ne produit pas de commit. Un dossier de notes modifié est la trace la plus proche du réel. |
-| | `premier_plan` | 🔨 | Faible mais disponible : TryHackMe ou la doc au premier plan. Déclarable, mais pas encore rattaché à une session — voir le point 4 de l'ordre recommandé. |
+| | `premier_plan` | ✅ | Faible mais disponible : TryHackMe ou la doc au premier plan. Nécessite ActivityWatch et l'agent PC. |
 | Musculation | voir plus bas | | |
 
 ### Ce qu'il reste à coder pour les projets
@@ -47,10 +47,20 @@ La preuve affiche un échantillon lisible mais compte le total réel — les
 confondre ferait afficher « 40 fichiers » sur une session qui en a touché six
 cents, et une preuve qui sous-estime le travail est un bug.
 
-**`premier_plan`** — les signaux d'ActivityWatch arrivent déjà, mais ils ne sont
-pas encore rattachés à une session précise. Il manque le calcul « pourcentage de
-la session où l'application déclarée était devant », c'est-à-dire la *qualité de
-session* du §6.
+**`premier_plan` — fait.** Un `Signal` porte désormais une fenêtre horaire
+facultative, et la *qualité de session* du §6 se calcule : le pourcentage de la
+session où l'application déclarée était devant.
+
+La facultativité de la fenêtre est une décision, pas un oubli. L'agent et
+l'extension mesurent un intervalle et le donnent. Une recette MacroDroid qui dit
+seulement « cette application a été ouverte » ne le peut pas : ce signal reste
+utile pour **marquer** une journée, mais il est inutilisable pour attribuer du
+temps à une session. Le code refuse de répartir un total journalier au prorata —
+ce serait inventer une mesure que la sonde n'a pas faite. Ces signaux-là sont
+comptés à part et annoncés comme non rattachables.
+
+Le ratio est plafonné à 100 % : deux sondes qui voient la même heure ne font pas
+deux heures.
 
 ---
 
@@ -129,8 +139,7 @@ compromis est réel, et il n'est pas neutre. C'est ton appel.
 2. ~~**Géorepérage muscu**~~ — recette écrite, voir `coach-mobile/README.md`.
 3. **DNS filtrant** — la seule option qui couvre le téléphone sans app native.
    **Demande ton arbitrage** : cela fait passer ton DNS par un tiers.
-4. **Qualité de session** — rattacher les signaux à une session. Bloqué par le
-   modèle : un `Signal` porte une journée, pas un intervalle. Il faudra lui
-   ajouter une fenêtre avant que `premier_plan` puisse fonctionner.
+4. ~~**Qualité de session**~~ — fait. Les signaux portent une fenêtre, la
+   couverture se calcule.
 5. **Sonde Android native** — le plus long, à ne faire que si le DNS ne suffit
    pas.

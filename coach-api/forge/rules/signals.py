@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 AGENT, EXTENSION, MOBILE = "agent", "ext", "mobile"
 SOURCES = (AGENT, EXTENSION, MOBILE)
@@ -55,12 +55,22 @@ MIN_MINUTES_TO_MARK = 3
 
 @dataclass(frozen=True)
 class Signal:
-    """Une observation d'une sonde. Aucun contenu, par construction."""
+    """Une observation d'une sonde. Aucun contenu, par construction.
+
+    ``started_at`` et ``ended_at`` sont facultatifs, et cette facultativité est
+    une décision, pas un oubli. Une sonde qui mesure une fenêtre — l'agent, une
+    extension — les fournit. Une recette d'automatisation mobile qui dit
+    seulement « l'application a été ouverte » ne le peut pas. Le second cas reste
+    utile pour **marquer** une journée ; il est en revanche inutilisable pour
+    attribuer du temps à une session, et le code doit refuser de faire semblant.
+    """
 
     source: str
     category: str
     minutes: int
     day: date
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if self.source not in SOURCES:
@@ -69,6 +79,13 @@ class Signal:
             raise ValueError(f"Catégorie inconnue : {self.category}")
         if self.minutes < 0:
             raise ValueError("Une durée de signal ne peut pas être négative.")
+        if self.started_at and self.ended_at and self.ended_at < self.started_at:
+            raise ValueError("Une fenêtre de signal ne peut pas se terminer avant de commencer.")
+
+    @property
+    def has_window(self) -> bool:
+        """Le signal peut-il être situé dans le temps ?"""
+        return self.started_at is not None and self.ended_at is not None
 
 
 @dataclass(frozen=True)
@@ -116,6 +133,85 @@ def verdict_for(signals: Iterable[Signal], category: str, day: date) -> Verdict:
         minutes=minutes,
         marks=minutes >= MIN_MINUTES_TO_MARK,
         sources=tuple(sorted({s.source for s in retenus})),
+    )
+
+
+@dataclass(frozen=True)
+class Coverage:
+    """Ce que les sondes ont vu **pendant** une session (SPEC §6).
+
+    C'est la « qualité de session » : le temps où l'application déclarée du
+    projet était devant, rapporté à la durée de la session.
+
+    Elle **n'invalide jamais** une session. Le §6 est explicite : la preuve
+    d'activité s'affiche, elle ne juge pas. Être devant un éditeur n'est pas
+    travailler, et l'inverse est vrai aussi — on peut réfléchir au tableau.
+    """
+
+    category: str
+    session_minutes: int
+    covered_minutes: int
+    ignored_signals: int
+
+    @property
+    def ratio(self) -> float:
+        """Plafonné à 1 : deux sondes qui voient la même heure ne font pas deux heures."""
+        if self.session_minutes <= 0:
+            return 0.0
+        return round(min(1.0, self.covered_minutes / self.session_minutes), 3)
+
+    @property
+    def percent(self) -> int:
+        return int(round(self.ratio * 100))
+
+    @property
+    def label(self) -> str:
+        if self.session_minutes <= 0:
+            return "Session sans durée."
+        if self.covered_minutes == 0 and self.ignored_signals:
+            return (
+                f"{self.ignored_signals} signal(s) sans fenêtre horaire : "
+                "impossible de les rattacher à cette session."
+            )
+        return f"{self.percent} % de la session avec l'application déclarée devant."
+
+
+def overlap_minutes(signal: Signal, start: datetime, end: datetime) -> int:
+    """Minutes du signal qui tombent dans la fenêtre ``[start, end]``.
+
+    Un signal sans fenêtre rend zéro. On ne répartit pas un total journalier au
+    prorata : ce serait inventer une mesure que la sonde n'a pas faite.
+    """
+    if not signal.has_window:
+        return 0
+    debut = max(signal.started_at, start)
+    fin = min(signal.ended_at, end)
+    if fin <= debut:
+        return 0
+
+    fenetre = (fin - debut).total_seconds() / 60
+    duree_signal = (signal.ended_at - signal.started_at).total_seconds() / 60
+    if duree_signal <= 0:
+        return 0
+
+    # Le signal annonce N minutes d'usage sur une fenêtre plus large : on
+    # attribue la part de cette fenêtre qui recouvre la session.
+    return int(round(signal.minutes * (fenetre / duree_signal)))
+
+
+def session_coverage(
+    signals: Iterable[Signal], *, category: str, start: datetime, end: datetime
+) -> Coverage:
+    """Couverture d'une session par une catégorie de signaux."""
+    retenus = [s for s in signals if s.category == category]
+    covered = sum(overlap_minutes(s, start, end) for s in retenus)
+    ignored = sum(1 for s in retenus if not s.has_window)
+    session_minutes = int(round((end - start).total_seconds() / 60))
+    return Coverage(
+        category=category,
+        session_minutes=session_minutes,
+        covered_minutes=covered,
+        ignored_signals=ignored,
     )
 
 

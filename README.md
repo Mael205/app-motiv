@@ -54,7 +54,7 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 cd coach-api && .venv/Scripts/python -m pytest
 ```
 
-240 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+251 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -101,7 +101,8 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   le manuel. Les options par projet et par habitude sont dans
   [docs/verification.md](docs/verification.md). `git` et `fichiers` sont
   implémentés ; la preuve appliquée est celle que le projet a déclarée, jamais
-  une autre.
+  une autre. Les trois moyens automatiques — `git`, `fichiers`, `premier_plan` —
+  sont implémentés.
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session

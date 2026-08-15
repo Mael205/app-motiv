@@ -542,6 +542,10 @@ class Signal(models.Model):
     category = models.CharField(max_length=24, choices=[(c, c) for c in rules_signals.CATEGORIES])
     minutes = models.PositiveIntegerField(default=0)
     day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
+    started_at = models.DateTimeField(
+        null=True, blank=True, help_text="Début de la fenêtre observée, si la sonde sait la donner"
+    )
+    ended_at = models.DateTimeField(null=True, blank=True)
     seen_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -557,6 +561,8 @@ class Signal(models.Model):
             category=self.category,
             minutes=self.minutes,
             day=self.day,
+            started_at=self.started_at,
+            ended_at=self.ended_at,
         )
 
 

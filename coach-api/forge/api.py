@@ -233,9 +233,13 @@ def import_project(request):
 def signals(request):
     """Point d'entrée des sondes : agent PC, extension, sonde Android.
 
-    Le corps ne transporte que des catégories et des durées. Il n'existe aucun
-    champ pour une URL ou un titre — c'est la garantie, pas une convention
-    (SPEC §11.10).
+    Le corps ne transporte que des catégories, des durées et, quand la sonde
+    sait la donner, la fenêtre horaire observée. Il n'existe aucun champ pour
+    une URL ou un titre — c'est la garantie, pas une convention (SPEC §11.10).
+
+    La fenêtre est facultative : une recette mobile qui dit seulement « cette
+    application a été ouverte » reste utile pour marquer une journée, même si
+    elle ne permet pas d'attribuer du temps à une session.
     """
     source = request.data.get("source", "")
     if source not in signal_rules.SOURCES:
