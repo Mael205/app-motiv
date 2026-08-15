@@ -12,6 +12,8 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
 - Lit **ActivityWatch** sur `localhost:5600` — fenêtre active, inactivité,
   multi-écran, veille. L'agent n'implémente pas son propre suivi : ActivityWatch
   le fait déjà bien (SPEC §8.4).
+- Lit **AdGuard Home**, s'il est configuré — le seul point qui voit *tous* les
+  appareils du réseau, téléphone compris.
 - Catégorise localement, agrège, poste sur `/api/signals`.
 - Les gardes dont la catégorie a été détectée sont **marquées automatiquement**.
 
@@ -49,6 +51,8 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
    interval_seconds = 600
    ```
 
+   La section `[adguard]` est facultative, voir plus bas.
+
 4. Vérifie :
 
    ```bash
@@ -61,6 +65,48 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
    python agent.py
    ```
 
+## AdGuard Home — couvrir le téléphone sans app Android
+
+L'extension ne voit qu'un navigateur, ActivityWatch ne voit que ce PC. Un
+résolveur DNS voit tout ce qui passe par le réseau, y compris la navigation
+privée et le téléphone.
+
+**Auto-hébergé, et c'est tout l'intérêt.** Un résolveur tiers recevrait chaque
+domaine que tu résous sur chaque appareil — exactement l'inverse de ce que ce
+système protège partout ailleurs. Ici, AdGuard tourne chez toi, l'agent lit les
+domaines en local, les traduit en catégories avec `categories.toml`, et **seules
+les catégories sortent**.
+
+### Installation
+
+1. Installe [AdGuard Home](https://adguard.com/adguard-home.html) sur ce PC ou
+   sur un Raspberry Pi, et pointe le DNS de ta box dessus.
+2. Ajoute la section à `config.local.toml` :
+
+   ```toml
+   [adguard]
+   url = "http://127.0.0.1:3000"
+   username = "admin"
+   password = "…"
+   ```
+
+3. `python agent.py --once` affichera les catégories vues sur la fenêtre.
+
+### Ce que ça mesure, et ce que ça ne mesure pas
+
+**Une requête DNS est un événement, pas une durée.** L'agent ne prétend donc pas
+mesurer un temps d'usage : il regroupe les requêtes d'une même catégorie en
+*rafales* et rend l'amplitude de chaque rafale. C'est une estimation d'activité,
+assumée comme telle.
+
+Conséquence voulue : une requête isolée produit une rafale d'une minute, sous le
+seuil de marquage du serveur. Un tracker embarqué ou un préchargement de
+navigateur ne marquera jamais une journée à lui seul.
+
+**Le téléphone n'est couvert qu'en Wi-Fi à la maison.** En 4G, il ne passe plus
+par ton résolveur. Pour le couvrir dehors il faudrait un tunnel WireGuard vers
+chez toi — une autre soirée, et pas indispensable pour commencer.
+
 ## Régler la catégorisation
 
 `categories.toml` contient des fragments cherchés dans le nom de l'application
@@ -70,3 +116,10 @@ La catégorie `adulte` est **vide par défaut**, volontairement : cette liste te
 regarde, et elle ne quitte jamais cette machine. Remplis-la toi-même.
 
 Une application non reconnue tombe dans `autre`, qui n'est pas envoyée du tout.
+
+
+## Tests
+
+```bash
+coach-api/.venv/Scripts/python -m pytest coach-agent
+```

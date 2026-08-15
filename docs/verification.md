@@ -110,25 +110,31 @@ une action d'un tap n'a pas d'intérêt.
 | | MacroDroid « app lancée » (mobile) | 🔨 recette |
 | Scroll passif | Identique aux réseaux | ✅ |
 | Porno | Extension navigateur, liste locale à remplir | ✅ |
-| | **DNS filtrant, tous appareils** | 🔨 |
+| | **AdGuard Home auto-hébergé, tous appareils** | ✅ |
 
-### Le DNS filtrant, l'option qui règle l'angle mort
+### AdGuard Home — fait
 
 L'extension ne voit qu'un navigateur, l'agent ne voit que le PC, MacroDroid ne
 voit que les applications. Aucun ne voit un autre navigateur, un autre appareil
 ou une navigation privée.
 
-Un résolveur DNS de type **NextDNS** voit tout ce qui passe par le réseau, sur
-tous les appareils, y compris en navigation privée. Il classe déjà les domaines
-par catégorie et expose une API d'analytique.
+**Un résolveur tiers a été écarté**, et pour une raison de fond : il recevrait
+chaque domaine résolu sur chaque appareil, ce qui inverse exactement la règle
+tenue partout ailleurs — la table domaine → catégorie ne quitte pas l'appareil.
+On échangerait une garde automatisée contre un journal de navigation complet
+chez une entreprise.
 
-Un poller dans `coach-agent` lirait les **compteurs par catégorie** — jamais la
-liste des domaines — et posterait des signaux. C'est de loin le meilleur rapport
-couverture / effort du lot, et c'est le seul moyen d'éteindre l'angle mort du
-téléphone sans écrire d'application Android.
+**AdGuard Home tourne donc chez toi.** L'agent lit le journal des requêtes en
+local, catégorise avec `categories.toml`, et n'envoie que des catégories et des
+fenêtres.
 
-À peser franchement : cela veut dire faire passer ton DNS par un tiers. Le
-compromis est réel, et il n'est pas neutre. C'est ton appel.
+Une requête DNS étant un événement et non une durée, l'agent regroupe les
+requêtes en *rafales* et rend leur amplitude. Une requête isolée reste sous le
+seuil de marquage : un tracker embarqué ne marquera jamais une journée.
+
+**Limite assumée :** le téléphone n'est couvert qu'en Wi-Fi à la maison. En 4G,
+il ne passe plus par le résolveur. Un tunnel WireGuard le couvrirait partout,
+mais ce n'est pas nécessaire pour commencer.
 
 ---
 
@@ -137,8 +143,7 @@ compromis est réel, et il n'est pas neutre. C'est ton appel.
 1. ~~**`fichiers`**~~ — fait. Débloque la roadmap cyber, les assets UE5 et les
    checkpoints RL.
 2. ~~**Géorepérage muscu**~~ — recette écrite, voir `coach-mobile/README.md`.
-3. **DNS filtrant** — la seule option qui couvre le téléphone sans app native.
-   **Demande ton arbitrage** : cela fait passer ton DNS par un tiers.
+3. ~~**DNS filtrant**~~ — fait, en auto-hébergé. Le tiers a été écarté.
 4. ~~**Qualité de session**~~ — fait. Les signaux portent une fenêtre, la
    couverture se calcule.
 5. **Sonde Android native** — le plus long, à ne faire que si le DNS ne suffit

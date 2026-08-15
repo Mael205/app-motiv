@@ -13,6 +13,9 @@ Deux sources, toutes deux en lecture seule :
    mieux qu'un script de 200 lignes ne le ferait (SPEC §8.4). Absent, l'agent
    le signale et continue : la mesure d'activité est simplement absente.
 2. **git**, sur les dépôts déclarés des projets, pour la preuve de travail.
+3. **AdGuard Home**, s'il est configuré : le seul point qui voit *tous* les
+   appareils du réseau, téléphone compris. Auto-hébergé, donc les domaines ne
+   sortent pas de chez toi (voir ``adguard.py``).
 
 La catégorisation se fait **ici**, avec `categories.toml`, avant tout envoi.
 Le serveur reçoit « reseaux : 14 minutes » et n'apprend jamais lequel.
@@ -31,6 +34,7 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+import adguard
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -116,6 +120,63 @@ def aggregate(events: list[tuple[str, float]], categoriser: Categoriser) -> dict
     }
 
 
+def post_entries(base_url: str, token: str, entries: list[dict]) -> dict:
+    """Envoie des entrées déjà formées, chacune avec sa propre fenêtre."""
+    import json
+
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/api/signals",
+        data=json.dumps({"source": "agent", "entries": entries}).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Probe-Token": token},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.load(response)
+
+
+def poll_adguard(config: dict, categoriser: Categoriser, *, since: datetime, verbose: bool) -> None:
+    """Lit le résolveur, catégorise **ici**, n'envoie que des catégories."""
+    section = config.get("adguard") or {}
+    if not section.get("url"):
+        return
+
+    queries = adguard.fetch_queries(
+        section["url"],
+        section.get("username", ""),
+        section.get("password", ""),
+        since=since,
+    )
+    if queries is None:
+        print("AdGuard Home injoignable — aucune mesure réseau. Rien n'en est déduit.")
+        return
+
+    # La traduction domaine → catégorie se fait sur cette machine, et le domaine
+    # ne va pas plus loin (SPEC §11.10).
+    events = [
+        (moment, categoriser.of(domain))
+        for moment, domain in queries
+        if categoriser.of(domain) != AUTRE
+    ]
+    if not events:
+        if verbose:
+            print("  AdGuard : rien de catégorisé sur cette fenêtre.")
+        return
+
+    entries = adguard.to_entries(adguard.bursts(events))
+    if verbose:
+        for entry in entries:
+            print(f"  AdGuard : {entry['category']} — {entry['minutes']} min")
+
+    try:
+        result = post_entries(config["api_url"], config["token"], entries)
+    except (urllib.error.URLError, OSError, KeyError) as error:
+        print(f"Envoi AdGuard impossible ({error}).")
+        return
+
+    for mark in result.get("marked", []):
+        print(f"  garde marquée : {mark['garde']} ({mark['minutes']} min)")
+
+
 def post_signals(
     base_url: str, token: str, entries: dict[str, int], *, since: datetime, until: datetime
 ) -> dict:
@@ -151,6 +212,9 @@ def post_signals(
 def cycle(config: dict, categoriser: Categoriser, *, window_minutes: int, verbose: bool) -> None:
     until = datetime.now(timezone.utc)
     since = until - timedelta(minutes=window_minutes)
+
+    poll_adguard(config, categoriser, since=since, verbose=verbose)
+
     events = activitywatch_events(since)
 
     if not events:

@@ -12,7 +12,7 @@ traçabilité du §15 avant suppression.
 |---|---|---|
 | `coach-api/` | Django 5 + DRF — source de vérité, logique métier | **J0/J1 en cours** |
 | `coach-app/` | React + Vite, PWA installable — PC et mobile | **J0/J1 en cours** |
-| `coach-agent/` | Python, Windows — sonde ActivityWatch + git | **première version** |
+| `coach-agent/` | Python, Windows — ActivityWatch, git, AdGuard Home | **première version** |
 | `coach-ext/` | Extension navigateur — sonde web par domaine | **première version** |
 | `coach-mobile/` | Sonde Android — temps d'écran | recette MacroDroid + natif à bâtir |
 
@@ -51,7 +51,8 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest
+cd coach-api && .venv/Scripts/python -m pytest      # 251 tests, l'API
+.venv/Scripts/python -m pytest ../coach-agent        # 10 tests, la sonde PC
 ```
 
 251 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
@@ -89,10 +90,11 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
   qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
   de l'app (§11.10).
-- Sondes : l'agent PC lit ActivityWatch, l'extension mesure le web par domaine,
-  et le téléphone passe par une recette MacroDroid. Toutes catégorisent
-  **localement** et marquent les gardes détectées. Une détection marque, une
-  absence de détection ne certifie rien.
+- Sondes : l'agent PC lit ActivityWatch et un **AdGuard Home auto-hébergé**
+  (le seul point qui voit tous les appareils du réseau), l'extension mesure le
+  web par domaine, et le téléphone passe par une recette MacroDroid. Toutes
+  catégorisent **localement** et marquent les gardes détectées. Une détection
+  marque, une absence de détection ne certifie rien.
 - Jetons de sonde : longs, révocables, et limités au seul endpoint `/api/signals`.
   Un secret qui fuit d'une extension ne donne accès à rien d'autre.
 - Preuve de travail sans saisie : chaque projet déclare **comment il se vérifie**
