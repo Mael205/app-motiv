@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import './RankBadge.css'
 
 /** Le rang, avec ses ailes.
@@ -10,7 +11,15 @@ import './RankBadge.css'
 
 const TIERS = ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS']
 
-export function RankBadge({ rank, level, size = 104 }: { rank: string; level: number; size?: number }) {
+export const RankBadge = memo(function RankBadge({
+  rank,
+  level,
+  size = 104,
+}: {
+  rank: string
+  level: number
+  size?: number
+}) {
   const tier = Math.max(0, TIERS.indexOf(rank))
   const feathers = 2 + Math.floor(tier * 0.6)   // 2 plumes en F, 6 en SS
   const spread = 0.55 + tier * 0.05
@@ -45,8 +54,15 @@ export function RankBadge({ rank, level, size = 104 }: { rank: string; level: nu
       <span className="rankbadge__level num">niv. {level}</span>
     </div>
   )
-}
+})
 
+/** Une aile = un seul groupe animé.
+ *
+ * Avant, chaque plume portait sa propre animation décalée : jusqu'à douze
+ * animations simultanées sur des `transform` de nœuds SVG, que le navigateur
+ * ne peut pas composer sur le GPU. Une seule animation d'opacité par aile
+ * suffit à donner la respiration, et elle est compositée.
+ */
 function Wing({ side, feathers, spread }: { side: 'left' | 'right'; feathers: number; spread: number }) {
   const dir = side === 'left' ? -1 : 1
   const originX = side === 'left' ? 64 : 126
@@ -62,7 +78,6 @@ function Wing({ side, feathers, spread }: { side: 'left' | 'right'; feathers: nu
       <path
         key={i}
         className="rankbadge__feather"
-        style={{ animationDelay: `${i * 90}ms` }}
         d={`M${originX} ${28 + i * 4}
             Q${originX + dir * length * 0.55} ${20 + drop * 0.35}
              ${x} ${y}
@@ -72,5 +87,9 @@ function Wing({ side, feathers, spread }: { side: 'left' | 'right'; feathers: nu
     )
   }
 
-  return <g opacity="0.92">{paths}</g>
+  return (
+    <g className={`rankbadge__wing rankbadge__wing--${side}`} opacity="0.92">
+      {paths}
+    </g>
+  )
 }

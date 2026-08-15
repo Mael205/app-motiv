@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { motion } from 'motion/react'
 import { api } from '../api'
 import type { Proposal } from '../types'
@@ -11,7 +11,7 @@ import './DecisionBlock.css'
  * le plus lumineux de l'écran ; tout le reste est secondaire par construction.
  * Les autres durées sont accessibles mais visuellement subordonnées.
  */
-export function DecisionBlock({
+export const DecisionBlock = memo(function DecisionBlock({
   proposal,
   onStarted,
 }: {
@@ -89,4 +89,4 @@ export function DecisionBlock({
       {error && <p className="decision__error">{error}</p>}
     </section>
   )
-}
+})

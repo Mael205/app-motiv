@@ -13,15 +13,7 @@ import './Home.css'
  * Tout le reste (roadmaps, frigo, journal) vit dans les autres onglets : un
  * écran qui doit déclencher une action ne peut pas être un tableau de bord.
  */
-export function Home({
-  state,
-  now,
-  onStarted,
-}: {
-  state: HomeState
-  now: Date
-  onStarted: () => void
-}) {
+export function Home({ state, onStarted }: { state: HomeState; onStarted: () => void }) {
   return (
     <>
       <SeasonBanner season={state.season} progression={state.progression} streak={state.streak} />
@@ -46,7 +38,6 @@ export function Home({
       <NightHud
         evening={state.evening}
         boss={state.boss}
-        now={now}
         minutesToday={state.minutes_today}
         requiredMinutes={state.required_minutes}
         validated={state.validated_today}

@@ -1,4 +1,6 @@
+import { memo } from 'react'
 import { motion } from 'motion/react'
+import { useNow } from '../hooks/useNow'
 import type { Evening } from '../types'
 import './EveningGauge.css'
 
@@ -8,7 +10,8 @@ import './EveningGauge.css'
  * les blocs de session posés dessus et un curseur temps réel. Elle dit une
  * seule chose : voilà ce qu'il te reste ce soir.
  */
-export function EveningGauge({ evening, now }: { evening: Evening; now: Date }) {
+export const EveningGauge = memo(function EveningGauge({ evening }: { evening: Evening }) {
+  const now = useNow()
   const start = new Date(evening.start)
   const end = new Date(evening.end)
   const total = end.getTime() - start.getTime()
@@ -85,4 +88,4 @@ export function EveningGauge({ evening, now }: { evening: Evening; now: Date }) 
       </footer>
     </section>
   )
-}
+})

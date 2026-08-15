@@ -13,7 +13,6 @@ export default function App() {
   const [error, setError] = useState('')
   const [authed, setAuthed] = useState(() => Boolean(storedToken()))
   const [tab, setTab] = useState<Tab>('soir')
-  const [now, setNow] = useState(new Date())
 
   const load = useCallback(async () => {
     try {
@@ -34,11 +33,6 @@ export default function App() {
     const id = setInterval(load, 10_000)
     return () => clearInterval(id)
   }, [authed, load])
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
 
   if (!authed) return <LoginScreen onDone={() => setAuthed(true)} />
 
@@ -69,7 +63,7 @@ export default function App() {
   return (
     <>
       <main className="shell">
-        {tab === 'soir' && <Home state={state} now={now} onStarted={load} />}
+        {tab === 'soir' && <Home state={state} onStarted={load} />}
         {tab === 'projets' && <Projects onChanged={load} />}
         {tab === 'journal' && <Journal />}
       </main>

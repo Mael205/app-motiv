@@ -31,14 +31,22 @@
   fill: color-mix(in srgb, var(--accent) 26%, transparent);
   stroke: color-mix(in srgb, var(--accent) 70%, transparent);
   stroke-width: 1.1;
-  transform-origin: 95px 40px;
-  animation: feather-breathe 5s var(--ease-out) infinite;
 }
 
-/* Respiration très lente : les ailes vivent sans jamais attirer l'œil. */
-@keyframes feather-breathe {
-  0%, 100% { opacity: 0.65; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-1.5px); }
+/* Respiration très lente, une seule animation par aile, sur l'opacité — la
+   seule propriété que le compositeur sait animer sans repeindre le SVG. */
+.rankbadge__wing {
+  will-change: opacity;
+  animation: wing-breathe 6s ease-in-out infinite;
+}
+
+.rankbadge__wing--right {
+  animation-delay: -3s;
+}
+
+@keyframes wing-breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .rankbadge__code {

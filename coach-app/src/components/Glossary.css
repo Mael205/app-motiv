@@ -1,0 +1,95 @@
+.glossary__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(9, 6, 13, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.glossary {
+  width: 100%;
+  max-width: 620px;
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 22px 20px calc(28px + env(safe-area-inset-bottom));
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.05), transparent), var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-bottom: none;
+  clip-path: polygon(18px 0, 100% 0, 100% 100%, 0 100%, 0 18px);
+}
+
+.glossary__head {
+  position: sticky;
+  top: -22px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: -22px -20px 18px;
+  padding: 22px 20px 14px;
+  background: linear-gradient(180deg, var(--panel) 72%, transparent);
+}
+
+.glossary__head h2 {
+  font-size: 25px;
+  color: var(--accent);
+}
+
+.glossary__list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.glossary__entry {
+  padding-left: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.glossary__term {
+  font-family: var(--display);
+  font-size: 19px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.glossary__what {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* Le « pourquoi » est ce qui fait tenir la règle : il est distinct, pas caché. */
+.glossary__why {
+  margin-top: 5px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.helpbtn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  transition: color 140ms, border-color 140ms, background 140ms;
+}
+
+.helpbtn:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}

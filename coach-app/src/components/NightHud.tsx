@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { motion } from 'motion/react'
 import type { BossState, Evening, HomeState } from '../types'
 import { EveningGauge } from './EveningGauge'
@@ -11,17 +12,15 @@ import './NightHud.css'
  * moitié vide. Les trois sont maintenant un HUD unique, secondaire par
  * construction : on le consulte, on ne le lit pas.
  */
-export function NightHud({
+export const NightHud = memo(function NightHud({
   evening,
   boss,
-  now,
   minutesToday,
   requiredMinutes,
   validated,
 }: {
   evening: Evening
   boss: BossState | null
-  now: Date
   minutesToday: number
   requiredMinutes: number
   validated: HomeState['validated_today']
@@ -30,16 +29,21 @@ export function NightHud({
 
   return (
     <section className="hud">
-      <EveningGauge evening={evening} now={now} />
+      <EveningGauge evening={evening} />
 
       <div className="hud__split" />
 
       <div className="hud__rows">
-        <div className="hud__row">
+        <div
+          className="hud__row"
+          title={`Le plancher valide ta journée : ${requiredMinutes} minutes suffisent, en une ou plusieurs sessions.`}
+        >
           <span className="hud__icon hud__icon--floor">
             {validated ? <Icon.check size={17} /> : <Icon.target size={17} />}
           </span>
-          <span className="hud__label">{validated ? 'Journée validée' : 'Plancher du jour'}</span>
+          <span className="hud__label">
+            {validated ? 'Journée validée' : `Plancher · ${requiredMinutes} min`}
+          </span>
           <div className="minibar">
             <motion.div
               className="minibar__fill"
@@ -55,13 +59,14 @@ export function NightHud({
         </div>
 
         {boss && (
-          <div className="hud__row">
+          <div
+            className="hud__row"
+            title={`Boss de la saison. Sa vie descend d'un point par minute travaillée et de 60 par étape de roadmap terminée. Il lui reste ${boss.current_hp} points de vie sur ${boss.max_hp}.`}
+          >
             <span className="hud__icon hud__icon--boss">
               <Icon.sword size={17} />
             </span>
-            <span className="hud__label" title={boss.name}>
-              {boss.name}
-            </span>
+            <span className="hud__label">{boss.name}</span>
             <div className="minibar minibar--boss">
               <motion.div
                 className="minibar__fill"
@@ -81,4 +86,4 @@ export function NightHud({
       </div>
     </section>
   )
-}
+})
