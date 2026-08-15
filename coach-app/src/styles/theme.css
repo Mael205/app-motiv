@@ -58,7 +58,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--body);
-  font-size: 15px;
+  font-size: 16.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -100,18 +100,20 @@ h3,
   line-height: 0.95;
 }
 
-/* Les chiffres ont systématiquement une texture différente du texte. */
+/* Les chiffres ont systématiquement une texture différente du texte, et une
+   taille légèrement supérieure : ce sont eux qu'on lit en premier. */
 .num {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  font-size: 1.06em;
   letter-spacing: -0.02em;
 }
 
 .label {
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -225,23 +227,18 @@ button {
 /* --- Mise en page ------------------------------------------------------ */
 
 .shell {
-  max-width: 560px;
+  max-width: 580px;
   margin: 0 auto;
-  padding: 20px 16px 96px;
+  padding: 20px 16px 110px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 @media (min-width: 900px) {
   .shell {
-    max-width: 880px;
-    padding-top: 36px;
-  }
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
+    max-width: 660px;
+    padding-top: 40px;
   }
 }
 

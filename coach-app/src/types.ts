@@ -20,8 +20,42 @@ export interface Progression {
   ratio: number
 }
 
+export interface RoadmapStepView {
+  id: number
+  label: string
+  state: 'todo' | 'doing' | 'done'
+  estimated_sessions: number
+  needs_split: boolean
+}
+
+export interface ProjectDetail {
+  id: number
+  name: string
+  status: string
+  slot: number | null
+  color: string
+  emblem: string
+  track: string
+  completion: number
+  weekly_commitment: number
+  is_coach_project: boolean
+  current_step: { id: number; label: string; needs_split: boolean } | null
+  steps: RoadmapStepView[]
+}
+
+export interface JournalEntry {
+  id: number
+  project: string
+  color: string
+  day: string
+  minutes: number
+  note: string
+  next_action: string
+}
+
 export interface SeasonState {
   index: number
+  key: string
   name: string
   accent: string
   baseline: string

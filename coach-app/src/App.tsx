@@ -2,13 +2,17 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
 import type { HomeState } from './types'
 import { Home } from './screens/Home'
+import { Journal } from './screens/Journal'
+import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
+import { TabBar, type Tab } from './components/TabBar'
 import './App.css'
 
 export default function App() {
   const [state, setState] = useState<HomeState | null>(null)
   const [error, setError] = useState('')
   const [authed, setAuthed] = useState(() => Boolean(storedToken()))
+  const [tab, setTab] = useState<Tab>('soir')
   const [now, setNow] = useState(new Date())
 
   const load = useCallback(async () => {
@@ -57,11 +61,21 @@ export default function App() {
     )
   }
 
+  // Une session en cours prend tout l'écran : plus d'onglets, plus de HUD.
   if (state.running_session) {
     return <SessionScreen session={state.running_session} onFinished={load} />
   }
 
-  return <Home state={state} now={now} onStarted={load} onRefresh={load} />
+  return (
+    <>
+      <main className="shell">
+        {tab === 'soir' && <Home state={state} now={now} onStarted={load} />}
+        {tab === 'projets' && <Projects onChanged={load} />}
+        {tab === 'journal' && <Journal />}
+      </main>
+      <TabBar active={tab} onChange={setTab} />
+    </>
+  )
 }
 
 /** L'accent de saison surcharge une seule variable. Le mode terne est la

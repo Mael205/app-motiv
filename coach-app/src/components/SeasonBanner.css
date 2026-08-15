@@ -1,0 +1,116 @@
+.banner {
+  position: relative;
+  padding: 20px 20px 18px;
+  overflow: hidden;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012)), var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+  box-shadow: 0 0 60px -26px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+/* Halo de saison derrière l'emblème : la couleur imprègne le bandeau. */
+.banner__glow {
+  position: absolute;
+  top: -70px;
+  left: -40px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 26%, transparent), transparent 68%);
+  pointer-events: none;
+}
+
+.banner__top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.banner__sigil {
+  color: var(--accent);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+
+.banner__titles {
+  min-width: 0;
+}
+
+.banner__name {
+  font-size: 34px;
+  color: var(--accent);
+  text-shadow: 0 0 32px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.ornament {
+  display: block;
+  margin: 12px 0 4px;
+  color: color-mix(in srgb, var(--accent) 34%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+}
+
+.banner__body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.banner__stats {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.banner__xp-head .num {
+  font-size: 15px;
+}
+
+.banner__counters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+
+.counter .num {
+  font-size: 22px;
+  color: var(--text);
+}
+
+.counter .label {
+  font-size: 11px;
+}
+
+.counter--shields {
+  gap: 4px;
+}
+
+.shield--on {
+  color: var(--turquoise);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--turquoise) 80%, transparent));
+}
+
+.shield--off {
+  color: rgba(237, 230, 245, 0.16);
+}
+
+.banner__baseline {
+  position: relative;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--muted);
+}

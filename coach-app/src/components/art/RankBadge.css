@@ -1,0 +1,59 @@
+.rankbadge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.rankbadge svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.rankbadge__plate {
+  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.rankbadge__edge {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.rankbadge__inner {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1;
+}
+
+.rankbadge__feather {
+  fill: color-mix(in srgb, var(--accent) 26%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 1.1;
+  transform-origin: 95px 40px;
+  animation: feather-breathe 5s var(--ease-out) infinite;
+}
+
+/* Respiration très lente : les ailes vivent sans jamais attirer l'œil. */
+@keyframes feather-breathe {
+  0%, 100% { opacity: 0.65; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-1.5px); }
+}
+
+.rankbadge__code {
+  position: relative;
+  font-size: 42px;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 75%, transparent);
+  transform: translateY(-6px);
+}
+
+.rankbadge__level {
+  position: absolute;
+  bottom: 16px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}

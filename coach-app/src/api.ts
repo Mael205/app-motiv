@@ -1,4 +1,4 @@
-import type { HomeState, SessionResult } from './types'
+import type { HomeState, JournalEntry, ProjectDetail, SessionResult } from './types'
 
 const TOKEN_KEY = 'coach.access'
 const REFRESH_KEY = 'coach.refresh'
@@ -75,6 +75,12 @@ export function logout(): void {
 
 export const api = {
   home: () => request<HomeState>('/home'),
+
+  projects: () => request<ProjectDetail[]>('/projects'),
+
+  journal: () => request<JournalEntry[]>('/journal'),
+
+  fridge: () => request<{ id: number; text: string; created_at: string }[]>('/fridge'),
 
   startSession: (projectId: number, minutes: number) =>
     request<RunningSessionResponse>('/sessions/start', {

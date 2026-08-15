@@ -1,0 +1,52 @@
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(18, 13, 24, 0.75), rgba(18, 13, 24, 0.96));
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+
+.tabbar__item {
+  flex: 1;
+  max-width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+  transition: color 160ms var(--ease-out);
+}
+
+.tabbar__item:hover {
+  color: var(--muted);
+}
+
+.tabbar__item--active {
+  color: var(--accent);
+}
+
+/* Le trait sous l'onglet actif reprend l'accent de la saison. */
+.tabbar__item--active::after {
+  content: '';
+  position: absolute;
+  bottom: calc(4px + env(safe-area-inset-bottom));
+  width: 26px;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.tabbar__item {
+  position: relative;
+}

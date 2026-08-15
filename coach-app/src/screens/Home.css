@@ -1,99 +1,63 @@
 .notice {
-  padding: 12px 14px;
-  font-size: 13px;
+  padding: 13px 16px;
+  font-size: 14px;
   border-left: 3px solid var(--rose);
-  background: color-mix(in srgb, var(--rose) 10%, transparent);
+  background: color-mix(in srgb, var(--rose) 11%, transparent);
   color: var(--text);
 }
 
 .notice--hard {
   border-left-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  background: color-mix(in srgb, var(--gold) 13%, transparent);
 }
 
-.proposal {
+.empty {
+  text-align: center;
+  padding: 30px 22px;
+}
+
+.empty__title {
+  font-size: 24px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* Les quêtes du jour : une ligne discrète, pas un panneau. */
+.questline {
+  list-style: none;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 0 4px;
 }
 
-.proposal__project {
-  gap: 14px;
+.questline__item {
+  display: inline-flex;
   align-items: center;
-}
-
-.proposal__emblem {
-  font-size: 30px;
-  line-height: 1;
-  filter: drop-shadow(0 0 12px currentColor);
-}
-
-.proposal__name {
-  font-size: 23px;
-  color: var(--text);
-}
-
-.proposal__reason {
-  font-size: 12px;
-}
-
-.proposal__task {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  font-size: 14.5px;
-  background: rgba(0, 0, 0, 0.22);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-}
-
-.proposal__split {
-  color: var(--rose);
-  font-style: italic;
-}
-
-.proposal__alts {
   gap: 8px;
-}
-
-.proposal__alts .ghost {
-  flex: 1;
-}
-
-.proposal__error {
   font-size: 13px;
-  color: var(--rose);
+  color: var(--muted);
 }
 
-.floor {
-  margin-top: 4px;
-}
-
-.floor__done {
-  font-size: 30px;
+.questline__mark {
   color: var(--accent);
 }
 
-.floor .num {
-  font-size: 15px;
-}
-
-.floor__hint {
-  margin-top: 6px;
-  font-size: 12px;
+.questline__item--done {
+  color: var(--dim);
+  text-decoration: line-through;
 }
 
 .fridge {
-  margin-top: 10px;
   gap: 8px;
 }
 
 .fridge__input {
   flex: 1;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 11px 13px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--line);
@@ -102,37 +66,4 @@
 
 .fridge__input:focus {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
-.quests {
-  list-style: none;
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.quest {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13.5px;
-}
-
-.quest__mark {
-  color: var(--accent);
-}
-
-.quest__label {
-  flex: 1;
-}
-
-.quest__progress {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.quest--done .quest__label {
-  color: var(--muted);
-  text-decoration: line-through;
 }

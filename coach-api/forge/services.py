@@ -492,6 +492,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         "season": (
             {
                 "index": season.index,
+                "key": season.key,   # sélectionne l'emblème dessiné côté client
                 "name": season.name,
                 "accent": season.accent,
                 "baseline": season.baseline,
