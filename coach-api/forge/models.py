@@ -7,6 +7,8 @@ faits — sessions et journées — par la logique pure de ``forge/rules``.
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 from datetime import time
 
 from django.conf import settings
@@ -475,6 +477,49 @@ class GardeDay(models.Model):
 
     def __str__(self) -> str:
         return f"{self.garde} — {self.day} — {'marqué' if self.occurred else 'tenu'}"
+
+
+class ProbeToken(models.Model):
+    """Jeton d'une sonde (SPEC §8, §9).
+
+    Une sonde n'a pas besoin des droits de l'utilisateur : elle poste des
+    signaux, rien d'autre. Lui donner un JWT complet reviendrait à donner à une
+    extension navigateur le droit de supprimer des projets. Ce jeton-ci ne
+    déverrouille que ``/api/signals``.
+
+    Seule l'empreinte est stockée. Le jeton en clair est montré une fois, à la
+    création, et n'existe ensuite que dans la config locale de la sonde.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="probe_tokens")
+    name = models.CharField(max_length=64)
+    kind = models.CharField(max_length=8, choices=[(s, s) for s in rules_signals.SOURCES])
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        etat = "révoqué" if self.revoked_at else "actif"
+        return f"{self.name} ({self.kind}, {etat})"
+
+    @property
+    def active(self) -> bool:
+        return self.revoked_at is None
+
+    @staticmethod
+    def hash_of(raw: str) -> str:
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def issue(cls, user, *, name: str, kind: str) -> tuple["ProbeToken", str]:
+        """Crée un jeton et rend le secret en clair — la seule et unique fois."""
+        raw = secrets.token_urlsafe(32)
+        token = cls.objects.create(user=user, name=name, kind=kind, token_hash=cls.hash_of(raw))
+        return token, raw
 
 
 class Signal(models.Model):

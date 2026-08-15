@@ -29,20 +29,23 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
 1. Installe [ActivityWatch](https://activitywatch.net/). Sans lui, l'agent
    tourne mais ne mesure rien, et il le dit.
 
-2. Récupère un jeton :
+2. Émets un jeton de sonde. Ce n'est pas un jeton de connexion : il ne donne
+   accès qu'à `/api/signals`, il n'expire pas, et il est révocable à tout
+   moment par `--revoke`.
 
    ```bash
-   curl -X POST http://127.0.0.1:8000/api/auth/token \
-     -H "Content-Type: application/json" \
-     -d '{"username":"arthur","password":"coach"}'
+   cd ../coach-api
+   .venv/Scripts/python manage.py probetoken --issue agent --name "PC fixe"
    ```
+
+   Copie-le : seule son empreinte est stockée, il ne sera plus jamais affiché.
 
 3. Crée `config.local.toml` à côté de `agent.py` — il est ignoré par git et
    n'est **jamais** modifiable via l'API (SPEC §8) :
 
    ```toml
    api_url = "http://127.0.0.1:8000"
-   token = "<le champ access de la réponse>"
+   token = "<le jeton affiché>"
    interval_seconds = 600
    ```
 

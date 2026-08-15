@@ -292,6 +292,8 @@ Règles de mise en œuvre : easing systématique (jamais de linéaire sauf le cu
 
 **Communication :** l'agent consomme le flux SSE et poste ses événements. Il n'expose aucun port entrant.
 
+**Jeton de sonde.** Une sonde ne reçoit jamais de jeton de connexion. Elle porte un `ProbeToken` : long, sans expiration, révocable, et qui ne déverrouille que `/api/signals`. Un secret qui vit dans une extension navigateur ou sur un téléphone finit par fuir ; celui-ci ne permet alors ni de lire l'historique, ni de toucher aux projets, ni de déclarer une garde à la main. Seule son empreinte est stockée côté serveur.
+
 **Sécurité — non négociable :** l'agent n'exécute **que des actions d'une liste blanche déclarée localement** dans un fichier de config que seul l'utilisateur édite, non modifiable via l'API. Le serveur ne peut jamais faire exécuter une commande arbitraire. Même si la réponse d'un modèle est compromise, le pire cas est le lancement d'une application déjà autorisée.
 
 **Capacités :**
@@ -312,7 +314,8 @@ Règles de mise en œuvre : easing systématique (jamais de linéaire sauf le cu
 ### 9.1 `coach-ext` — extension navigateur (MV3)
 
 - Redirige `/shorts`, masque le feed d'accueil YouTube et les Reels intégrés quand le blocage est armé. Laisse la recherche, les vidéos longues et la documentation accessibles.
-- Mesure le temps réel par domaine, complément d'ActivityWatch qui ne voit que "navigateur".
+- Mesure le temps réel par domaine, complément d'ActivityWatch qui ne voit que "navigateur". Ne compte que l'onglet actif d'une fenêtre ayant le focus, machine non inactive : un onglet ouvert en arrière-plan pendant six heures mesurerait des onglets, pas un usage.
+- La table domaine → catégorie reste dans le stockage local du navigateur. La chaîne de requête et le fragment sont écartés avant catégorisation.
 - Fonctionne sans privilège administrateur.
 
 ### 9.2 `coach-mobile` — sonde Android
@@ -367,6 +370,8 @@ Quest(id, user, scope[jour|semaine], date_or_week, kind[plancher|bonus|hebdo], l
 
 Routine(id, user, track, name, anchor[reveil|apres_douche|avant_coucher|fin_de_session|libre],
         weekdays[], weekly_target, reward_shards, order, active, created_at, archived_at)
+ProbeToken(id, user, name, kind[agent|ext|mobile], token_hash, created_at,
+           last_used_at, revoked_at)   # ne déverrouille que /api/signals
 Signal(id, user, source[agent|ext|mobile], category, minutes, day, seen_at)
                                       # append-only, jamais d'URL ni de titre
 Garde(... , auto_category)            # la catégorie de sonde qui marque la garde

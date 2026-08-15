@@ -13,8 +13,8 @@ traçabilité du §15 avant suppression.
 | `coach-api/` | Django 5 + DRF — source de vérité, logique métier | **J0/J1 en cours** |
 | `coach-app/` | React + Vite, PWA installable — PC et mobile | **J0/J1 en cours** |
 | `coach-agent/` | Python, Windows — sonde ActivityWatch + git | **première version** |
-| `coach-ext/` | Extension navigateur — filtrage Shorts | à venir (J5) |
-| `coach-mobile/` | Sonde Android — temps d'écran | à venir (J5) |
+| `coach-ext/` | Extension navigateur — sonde web par domaine | **première version** |
+| `coach-mobile/` | Sonde Android — temps d'écran | recette MacroDroid + natif à bâtir |
 
 ## Démarrer en local
 
@@ -54,7 +54,7 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 cd coach-api && .venv/Scripts/python -m pytest
 ```
 
-205 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+213 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -89,9 +89,12 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
   qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
   de l'app (§11.10).
-- Sondes : l'agent PC lit ActivityWatch, catégorise **localement**, et marque
-  les gardes détectées. Une détection marque, une absence de détection ne
-  certifie rien — voir [coach-agent/README.md](coach-agent/README.md).
+- Sondes : l'agent PC lit ActivityWatch, l'extension mesure le web par domaine,
+  et le téléphone passe par une recette MacroDroid. Toutes catégorisent
+  **localement** et marquent les gardes détectées. Une détection marque, une
+  absence de détection ne certifie rien.
+- Jetons de sonde : longs, révocables, et limités au seul endpoint `/api/signals`.
+  Un secret qui fuit d'une extension ne donne accès à rien d'autre.
 - Preuve de travail sans saisie : les commits des dépôts déclarés pendant une
   session pré-remplissent le debrief (§8.3).
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.

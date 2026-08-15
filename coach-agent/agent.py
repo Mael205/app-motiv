@@ -126,7 +126,7 @@ def post_signals(base_url: str, token: str, entries: dict[str, int]) -> dict:
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/signals",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        headers={"Content-Type": "application/json", "X-Probe-Token": token},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -177,7 +177,7 @@ def main() -> int:
         print(
             "Il manque config.local.toml. Crée-le à côté de agent.py :\n\n"
             '    api_url = "http://127.0.0.1:8000"\n'
-            '    token   = "<jeton JWT>"\n\n'
+            '    token   = "<jeton de sonde>"\n\n'
             "Ce fichier est ignoré par git et n'est jamais modifiable via l'API (SPEC §8).",
             file=sys.stderr,
         )

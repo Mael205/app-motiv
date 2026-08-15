@@ -10,12 +10,14 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from . import services
 from .models import FridgeIdea, Garde, Project, ProjectRepo, RoadmapStep, Routine, Session
+from .probeauth import ProbeTokenAuthentication
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules.calendar import coach_day, week_start
@@ -218,6 +220,9 @@ def import_project(request):
 
 
 @api_view(["POST"])
+@authentication_classes(
+    [ProbeTokenAuthentication, *api_settings.DEFAULT_AUTHENTICATION_CLASSES]
+)
 @permission_classes([IsAuthenticated])
 def signals(request):
     """Point d'entrée des sondes : agent PC, extension, sonde Android.
