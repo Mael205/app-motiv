@@ -109,7 +109,8 @@ class TestCreation:
         )
         session = services.start_session(user, project, planned_minutes=25)
         evidence = services.session_evidence(session)
-        assert evidence["repos"] == ["C:/Dev/app-motiv"]
+        assert evidence["paths"] == ["C:/Dev/app-motiv"]
+        assert evidence["verification"] == "git"
 
     def test_l_apercu_expose_le_moyen_avant_ecriture(self, user):
         from forge import services

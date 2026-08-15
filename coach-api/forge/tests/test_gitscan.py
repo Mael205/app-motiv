@@ -87,7 +87,9 @@ class TestPreuveDeSession:
         user = django_user_model.objects.create_user(username="arthur", password="coach")
         Profile.objects.create(user=user)
         track = Track.objects.create(user=user, kind=Track.ATELIER)
-        project = Project.objects.create(user=user, track=track, name="P", slot=1)
+        project = Project.objects.create(
+            user=user, track=track, name="P", slot=1, verification="git"
+        )
         ProjectRepo.objects.create(project=project, path=str(repo))
 
         session = services.start_session(user, project, planned_minutes=25)
@@ -105,7 +107,9 @@ class TestPreuveDeSession:
         user = django_user_model.objects.create_user(username="arthur", password="coach")
         Profile.objects.create(user=user)
         track = Track.objects.create(user=user, kind=Track.ATELIER)
-        project = Project.objects.create(user=user, track=track, name="P", slot=1)
+        project = Project.objects.create(
+            user=user, track=track, name="P", slot=1, verification="git"
+        )
         ProjectRepo.objects.create(project=project, path="C:/nulle-part-du-tout")
 
         session = services.start_session(user, project, planned_minutes=25)

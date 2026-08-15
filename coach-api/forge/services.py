@@ -35,7 +35,7 @@ from .models import (
     Signal,
     Track,
 )
-from . import gitscan
+from . import filescan, gitscan
 from .rules import gardes as garde_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
@@ -722,32 +722,83 @@ def apply_signals_to_gardes(user, *, day: date) -> list[dict]:
 
 
 def session_evidence(session: Session) -> dict:
-    """Ce que les dépôts déclarés du projet montrent pendant la session.
+    """Ce que la session laisse comme trace, selon le moyen déclaré par le projet.
 
-    Sert à pré-remplir le debrief (§8.3) et à donner à la session une preuve
-    qui ne dépend d'aucune déclaration. N'invalide jamais une session : le §6
-    est explicite là-dessus.
+    Le projet a choisi son moyen à sa création (§4.5) : on applique celui-là et
+    pas un autre. Lire git sur un projet qui a déclaré ``fichiers`` produirait
+    « aucune preuve » alors que le travail est bien là — et une preuve qui
+    manque le travail réel est pire qu'une absence de preuve assumée.
+
+    N'invalide jamais une session : le §6 est explicite là-dessus.
     """
     end = session.ended_at or timezone.now()
-    repos, commits, unavailable = [], [], []
+    kind = session.project.verification
+    paths = list(ProjectRepo.objects.filter(project=session.project).values_list("path", flat=True))
 
-    for repo in ProjectRepo.objects.filter(project=session.project):
-        activity = gitscan.commits_between(repo.path, session.started_at, end)
-        repos.append(repo.path)
-        if not activity.available:
-            unavailable.append({"path": repo.path, "detail": activity.detail})
-            continue
-        commits.extend(
-            {"sha": c.sha, "subject": c.subject, "at": c.at.isoformat()} for c in activity.commits
-        )
-        ProjectRepo.objects.filter(pk=repo.pk).update(last_scanned_at=timezone.now())
-
-    return {
-        "repos": repos,
-        "commits": sorted(commits, key=lambda c: c["at"]),
-        "unavailable": unavailable,
-        "suggested_note": "\n".join(f"- {c['subject']}" for c in commits),
+    payload = {
+        "verification": kind,
+        "verification_label": verification_rules.LABELS.get(kind, kind),
+        "paths": paths,
+        "commits": [],
+        "files": [],
+        "files_total": 0,
+        "unavailable": [],
+        "suggested_note": "",
+        "detail": "",
     }
+
+    if kind == verification_rules.MANUELLE:
+        payload["detail"] = "Ce projet est en déclaration manuelle : aucune trace n'est cherchée."
+        return payload
+
+    if kind == verification_rules.PREMIER_PLAN:
+        payload["detail"] = (
+            "La preuve par temps au premier plan n'est pas encore rattachée à une session : "
+            "les signaux des sondes sont agrégés à la journée, pas à la fenêtre."
+        )
+        return payload
+
+    if not paths:
+        payload["detail"] = (
+            f"« {payload['verification_label']} » est déclaré, mais aucun chemin ne l'est. "
+            "Ce projet n'est pas vérifié tant qu'il manque."
+        )
+        return payload
+
+    for path in paths:
+        if kind == verification_rules.GIT:
+            activity = gitscan.commits_between(path, session.started_at, end)
+            if not activity.available:
+                payload["unavailable"].append({"path": path, "detail": activity.detail})
+                continue
+            payload["commits"].extend(
+                {"sha": c.sha, "subject": c.subject, "at": c.at.isoformat()} for c in activity.commits
+            )
+        else:
+            activity = filescan.files_modified_between(path, session.started_at, end)
+            if not activity.available:
+                payload["unavailable"].append({"path": path, "detail": activity.detail})
+                continue
+            payload["files_total"] += activity.total
+            payload["files"].extend(
+                {"path": f.relative_path, "at": f.at.isoformat()} for f in activity.files
+            )
+            if activity.detail:
+                payload["detail"] = activity.detail
+
+        ProjectRepo.objects.filter(project=session.project, path=path).update(
+            last_scanned_at=timezone.now()
+        )
+
+    payload["commits"].sort(key=lambda c: c["at"])
+    payload["files"].sort(key=lambda f: f["at"])
+
+    if kind == verification_rules.GIT:
+        payload["suggested_note"] = "\n".join(f"- {c['subject']}" for c in payload["commits"])
+    else:
+        payload["suggested_note"] = "\n".join(f"- {f['path']}" for f in payload["files"])
+
+    return payload
 
 
 # --------------------------------------------------------------------------

@@ -22,23 +22,30 @@ Légende : ✅ prêt · 🔨 à coder · ⛔ pas de solution honnête.
 | Projet | Moyen | État | Ce que ça vaut |
 |---|---|---|---|
 | Prototype UE5 | `git` sur le dépôt | ✅ | Fort, si tu commites. Les `.uasset` binaires passent très bien en commit. |
-| | `fichiers` sur `Content/` | 🔨 | Meilleur pour du level design : tu modifies des assets sans commiter à chaque session. |
+| | `fichiers` sur `Content/` | ✅ | Meilleur pour du level design : tu modifies des assets sans commiter à chaque session. |
 | Outils Dofus 3 | `git` | ✅ | Rien à ajouter, c'est le cas idéal. |
 | Bot Slay the Spire 2 | `git` | ✅ | Idem. |
-| | runs d'entraînement | 🔨 | Un checkpoint PPO écrit pendant la session est une preuve plus juste qu'un commit : l'entraînement tourne sans qu'on commite. Se ramène à `fichiers` sur le dossier de checkpoints. |
+| | runs d'entraînement | ✅ | Un checkpoint PPO écrit pendant la session est une preuve plus juste qu'un commit : l'entraînement tourne sans qu'on commite. Se ramène à `fichiers` sur le dossier de checkpoints. |
 | Développement du coach | `git` | ✅ | Déjà déclaré, dépôt `C:\Dev\app-motiv`. |
 | App Django préfecture | `git` | ✅ | Si le dépôt est local. S'il est sur une machine du travail, `manuelle` assumée. |
-| Roadmap cybersécurité | `fichiers` sur les notes | 🔨 | Apprendre ne produit pas de commit. Un dossier de notes modifié est la trace la plus proche du réel. |
-| | `premier_plan` | ✅ | Faible mais disponible : TryHackMe ou la doc au premier plan. Nécessite ActivityWatch. |
+| Roadmap cybersécurité | `fichiers` sur les notes | ✅ | Apprendre ne produit pas de commit. Un dossier de notes modifié est la trace la plus proche du réel. |
+| | `premier_plan` | 🔨 | Faible mais disponible : TryHackMe ou la doc au premier plan. Déclarable, mais pas encore rattaché à une session — voir le point 4 de l'ordre recommandé. |
 | Musculation | voir plus bas | | |
 
 ### Ce qu'il reste à coder pour les projets
 
-**`fichiers` — le plus rentable.** Le moyen est déclarable dès maintenant dans
-le markdown, mais le scan n'est pas écrit : il faut parcourir le dossier
-déclaré et compter les fichiers dont la date de modification tombe dans la
-fenêtre de session. Une demi-journée, en excluant `.git/`, `node_modules/`,
-`Binaries/`, `Intermediate/`.
+**`fichiers` — fait.** Le scan parcourt le dossier déclaré et remonte les
+fichiers dont la date de modification tombe dans la fenêtre de session. Les
+sorties de build sont **élaguées à la descente**, pas filtrées après : `.git/`,
+`node_modules/`, `.venv/`, et côté Unreal `Binaries/`, `Intermediate/`,
+`DerivedDataCache/`, `Saved/`.
+
+Mesuré sur `C:\Dev\app-motiv` : 136 fichiers visités au lieu de plusieurs
+dizaines de milliers. Le scan reste sous la seconde.
+
+La preuve affiche un échantillon lisible mais compte le total réel — les
+confondre ferait afficher « 40 fichiers » sur une session qui en a touché six
+cents, et une preuve qui sous-estime le travail est un bug.
 
 **`premier_plan`** — les signaux d'ActivityWatch arrivent déjà, mais ils ne sont
 pas encore rattachés à une session précise. Il manque le calcul « pourcentage de
@@ -55,7 +62,7 @@ Détecter *l'entraînement* n'est pas faisable proprement. Détecter *le fait d'
 
 | Option | État | Remarque |
 |---|---|---|
-| Géorepérage MacroDroid sur la salle | 🔨 recette | Déclencheur « entrée dans une zone », action HTTP vers `/api/signals` avec `sport`. Marche ce soir, aucun code. **La meilleure option si tu vas en salle.** |
+| Géorepérage MacroDroid sur la salle | ✅ recette | Déclencheur « entrée dans une zone », action HTTP vers `/api/signals` avec `sport`. Marche ce soir, aucun code. **La meilleure option si tu vas en salle.** |
 | Appairage Bluetooth | 🔨 recette | Déclencheur « écouteurs connectés » + contrainte horaire. Utile si tu t'entraînes chez toi. Faible : tu peux les mettre pour autre chose. |
 | Health Connect | 🔨 natif | Le vrai signal — séances, fréquence cardiaque. Exige la sonde Android native du §9.2. |
 | Strava | 🔨 API | OAuth + webhook. Propre, mais seulement si tu y enregistres tes séances. |
@@ -117,11 +124,13 @@ compromis est réel, et il n'est pas neutre. C'est ton appel.
 
 ## Ordre recommandé
 
-1. **`fichiers`** — débloque la roadmap cyber, les assets UE5 et les checkpoints
-   RL d'un coup.
-2. **Géorepérage muscu** — une recette, aucun code, ferme la dernière piste
-   entièrement manuelle.
+1. ~~**`fichiers`**~~ — fait. Débloque la roadmap cyber, les assets UE5 et les
+   checkpoints RL.
+2. ~~**Géorepérage muscu**~~ — recette écrite, voir `coach-mobile/README.md`.
 3. **DNS filtrant** — la seule option qui couvre le téléphone sans app native.
-4. **Qualité de session** — rattacher les signaux existants à la session.
+   **Demande ton arbitrage** : cela fait passer ton DNS par un tiers.
+4. **Qualité de session** — rattacher les signaux à une session. Bloqué par le
+   modèle : un `Signal` porte une journée, pas un intervalle. Il faudra lui
+   ajouter une fenêtre avant que `premier_plan` puisse fonctionner.
 5. **Sonde Android native** — le plus long, à ne faire que si le DNS ne suffit
    pas.

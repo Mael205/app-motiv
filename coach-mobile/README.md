@@ -52,6 +52,24 @@ dessus — le chemin 2 existe pour ça.
 
 3. Répète pour chaque catégorie que tu veux suivre.
 
+### La muscu, par géorepérage
+
+Détecter *l'entraînement* n'est pas faisable proprement — un accéléromètre ne
+distingue pas une séance d'un trajet en bus, et un faux positif sur une piste où
+tu comptes des séances est pire que rien. Détecter *le fait d'y être allé* se
+fait très bien.
+
+- **Déclencheur** — « Entrée dans une zone géographique », centrée sur ta salle,
+  rayon 150 m.
+- **Contrainte** — durée de présence minimale, 20 minutes. Sans elle, passer
+  devant en voiture déclencherait.
+- **Action** — même requête HTTP, avec `{"category":"sport","minutes":45}`.
+
+Cela suppose que tu ailles en salle. Pour un entraînement à la maison, il n'y a
+pas de signal honnête : un appairage Bluetooth d'écouteurs est trop faible (tu
+les mets pour autre chose), et il vaut mieux garder la déclaration manuelle en
+attendant Health Connect, que seul le chemin 2 permet de lire.
+
 **Le nom des applications ne quitte pas le téléphone :** c'est la macro qui
 connaît la liste, le serveur ne reçoit que la catégorie. Même garantie que sur
 les autres surfaces.
