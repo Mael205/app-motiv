@@ -165,8 +165,16 @@ def poll_adguard(config: dict, categoriser: Categoriser, *, since: datetime, ver
         if categoriser.of(domain) != AUTRE
     ]
     if not events:
-        if verbose:
-            print("  AdGuard : rien de catégorisé sur cette fenêtre.")
+        if not queries:
+            print(
+                "  AdGuard : aucune requête sur cette fenêtre. Rien ne l'utilise encore "
+                "comme résolveur — ni ce PC, ni le téléphone."
+            )
+        elif verbose:
+            print(
+                f"  AdGuard : {len(queries)} requêtes lues, aucune reconnue par "
+                "categories.toml."
+            )
         return
 
     entries = adguard.to_entries(adguard.bursts(events))
