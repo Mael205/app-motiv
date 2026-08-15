@@ -3,6 +3,8 @@ import type {
   HomeState,
   JournalEntry,
   ProjectDetail,
+  ProjectImportResult,
+  ProjectPreview,
   RoutineCheckResult,
   SessionResult,
 } from './types'
@@ -113,6 +115,18 @@ export const api = {
     request<{ id: number; text: string }>('/fridge', {
       method: 'POST',
       body: JSON.stringify({ text }),
+    }),
+
+  previewProject: (markdown: string) =>
+    request<ProjectPreview>('/projects/preview', {
+      method: 'POST',
+      body: JSON.stringify({ markdown }),
+    }),
+
+  importProject: (markdown: string) =>
+    request<ProjectImportResult>('/projects/import', {
+      method: 'POST',
+      body: JSON.stringify({ markdown }),
     }),
 
   routines: () => request<EntretienPanel>('/routines'),

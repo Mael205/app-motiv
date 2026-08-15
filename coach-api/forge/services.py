@@ -23,6 +23,7 @@ from .models import (
     Project,
     Quest,
     RelaxWindow,
+    RoadmapStep,
     Routine,
     RoutineCheck,
     Season,
@@ -30,6 +31,7 @@ from .models import (
     Session,
     Track,
 )
+from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import seasons as season_rules
 from .rules import streak as streak_rules
@@ -541,6 +543,82 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         "entretien": routine_panel(user, today=today),
         "relax_used": RelaxWindow.objects.filter(user=user, coach_day=today).exists(),
     }
+
+
+# --------------------------------------------------------------------------
+# Création d'un projet depuis un markdown (SPEC §4.5)
+# --------------------------------------------------------------------------
+
+def preview_project(markdown: str) -> dict:
+    """Ce que l'app a compris du markdown collé, avant toute écriture."""
+    parsed = roadmap_import.parse(markdown)
+    return {
+        "valid": parsed.valid,
+        "name": parsed.name,
+        "branch": parsed.branch,
+        "color": parsed.color,
+        "emblem": parsed.emblem,
+        "weekly_commitment": parsed.weekly_commitment,
+        "open_steps": parsed.open_steps,
+        "steps": [
+            {
+                "label": s.label,
+                "state": s.state,
+                "estimated_sessions": s.estimated_sessions,
+                "needs_split": s.needs_split,
+            }
+            for s in parsed.steps
+        ],
+        "warnings": parsed.warnings,
+    }
+
+
+def free_slot(user) -> int | None:
+    """Le premier slot libre, ou rien. La limite de 3 est dure (SPEC §4.3)."""
+    taken = set(
+        Project.objects.filter(user=user, status=Project.ACTIVE)
+        .exclude(slot=None)
+        .values_list("slot", flat=True)
+    )
+    return next((s for s in (1, 2, 3) if s not in taken), None)
+
+
+@transaction.atomic
+def create_project_from_markdown(user, markdown: str) -> Project:
+    """Crée un projet et sa roadmap depuis le markdown produit par un chat.
+
+    Si les trois slots sont pris, le projet est créé **au frigo** plutôt que
+    refusé : la limite du §4.3 ne se contourne pas, mais l'idée ne se perd pas
+    non plus. L'échange de slot reste un geste du dimanche.
+    """
+    parsed = roadmap_import.parse(markdown)
+    if not parsed.valid:
+        raise ValueError("; ".join(parsed.warnings) or "Markdown illisible.")
+
+    track, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
+    slot = free_slot(user)
+
+    project = Project.objects.create(
+        user=user,
+        track=track,
+        name=parsed.name,
+        status=Project.ACTIVE if slot else Project.FRIDGE,
+        slot=slot,
+        color=parsed.color,
+        emblem=parsed.emblem,
+        branch=parsed.branch,
+        weekly_commitment=parsed.weekly_commitment,
+    )
+    for order, step in enumerate(parsed.steps):
+        RoadmapStep.objects.create(
+            project=project,
+            order=order,
+            label=step.label,
+            state=step.state,
+            estimated_sessions=step.estimated_sessions,
+            done_at=timezone.now() if step.state == RoadmapStep.DONE else None,
+        )
+    return project
 
 
 # --------------------------------------------------------------------------

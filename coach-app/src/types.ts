@@ -115,6 +115,35 @@ export interface Quest {
   done: boolean
 }
 
+/** Une étape lue dans le markdown collé, pas encore écrite en base (SPEC §4.5). */
+export interface ParsedStep {
+  label: string
+  state: string
+  estimated_sessions: number
+  needs_split: boolean
+}
+
+export interface ProjectPreview {
+  valid: boolean
+  name: string
+  branch: string
+  color: string
+  emblem: string
+  weekly_commitment: number
+  open_steps: number
+  steps: ParsedStep[]
+  warnings: string[]
+}
+
+export interface ProjectImportResult {
+  id: number
+  name: string
+  status: string
+  slot: number | null
+  steps: number
+  detail: string
+}
+
 /** Une routine de la piste Entretien, telle que le panneau du jour l'affiche. */
 export interface RoutineEntry {
   id: number

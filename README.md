@@ -54,13 +54,13 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 cd coach-api && .venv/Scripts/python -m pytest
 ```
 
-120 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+143 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
-et les deux invariants de la piste Entretien — aucun compteur qui redescend,
-aucune XP pour une routine. La logique vit dans `coach-api/forge/rules/`, sans
-aucun import Django, et n'est dupliquée nulle part ailleurs — surtout pas côté
-client.
+les deux invariants de la piste Entretien — aucun compteur qui redescend, aucune
+XP pour une routine — et la lecture du markdown de création de projet. La logique
+vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est dupliquée
+nulle part ailleurs — surtout pas côté client.
 
 ## Ce qui est déjà là
 
@@ -74,6 +74,9 @@ client.
   boss dont la vie descend avec le travail réel, hauts faits.
 - Piste Entretien : routines courtes ancrées sur un geste, mesurées à la semaine,
   sans streak cassable, payées en Éclats et jamais en XP (§11.9).
+- Création d'un projet en collant le markdown produit par un chat, avec aperçu
+  avant écriture. Le prompt à utiliser est dans
+  [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session

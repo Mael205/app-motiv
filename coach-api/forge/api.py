@@ -174,6 +174,43 @@ def complete_step(request, step_id: int):
     return Response({"id": step.id, "state": step.state, "boss_damage": damage})
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def preview_project(request):
+    """Ce que l'app comprend du markdown collé. N'écrit rien (SPEC §4.5)."""
+    markdown = request.data.get("markdown", "")
+    if not markdown.strip():
+        return Response({"detail": "Colle d'abord le markdown du projet."}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(services.preview_project(markdown))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def import_project(request):
+    """Crée le projet et sa roadmap. Au frigo si les trois slots sont pris."""
+    markdown = request.data.get("markdown", "")
+    try:
+        project = services.create_project_from_markdown(request.user, markdown)
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "id": project.id,
+            "name": project.name,
+            "status": project.status,
+            "slot": project.slot,
+            "steps": project.steps.count(),
+            "detail": (
+                f"Projet créé sur le slot {project.slot}."
+                if project.slot
+                else "Les trois slots sont pris : le projet part au frigo. L'échange se fait le dimanche."
+            ),
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def routines(request):

@@ -158,6 +158,8 @@ base       = minutes effectives
 - **Granularité imposée (§0.9) :** une étape estimée à plus de 3 sessions est marquée *à découper*, et le découpage est proposé par l'IA (§5.1). Une roadmap dont l'étape courante est floue est traitée comme un défaut du système, pas comme un état normal.
 - Un projet actif doit avoir **au moins une étape `à faire` ou `en cours`** en permanence. Si la roadmap est vide ou terminée, l'app réclame le prochain jalon avant d'autoriser une session sur ce projet.
 - **Import de roadmap** depuis un `TODO.md` / `ROADMAP.md` du dépôt déclaré : l'agent lit le fichier, l'IA le convertit en étapes, confirmation en un tap.
+- **Création par collage, en attendant le §5.6.** Tant que la couche IA n'est pas construite, l'interrogation qui produit une roadmap se fait dans un chat, avec le prompt de `docs/prompt-nouveau-projet.md`, et le markdown se colle dans l'app. L'écran affiche ce qu'il a compris **avant** d'écrire quoi que ce soit : étapes, états, estimations, et les avertissements du §4.5. Aucun avertissement ne bloque la création — une étape trop grosse est un défaut à corriger, pas un refus. Le format est le même que celui de l'import automatique, et le jour où le §5.6 existe la conversation in-app alimente le même parseur : rien n'est à refaire.
+- Un projet créé alors que les trois slots sont pris part **au frigo**, jamais dans un quatrième slot (§4.3).
 - **Compteur d'heures cumulées** par projet, par branche de compétence, par semaine, par saison et total.
 - **Journal** : chaque session produit obligatoirement une entrée, relisible chronologiquement et filtrable par projet.
 

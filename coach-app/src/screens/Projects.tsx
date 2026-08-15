@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { ProjectDetail } from '../types'
 import { Icon } from '../components/art/Icons'
+import { NewProject } from '../components/NewProject'
 import { Roadmap } from '../components/Roadmap'
 import './Projects.css'
 
@@ -53,6 +54,13 @@ export function Projects({ onChanged }: { onChanged: () => void }) {
         {slots.map((project) => (
           <ProjectCard key={project.id} project={project} onComplete={completeStep} />
         ))}
+
+        <NewProject
+          onCreated={() => {
+            load()
+            onChanged()
+          }}
+        />
       </section>
 
       {others.length > 0 && (
