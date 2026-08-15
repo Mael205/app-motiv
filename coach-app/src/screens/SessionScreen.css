@@ -1,0 +1,183 @@
+.session {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.session__stage {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.session__stage--form {
+  align-items: stretch;
+  text-align: left;
+}
+
+.session__title {
+  font-size: 26px;
+  color: var(--text);
+}
+
+/* --- L'anneau de session ----------------------------------------------- */
+
+.ring {
+  position: relative;
+  width: min(320px, 80vw);
+  aspect-ratio: 1;
+}
+
+.ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring__track {
+  fill: none;
+  stroke: rgba(237, 230, 245, 0.08);
+  stroke-width: 10;
+}
+
+.ring__progress {
+  fill: none;
+  stroke: var(--project, var(--accent));
+  stroke-width: 10;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 12px var(--project, var(--accent)));
+  transition: stroke-dashoffset 1s linear;
+}
+
+.ring__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+}
+
+.ring__time {
+  font-size: 58px;
+  line-height: 1;
+  color: var(--text);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--project, var(--accent)) 45%, transparent);
+}
+
+.ring__time--over {
+  color: var(--gold);
+  animation: over-pulse 2s ease-in-out infinite;
+}
+
+@keyframes over-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.session__abandon {
+  align-self: center;
+}
+
+/* --- Debrief ------------------------------------------------------------ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field textarea {
+  padding: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  outline: none;
+  resize: vertical;
+}
+
+.field textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.session__error {
+  font-size: 13px;
+  color: var(--rose);
+}
+
+/* --- Résultat ----------------------------------------------------------- */
+
+.result__xp {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.result__xp-value {
+  font-size: 76px;
+  line-height: 1;
+  color: var(--gold);
+  text-shadow: 0 0 40px rgba(232, 163, 61, 0.55);
+}
+
+.result__lines {
+  width: 100%;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 13.5px;
+}
+
+.result__lines li {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--line);
+  color: var(--muted);
+}
+
+.result__lines .num {
+  color: var(--text);
+}
+
+.result__cap .num {
+  color: var(--rose);
+}
+
+.result__damage .num {
+  color: var(--rose);
+}
+
+.result__note {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.result__achievement {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  width: 100%;
+  background: linear-gradient(150deg, rgba(232, 163, 61, 0.16), transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.result__achievement strong {
+  font-size: 20px;
+  color: var(--gold);
+}
+
+.result__achievement .muted {
+  font-size: 12px;
+}

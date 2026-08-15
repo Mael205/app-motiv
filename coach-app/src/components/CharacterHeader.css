@@ -1,0 +1,138 @@
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.hero__season {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero__season-name {
+  font-size: 27px;
+  color: var(--accent);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.hero__main {
+  gap: 16px;
+  align-items: center;
+}
+
+/* Le rang : hexagone, la seule forme non rectangulaire de l'interface. */
+.rank {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 80px;
+  background:
+    radial-gradient(circle at 40% 25%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 65%),
+    linear-gradient(160deg, var(--panel-high), #1c1428);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  box-shadow: 0 0 34px -12px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+.rank::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+}
+
+.rank__code {
+  font-size: 34px;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.rank__level {
+  position: absolute;
+  bottom: 9px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.hero__xp {
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hero__xp-values .num {
+  font-size: 13px;
+}
+
+.xpbar {
+  position: relative;
+  height: 10px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--line);
+  overflow: hidden;
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+
+.xpbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 100%, white 30%),
+      var(--accent) 55%,
+      color-mix(in srgb, var(--accent) 75%, black 25%));
+  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--accent) 95%, transparent);
+}
+
+/* Un seul reflet lent : la barre respire sans clignoter. */
+.xpbar__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.22) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: shine 4.5s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 65% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.hero__streak-count .num {
+  font-size: 19px;
+  color: var(--text);
+}
+
+.shields {
+  display: flex;
+  gap: 5px;
+}
+
+.shield {
+  width: 13px;
+  height: 15px;
+  background: rgba(237, 230, 245, 0.07);
+  border: 1px solid var(--line);
+  clip-path: polygon(50% 0, 100% 22%, 100% 62%, 50% 100%, 0 62%, 0 22%);
+}
+
+.shield--full {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--turquoise) 100%, white 25%), var(--turquoise));
+  border-color: transparent;
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--turquoise) 90%, transparent);
+}
+
+.hero__baseline {
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--muted);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  padding-left: 10px;
+}

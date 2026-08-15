@@ -1,0 +1,24 @@
+.boot {
+  min-height: 100dvh;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  max-width: 340px;
+}
+
+.boot__title {
+  font-size: 56px;
+  color: var(--accent);
+  text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.boot__form {
+  width: 100%;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.boot__error {
+  font-size: 13px;
+  color: var(--rose);
+}

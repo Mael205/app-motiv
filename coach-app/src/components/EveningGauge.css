@@ -1,0 +1,106 @@
+.gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gauge__head {
+  align-items: baseline;
+}
+
+.gauge__remaining .num {
+  font-size: 22px;
+  color: var(--text);
+}
+
+.gauge__track {
+  position: relative;
+  height: 62px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.22)),
+    var(--panel);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  overflow: hidden;
+}
+
+/* La zone déjà écoulée est en creux : le temps qui a fondu se voit. */
+.gauge__spent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26));
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  transition: width 1s linear;
+}
+
+.gauge__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(237, 230, 245, 0.08);
+}
+
+.gauge__tick-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+}
+
+.gauge__block {
+  position: absolute;
+  top: 8px;
+  bottom: 18px;
+  transform-origin: bottom;
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--block) 95%, white 22%),
+      var(--block) 60%,
+      color-mix(in srgb, var(--block) 70%, black 30%));
+  box-shadow:
+    0 0 18px -4px color-mix(in srgb, var(--block) 90%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+}
+
+.gauge__block--running {
+  animation: block-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes block-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+
+.gauge__cursor {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--text) 60%, transparent);
+  transition: left 1s linear;
+}
+
+.gauge__cursor-dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--text);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--text) 50%, transparent);
+}
+
+.gauge__foot {
+  font-size: 11px;
+}
+
+.gauge__hint .num {
+  font-size: 12px;
+  color: var(--text);
+}

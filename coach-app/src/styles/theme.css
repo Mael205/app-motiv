@@ -1,0 +1,285 @@
+/* Système de design du coach.
+ *
+ * Fiche de personnage RPG assumée mais sobre : pas de skeuomorphisme, pas de
+ * parchemin, pas de pixel art. L'effet « jeu » vient des angles biseautés, des
+ * lueurs tenues et de la texture de fond — pas d'illustrations.
+ *
+ * L'accent de saison surcharge --accent au niveau du <body> ; aucune autre
+ * variable ne bouge, la lisibilité ne dépend jamais de la saison en cours.
+ */
+
+@import '@fontsource/bebas-neue/400.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+:root {
+  --bg: #191320;
+  --bg-deep: #120d18;
+  --panel: #241a33;
+  --panel-high: #2e2140;
+  --line: rgba(237, 230, 245, 0.09);
+  --line-strong: rgba(237, 230, 245, 0.16);
+
+  --gold: #e8a33d;
+  --turquoise: #4fc4b4;
+  --rose: #de5f7e;
+  --accent: var(--gold);
+
+  --text: #ede6f5;
+  --muted: #9a8cae;
+  --dim: #6b5f7d;
+
+  --display: 'Bebas Neue', 'Oswald', system-ui, sans-serif;
+  --body: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --chamfer: 10px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-impact: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Ambiance : deux halos de couleur de saison très diffus, plus un grain fin.
+   C'est ce qui évite l'aplat mort d'un fond sombre uni. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(120% 80% at 50% -20%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 85% 110%, color-mix(in srgb, var(--turquoise) 10%, transparent), transparent 65%),
+    var(--bg-deep);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+}
+
+/* --- Typographie ------------------------------------------------------- */
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 0.95;
+}
+
+/* Les chiffres ont systématiquement une texture différente du texte. */
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* --- Surfaces ---------------------------------------------------------- */
+
+.panel {
+  position: relative;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    var(--panel);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+  padding: 18px;
+}
+
+/* Filet lumineux sur l'arête haute : le détail qui fait « HUD » plutôt que « carte ». */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--chamfer);
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent);
+}
+
+.panel--accent {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 0 40px -18px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+/* --- Boutons ----------------------------------------------------------- */
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.cta {
+  position: relative;
+  width: 100%;
+  padding: 20px 24px;
+  font-family: var(--display);
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a1206;
+  background: linear-gradient(150deg,
+      color-mix(in srgb, var(--accent) 100%, white 18%),
+      var(--accent) 55%,
+      color-mix(in srgb, var(--accent) 80%, black 20%));
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 14px 40px -16px color-mix(in srgb, var(--accent) 90%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out), filter 140ms;
+}
+
+.cta:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 20px 50px -16px color-mix(in srgb, var(--accent) 100%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Le bouton répond immédiatement : aucune animation sur le chemin critique. */
+.cta:active {
+  transform: translateY(1px) scale(0.995);
+  transition-duration: 40ms;
+}
+
+.cta:disabled {
+  filter: grayscale(0.8) brightness(0.7);
+  cursor: not-allowed;
+}
+
+.ghost {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: color 140ms, border-color 140ms, background 140ms;
+}
+
+.ghost:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* --- Mise en page ------------------------------------------------------ */
+
+.shell {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .shell {
+    max-width: 880px;
+    padding-top: 36px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* --- Mode terne : sanction de palier 1 (SPEC §14) ----------------------- */
+/* L'interface s'éteint après un jour raté. Rien n'est cassé, tout est gris,
+   et une session de 10 minutes rallume tout. */
+
+body.terne {
+  --accent: #7c7189;
+}
+
+body.terne .panel,
+body.terne .cta {
+  filter: saturate(0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
