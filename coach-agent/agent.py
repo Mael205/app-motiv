@@ -33,6 +33,7 @@ import sys
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import adguard
 from collections import defaultdict
@@ -70,12 +71,13 @@ class Categoriser:
         return AUTRE
 
 
-def activitywatch_events(since: datetime) -> list[tuple[str, float]]:
+def activitywatch_events(since: datetime) -> list[tuple[str, float]] | None:
     """Événements de fenêtre depuis ActivityWatch. Rend ``(étiquette, secondes)``.
 
-    Ne lève jamais : si ActivityWatch n'est pas lancé, on rend une liste vide et
-    l'appelant le signale. Une sonde absente n'est pas une erreur, c'est une
-    absence de mesure — et le §11.10 interdit d'en conclure quoi que ce soit.
+    Rend ``None`` si ActivityWatch est injoignable, et une liste vide s'il
+    répond sans rien avoir vu. La distinction n'est pas cosmétique : « pas de
+    sonde » et « sonde qui n'a rien vu » ne permettent pas les mêmes conclusions,
+    et le §11.10 interdit de les confondre.
     """
     import json
 
@@ -83,16 +85,20 @@ def activitywatch_events(since: datetime) -> list[tuple[str, float]]:
         with urllib.request.urlopen(f"{ACTIVITYWATCH}/api/0/buckets", timeout=3) as response:
             buckets = json.load(response)
     except (urllib.error.URLError, OSError, ValueError):
-        return []
+        return None
 
     out: list[tuple[str, float]] = []
     for name, bucket in buckets.items():
         kind = bucket.get("type", "")
         if "window" not in kind and "web" not in kind:
             continue
+        # Le nom du bucket contient le nom de la machine, qui peut porter des
+        # accents. Sans encodage, urllib lève une UnicodeEncodeError — et comme
+        # c'est une ValueError, elle serait avalée en silence par le except.
+        segment = urllib.parse.quote(name, safe="")
         url = (
-            f"{ACTIVITYWATCH}/api/0/buckets/{name}/events"
-            f"?start={since.isoformat()}&limit=2000"
+            f"{ACTIVITYWATCH}/api/0/buckets/{segment}/events"
+            f"?start={urllib.parse.quote(since.isoformat())}&limit=2000"
         )
         try:
             with urllib.request.urlopen(url, timeout=5) as response:
@@ -217,11 +223,15 @@ def cycle(config: dict, categoriser: Categoriser, *, window_minutes: int, verbos
 
     events = activitywatch_events(since)
 
-    if not events:
+    if events is None:
         print(
             "ActivityWatch injoignable sur localhost:5600 — aucune mesure d'activité "
             "sur cette fenêtre. Rien n'en est déduit."
         )
+        return
+
+    if not events:
+        print("ActivityWatch répond, mais n'a rien enregistré sur cette fenêtre.")
         return
 
     entries = aggregate(events, categoriser)

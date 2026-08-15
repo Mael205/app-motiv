@@ -31,4 +31,5 @@ Thumbs.db
 
 # Agent local
 /coach-agent/config.local.toml
+/coach-ext/token.local.txt
 /coach-agent/*.log
