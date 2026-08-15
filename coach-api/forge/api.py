@@ -15,7 +15,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
-from .models import FridgeIdea, Garde, Project, RoadmapStep, Routine, Session
+from .models import FridgeIdea, Garde, Project, ProjectRepo, RoadmapStep, Routine, Session
+from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules.calendar import coach_day, week_start
 
@@ -214,6 +215,64 @@ def import_project(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def signals(request):
+    """Point d'entrée des sondes : agent PC, extension, sonde Android.
+
+    Le corps ne transporte que des catégories et des durées. Il n'existe aucun
+    champ pour une URL ou un titre — c'est la garantie, pas une convention
+    (SPEC §11.10).
+    """
+    source = request.data.get("source", "")
+    if source not in signal_rules.SOURCES:
+        return Response(
+            {"detail": f"Source inconnue. Attendues : {', '.join(signal_rules.SOURCES)}."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entries = request.data.get("entries") or []
+    try:
+        result = services.ingest_signals(
+            request.user, source=source, entries=entries, day=_today(request)
+        )
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(result, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def project_repos(request, project_id: int):
+    """Déclare les dépôts git d'un projet — la preuve de travail du §8.3."""
+    project = Project.objects.filter(user=request.user, id=project_id).first()
+    if not project:
+        return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "POST":
+        path = (request.data.get("path") or "").strip()
+        if not path:
+            return Response({"detail": "Chemin du dépôt manquant."}, status=status.HTTP_400_BAD_REQUEST)
+        repo, _ = ProjectRepo.objects.get_or_create(
+            project=project, path=path, defaults={"remote": request.data.get("remote", "")}
+        )
+        return Response({"id": repo.id, "path": repo.path}, status=status.HTTP_201_CREATED)
+
+    return Response(
+        [{"id": r.id, "path": r.path, "remote": r.remote} for r in project.repos.all()]
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def session_evidence(request, session_id: int):
+    """Ce que les dépôts montrent pendant la session. N'invalide rien (SPEC §6)."""
+    session = Session.objects.filter(user=request.user, id=session_id).first()
+    if not session:
+        return Response({"detail": "Session introuvable."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(services.session_evidence(session))
 
 
 @api_view(["GET"])

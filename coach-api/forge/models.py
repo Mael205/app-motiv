@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from forge.rules import gardes as rules_gardes
 from forge.rules import routines as rules_routines
+from forge.rules import signals as rules_signals
 from forge.rules import slots as rules_slots
 
 
@@ -425,6 +426,12 @@ class Garde(models.Model):
         ],
         help_text="Jours tolérés par semaine. Jamais zéro (SPEC §11.10).",
     )
+    auto_category = models.CharField(
+        max_length=24,
+        blank=True,
+        choices=[(c, c) for c in rules_signals.CATEGORIES],
+        help_text="Catégorie de sonde qui marque cette garde. Vide = déclaration à la main seulement.",
+    )
     order = models.PositiveSmallIntegerField(default=0)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -453,9 +460,13 @@ class Garde(models.Model):
 class GardeDay(models.Model):
     """Une journée déclarée pour une garde. Non déclarée = ni tenue ni marquée."""
 
+    MAIN, SONDE = "main", "sonde"
+    ORIGINS = [(MAIN, "Déclaré à la main"), (SONDE, "Marqué par une sonde")]
+
     garde = models.ForeignKey(Garde, on_delete=models.CASCADE, related_name="days")
     day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
     occurred = models.BooleanField(default=False, help_text="Le comportement a eu lieu ce jour-là")
+    origin = models.CharField(max_length=8, choices=ORIGINS, default=MAIN)
     declared_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -464,6 +475,57 @@ class GardeDay(models.Model):
 
     def __str__(self) -> str:
         return f"{self.garde} — {self.day} — {'marqué' if self.occurred else 'tenu'}"
+
+
+class Signal(models.Model):
+    """Une observation d'une sonde (SPEC §8, §9, §11.10).
+
+    Append-only. **Aucun contenu** : ni URL, ni titre de page, ni chemin. Une
+    catégorie et une durée, c'est tout ce que le modèle sait représenter — et
+    c'est volontaire, un champ libre finirait par recevoir une adresse.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="signals")
+    source = models.CharField(max_length=8, choices=[(s, s) for s in rules_signals.SOURCES])
+    category = models.CharField(max_length=24, choices=[(c, c) for c in rules_signals.CATEGORIES])
+    minutes = models.PositiveIntegerField(default=0)
+    day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
+    seen_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-day", "category")
+        indexes = [models.Index(fields=["user", "day", "category"])]
+
+    def __str__(self) -> str:
+        return f"{self.category} · {self.minutes} min · {self.source}"
+
+    def to_rule(self) -> rules_signals.Signal:
+        return rules_signals.Signal(
+            source=self.source,
+            category=self.category,
+            minutes=self.minutes,
+            day=self.day,
+        )
+
+
+class ProjectRepo(models.Model):
+    """Un dépôt git déclaré pour un projet (SPEC §8.3).
+
+    Sert à pré-remplir le debrief et à mesurer le travail réel : ce qui a été
+    commité pendant la session est la preuve la moins falsifiable qui existe,
+    et elle ne coûte aucune saisie.
+    """
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="repos")
+    path = models.CharField(max_length=500, help_text="Chemin local du dépôt")
+    remote = models.CharField(max_length=255, blank=True)
+    last_scanned_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("project", "path")
+
+    def __str__(self) -> str:
+        return f"{self.project} → {self.path}"
 
 
 class Achievement(models.Model):

@@ -367,7 +367,12 @@ Quest(id, user, scope[jour|semaine], date_or_week, kind[plancher|bonus|hebdo], l
 
 Routine(id, user, track, name, anchor[reveil|apres_douche|avant_coucher|fin_de_session|libre],
         weekdays[], weekly_target, reward_shards, order, active, created_at, archived_at)
-Garde(id, user, name, weekly_budget, order, active, created_at, archived_at)  # §11.10
+Signal(id, user, source[agent|ext|mobile], category, minutes, day, seen_at)
+                                      # append-only, jamais d'URL ni de titre
+Garde(... , auto_category)            # la catégorie de sonde qui marque la garde
+ProjectRepo(id, project, path, remote, last_scanned_at)
+Garde(id, user, name, weekly_budget, auto_category, order, active,
+      created_at, archived_at)                                         # §11.10
 GardeDay(id, garde, day, occurred, declared_at)                        # unique (garde, day)
 RoutineCheck(id, routine, day, checked_at, source, shards_awarded)      # unique (routine, day)
 RoutineWeek(id, routine, week_start, done, target, held, bonus_awarded) # semaines tenues, cumulatif
@@ -510,7 +515,17 @@ Réseaux sociaux, porno, et ce qui fonctionne de la même manière : des comport
 
 **Confidentialité.** Les gardes ne sortent **jamais** de l'app : ni dans le bilan hebdomadaire envoyé à l'ami (§4.7), ni dans les exports, ni dans les notifications qui pourraient s'afficher sur un écran verrouillé. Le §17 exclut déjà le temps d'écran de ce bilan ; l'exclusion des gardes est plus stricte encore et ne se paramètre pas.
 
-**Pas de surveillance.** La déclaration est manuelle. Aucune détection automatique, aucune capture, aucun historique de navigation lu pour vérifier une garde — le §17 l'interdit déjà pour l'agent, et cela vaut ici sans exception. Le système croit ce qui est déclaré.
+**Détection automatique — et l'asymétrie qui la rend honnête.** Les sondes du §8 et du §9 alimentent les gardes : une application ou un domaine de la liste vu au premier plan **marque** la journée automatiquement, avec sa source. Mais la règle suivante est structurante et ne se paramètre pas :
+
+> **Une détection marque. Une absence de détection ne certifie rien.**
+
+Navigation privée, autre appareil, téléphone sans sonde, ordinateur du travail : le silence des sondes n'est pas une preuve. Le système n'affichera donc **jamais** « journée tenue, vérifiée ». La déclaration du soir demeure — elle arrive simplement déjà remplie quand une sonde a vu quelque chose, et vide sinon.
+
+Sans cette asymétrie, le système mentirait dans le sens rassurant. C'est la pire panne possible pour un outil dont tout l'intérêt est d'être crédible à ses propres yeux (§6) : un streak qu'on sait faux ne tient personne, et une abstinence faussement certifiée est pire qu'un compteur absent.
+
+**Catégories, jamais de contenu.** Les sondes remontent une catégorie et une durée : *« 12 minutes sur un domaine de la catégorie réseaux »*. Jamais l'URL complète, jamais le titre de la page, jamais une capture. Le §17 interdit déjà la capture d'écran et le keylogging ; s'y ajoute ici l'interdiction de stocker l'adresse exacte. Le journal d'événements lui-même n'en contient pas.
+
+**La détection ne juge pas.** Comme la preuve d'activité du §6, un signal automatique informe et n'invalide rien. Une journée marquée par une sonde reste corrigeable à la main : c'est l'utilisateur qui a le dernier mot, y compris contre la machine.
 
 ---
 
@@ -768,6 +783,8 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de streak quotidien cassable sur les routines d'entretien, et pas d'XP pour une routine cochée (§11.9). Une routine se mesure à la semaine et se paie en Éclats — sinon le skincare devient un moyen de monter en niveau sans travailler.
 - Pas de garde à objectif zéro, pas de compteur « jours depuis la dernière fois » remis à zéro, pas un mot de jugement sur un dépassement (§11.10). Une garde a un budget hebdomadaire tenable, et le cumul de jours tenus ne redescend jamais.
 - Pas de garde dans le bilan envoyé à l'ami, dans un export ou dans une notification lisible sur écran verrouillé. Aucun paramètre ne permet de l'activer.
+- Pas de « journée tenue, vérifiée » : une sonde peut marquer une journée, jamais la certifier propre (§11.10). Le silence d'une sonde n'est pas une preuve.
+- Pas d'URL complète, pas de titre de page, pas de contenu dans un signal de sonde. Une catégorie et une durée, rien d'autre.
 - Pas de trois projets du même domaine dans les trois slots (§4.3).
 - Pas de cosmétique qui modifie une règle. Le loot est de l'apparence, jamais du pouvoir — sinon le système récompense la chance et plus le travail.
 - Pas d'argent réel en jeu. La mise est en Éclats.

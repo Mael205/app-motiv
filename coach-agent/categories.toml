@@ -1,0 +1,35 @@
+# Catégorisation locale — c'est ce fichier qui décide, jamais le serveur.
+#
+# L'agent envoie une catégorie et une durée. Il n'envoie jamais le nom du
+# domaine, ni le titre de la fenêtre, ni l'URL (SPEC §11.10). La correspondance
+# entre un domaine et sa catégorie reste sur cette machine, dans ce fichier que
+# tu es seul à éditer.
+#
+# Les valeurs sont des fragments cherchés dans le nom de l'application ou du
+# domaine, en minuscules. « reddit » attrape « old.reddit.com ».
+
+[categories]
+
+travail_projet = [
+  "code.exe", "devenv.exe", "rider64.exe", "unrealeditor.exe",
+  "windowsterminal.exe", "pwsh.exe", "godot.exe",
+  "localhost", "github.com", "stackoverflow.com", "docs.djangoproject.com",
+]
+
+travail_hors_projet = ["outlook.exe", "teams.exe", "excel.exe"]
+
+reseaux = [
+  "instagram.com", "x.com", "twitter.com", "facebook.com",
+  "snapchat", "discord.com/channels", "linkedin.com",
+]
+
+scroll_passif = [
+  "tiktok.com", "youtube.com/shorts", "reddit.com", "twitch.tv",
+]
+
+# Complète cette liste toi-même : elle ne quitte jamais cette machine.
+adulte = []
+
+jeu = ["dofus.exe", "steam.exe", "slippi", "smash"]
+
+sport = ["strava.com", "fitnotes", "hevy"]

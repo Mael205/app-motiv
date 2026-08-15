@@ -23,6 +23,7 @@ from .models import (
     JournalEntry,
     Profile,
     Project,
+    ProjectRepo,
     Quest,
     RelaxWindow,
     RoadmapStep,
@@ -31,12 +32,15 @@ from .models import (
     Season,
     SeasonBoss,
     Session,
+    Signal,
     Track,
 )
+from . import gitscan
 from .rules import gardes as garde_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import seasons as season_rules
+from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules import streak as streak_rules
 from .rules import xp as xp_rules
@@ -638,6 +642,106 @@ def create_project_from_markdown(user, markdown: str) -> Project:
 
 
 # --------------------------------------------------------------------------
+# Sondes et preuves automatiques (SPEC §8, §9, §11.10)
+# --------------------------------------------------------------------------
+
+@transaction.atomic
+def ingest_signals(user, *, source: str, entries: list[dict], day: date) -> dict:
+    """Enregistre les observations d'une sonde, puis marque ce qui doit l'être.
+
+    Les entrées sont validées par la logique pure : une catégorie inconnue est
+    refusée, et il n'existe aucun champ pour transporter une URL.
+    """
+    created = 0
+    for entry in entries:
+        checked = signal_rules.Signal(
+            source=source,
+            category=entry.get("category", ""),
+            minutes=int(entry.get("minutes", 0)),
+            day=day,
+        )
+        if checked.minutes <= 0:
+            continue
+        Signal.objects.create(
+            user=user,
+            source=checked.source,
+            category=checked.category,
+            minutes=checked.minutes,
+            day=day,
+        )
+        created += 1
+
+    return {"stored": created, "marked": apply_signals_to_gardes(user, day=day)}
+
+
+def apply_signals_to_gardes(user, *, day: date) -> list[dict]:
+    """Marque les gardes dont la catégorie a été détectée ce jour-là.
+
+    Deux règles, toutes deux issues du §11.10 :
+
+    * une détection **marque** une journée, une absence de détection ne
+      déclare jamais une journée tenue ;
+    * une déclaration faite à la main n'est **jamais** écrasée par une sonde —
+      l'utilisateur a le dernier mot, y compris contre la machine. La
+      contradiction éventuelle est remontée par ``gardes_panel``, pas résolue
+      en douce.
+    """
+    observed = [s.to_rule() for s in Signal.objects.filter(user=user, day=day)]
+    marked = []
+
+    for garde in Garde.objects.filter(user=user, active=True).exclude(auto_category=""):
+        verdict = signal_rules.verdict_for(observed, garde.auto_category, day)
+        if not verdict.marks:
+            continue
+
+        existing = GardeDay.objects.filter(garde=garde, day=day).first()
+        if existing and existing.origin == GardeDay.MAIN:
+            continue
+
+        GardeDay.objects.update_or_create(
+            garde=garde,
+            day=day,
+            defaults={
+                "occurred": True,
+                "origin": GardeDay.SONDE,
+                "declared_at": timezone.now(),
+            },
+        )
+        marked.append({"garde": garde.name, "minutes": verdict.minutes, "sources": list(verdict.sources)})
+
+    return marked
+
+
+def session_evidence(session: Session) -> dict:
+    """Ce que les dépôts déclarés du projet montrent pendant la session.
+
+    Sert à pré-remplir le debrief (§8.3) et à donner à la session une preuve
+    qui ne dépend d'aucune déclaration. N'invalide jamais une session : le §6
+    est explicite là-dessus.
+    """
+    end = session.ended_at or timezone.now()
+    repos, commits, unavailable = [], [], []
+
+    for repo in ProjectRepo.objects.filter(project=session.project):
+        activity = gitscan.commits_between(repo.path, session.started_at, end)
+        repos.append(repo.path)
+        if not activity.available:
+            unavailable.append({"path": repo.path, "detail": activity.detail})
+            continue
+        commits.extend(
+            {"sha": c.sha, "subject": c.subject, "at": c.at.isoformat()} for c in activity.commits
+        )
+        ProjectRepo.objects.filter(pk=repo.pk).update(last_scanned_at=timezone.now())
+
+    return {
+        "repos": repos,
+        "commits": sorted(commits, key=lambda c: c["at"]),
+        "unavailable": unavailable,
+        "suggested_note": "\n".join(f"- {c['subject']}" for c in commits),
+    }
+
+
+# --------------------------------------------------------------------------
 # Les gardes (SPEC §11.10)
 # --------------------------------------------------------------------------
 
@@ -666,6 +770,11 @@ def gardes_panel(user, *, today: date) -> dict:
         week = garde_rules.week_state(rule, marked.get(key, []), today)
         total = garde_rules.held_days(declared.get(key, []), marked.get(key, []))
         today_row = next((d for d in declared.get(key, []) if d == today), None)
+        seen = signal_rules.verdict_for(
+            [s.to_rule() for s in Signal.objects.filter(user=user, day=today)],
+            garde.auto_category,
+            today,
+        ) if garde.auto_category else None
         payload.append(
             {
                 "id": garde.pk,
@@ -680,6 +789,15 @@ def gardes_panel(user, *, today: date) -> dict:
                 "held_days": total,
                 "held_weeks": garde_rules.held_weeks(rule, declared.get(key, []), marked.get(key, [])),
                 "message": garde_rules.message_for(week, total),
+                "auto": bool(garde.auto_category),
+                "seen_minutes": seen.minutes if seen else 0,
+                "seen_label": seen.label if seen else "",
+                "conflict": bool(
+                    seen
+                    and seen.marks
+                    and today_row is not None
+                    and today not in marked.get(key, [])
+                ),
             }
         )
 

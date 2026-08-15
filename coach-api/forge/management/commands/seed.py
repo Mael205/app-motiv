@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from datetime import date, time, timedelta
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -18,6 +19,7 @@ from forge.models import (
     Garde,
     Profile,
     Project,
+    ProjectRepo,
     Quest,
     RoadmapStep,
     Routine,
@@ -41,9 +43,9 @@ ROUTINES = [
 # Les gardes (SPEC §11.10). Un budget hebdomadaire, jamais zéro : viser
 # « plus jamais » transforme la première fois en abandon complet.
 GARDES = [
-    {"name": "Réseaux sociaux", "weekly_budget": 2},
-    {"name": "Scroll passif le soir", "weekly_budget": 2},
-    {"name": "Porno", "weekly_budget": 1},
+    {"name": "Réseaux sociaux", "weekly_budget": 2, "auto_category": "reseaux"},
+    {"name": "Scroll passif le soir", "weekly_budget": 2, "auto_category": "scroll_passif"},
+    {"name": "Porno", "weekly_budget": 1, "auto_category": "adulte"},
 ]
 
 PROJETS = [
@@ -156,7 +158,11 @@ class Command(BaseCommand):
             Garde.objects.update_or_create(
                 user=user,
                 name=spec["name"],
-                defaults={"weekly_budget": spec["weekly_budget"], "order": order},
+                defaults={
+                    "weekly_budget": spec["weekly_budget"],
+                    "auto_category": spec.get("auto_category", ""),
+                    "order": order,
+                },
             )
 
         for order, spec in enumerate(ROUTINES):
@@ -197,6 +203,12 @@ class Command(BaseCommand):
                 TimeSlot.objects.create(
                     project=project, weekday=weekday, start_time=start, duration_minutes=duration
                 )
+
+        coach = Project.objects.filter(user=user, is_coach_project=True).first()
+        if coach:
+            ProjectRepo.objects.get_or_create(
+                project=coach, path=str(Path(__file__).resolve().parents[4])
+            )
 
         from forge.models import FridgeIdea
 

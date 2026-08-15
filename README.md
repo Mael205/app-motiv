@@ -12,7 +12,7 @@ traçabilité du §15 avant suppression.
 |---|---|---|
 | `coach-api/` | Django 5 + DRF — source de vérité, logique métier | **J0/J1 en cours** |
 | `coach-app/` | React + Vite, PWA installable — PC et mobile | **J0/J1 en cours** |
-| `coach-agent/` | Python, Windows, tray — automatisation locale | à venir (J4) |
+| `coach-agent/` | Python, Windows — sonde ActivityWatch + git | **première version** |
 | `coach-ext/` | Extension navigateur — filtrage Shorts | à venir (J5) |
 | `coach-mobile/` | Sonde Android — temps d'écran | à venir (J5) |
 
@@ -54,17 +54,17 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 cd coach-api && .venv/Scripts/python -m pytest
 ```
 
-179 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+205 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
-la lecture du markdown de création de projet et les deux limites dures de
-l'attribution de slot.
+la lecture du markdown de création de projet, les deux limites dures de
+l'attribution de slot, et la preuve de travail lue dans git.
 
-Trois d'entre eux gardent des promesses plutôt que des calculs, et ce sont
-peut-être les plus importants : aucun compteur d'Entretien ne redescend, aucune
-routine ne rapporte d'XP, et aucun message de dépassement d'une garde ne contient
-un mot de jugement. Ces règles-là se perdent au premier refactoring si personne
-ne les surveille.
+Plusieurs gardent des promesses plutôt que des calculs, et ce sont peut-être les
+plus importants : aucun compteur d'Entretien ne redescend, aucune routine ne
+rapporte d'XP, aucun message de dépassement d'une garde ne contient un mot de
+jugement, et **aucune sonde ne peut déclarer une journée tenue**. Ces règles-là
+se perdent au premier refactoring si personne ne les surveille.
 
 La logique vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est
 dupliquée nulle part ailleurs — surtout pas côté client.
@@ -89,6 +89,11 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
   qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
   de l'app (§11.10).
+- Sondes : l'agent PC lit ActivityWatch, catégorise **localement**, et marque
+  les gardes détectées. Une détection marque, une absence de détection ne
+  certifie rien — voir [coach-agent/README.md](coach-agent/README.md).
+- Preuve de travail sans saisie : les commits des dépôts déclarés pendant une
+  session pré-remplissent le debrief (§8.3).
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session
