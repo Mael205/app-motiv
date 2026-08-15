@@ -126,9 +126,29 @@ L'anti-fragilité est la mécanique la plus importante du produit.
 - **Maximum 2 slots par domaine.** Deuxième limite dure : trois projets de code dans les trois slots, c'est une seule vie déguisée en trois. Le troisième slot doit venir d'un autre domaine — `code`, `corps`, `creatif`, `savoir`, `pratique`. Un projet qui ne trouve pas de slot compatible part au frigo, comme un quatrième projet. La règle se vérifie au moment où un projet prend un slot, pas après coup.
 - **Le frigo** : capture illimitée d'idées de projets. Champ libre, 5 secondes, accessible en un tap depuis le téléphone ou en un message Telegram.
 - **Échange de slot uniquement le dimanche.** Le reste de la semaine, le bouton est désactivé avec la date du prochain créneau. Un projet sorti d'un slot va en archive, pas à la poubelle : ses heures et son journal restent.
+- **Exception : un projet terminé se remplace immédiatement.** Le dimanche protège contre l'abandon d'un projet pour un autre plus excitant — pas contre la réussite. Quand la roadmap d'un projet est intégralement faite, son slot se libère le jour même et peut être repris sans attendre. Le slot peut aussi être **laissé vacant** ; il le reste jusqu'au dimanche, où il doit être rempli. Un slot vide indéfiniment serait une limite de 3 déguisée en limite de 2.
+- Pour éviter qu'une roadmap d'une seule étape serve à débloquer un échange, un projet n'est « terminé » que s'il a **au moins une session enregistrée**. Le système ne sanctionne pas la triche, il ne la rend simplement pas rentable.
+- **La piste Corps ne consomme aucun slot** (§11.4). Musculation, danse, course, foot y coexistent sans se disputer quoi que ce soit : elles alimentent le même objectif hebdomadaire de la piste, jamais le streak Atelier.
 - Chaque projet actif porte un **engagement hebdo** : nombre de sessions visées cette semaine (défaut 3). La somme des engagements est plafonnée à ce que la fenêtre du soir permet réellement — refuse et affiche l'incohérence s'il sur-engage.
 - L'engagement est **historisé par semaine** (table dédiée), sinon "engagements tenus vs pris" est incalculable.
 - Le projet « développement du coach » **ne consomme pas de slot** et n'est soumis à aucun quota bloquant (§11.6).
+
+**Des slots supplémentaires se gagnent, ils ne se décrètent pas.**
+
+Trois slots au départ. Un quatrième et un cinquième s'obtiennent avec le rang — mais **le rang seul ne suffit pas**, et c'est le point central de cette mécanique.
+
+L'XP monte avec le volume, or le volume est précisément le mode de défaillance du §0.2 : le sur-régime du jour 2 produit l'abandon du jour 6. Débloquer un slot sur l'XP seule reviendrait donc à **récompenser la dispersion par la permission de se disperser davantage**. Le déblocage exige en plus des **engagements tenus** : avoir promis un nombre de sessions et l'avoir fait, plusieurs semaines de suite.
+
+| Slot | Rang requis | Et surtout |
+|---|---|---|
+| 4ᵉ | A | 3 semaines sur les 4 dernières avec tous les engagements tenus |
+| 5ᵉ | S | 6 semaines sur les 8 dernières |
+
+Autrement dit : le droit de tenir quatre projets s'obtient en démontrant qu'on en tient trois. C'est la seule preuve qui vaille, et elle ne s'achète pas en enchaînant les sessions sur un seul projet.
+
+- Un slot débloqué **ne se reprend jamais** rétroactivement (§17).
+- Il se **verrouille temporairement** au palier 2 de décrochage (§14) : les projets ne sont pas supprimés, le slot est gelé jusqu'à la reprise. Une sanction éteint, elle n'efface pas.
+- Le plafond absolu reste **cinq**. Au-delà, le §17 s'applique sans discussion.
 
 ### 4.4 Progression, XP et plafond
 
@@ -780,7 +800,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de streak qui casse au premier jour manqué.
 - Pas de score de productivité global, pas de comparaison sociale, pas de classement avec des inconnus. Le seul adversaire est son propre fantôme.
 - Pas de "bravo, tu es incroyable". Le ton reste factuel, y compris dans l'univers de saison.
-- Pas de plus de 3 projets actifs, quelle que soit l'insistance.
+- Pas de plus de 3 projets actifs tant que le 4ᵉ slot n'est pas **gagné** au sens du §4.3, et jamais plus de cinq. L'insistance ne débloque rien ; les engagements tenus, si.
 - Pas de capture d'écran ni de keylogging par l'agent.
 - Pas de saisie manuelle d'une session terminée dans le passé.
 - Pas d'écran ouvert du type « qu'est-ce que tu veux faire ce soir ? », pas de champ libre à remplir avant de démarrer, pas de liste de tâches à arbitrer soi-même. Toute décision que le système peut prendre à sa place, il la prend (§0.9). Un espace vide au démarrage est un mode de défaillance, pas de la liberté.

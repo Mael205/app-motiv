@@ -55,7 +55,7 @@ cd coach-api && .venv/Scripts/python -m pytest      # 251 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 10 tests, la sonde PC
 ```
 
-251 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+265 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -86,7 +86,11 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   avant écriture. Le prompt est embarqué dans l'app, copiable en un tap, et
   documenté dans [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
 - Deux limites dures sur les slots : trois projets actifs, et deux au maximum
-  par domaine — pas trois projets de code en même temps (§4.3).
+  par domaine — pas trois projets de code en même temps (§4.3). Un 4ᵉ et un 5ᵉ
+  slot se **gagnent** sur les engagements tenus, jamais sur l'XP seule : le rang
+  monte avec le volume, et le volume est le mode de défaillance du §0.2.
+- Un projet terminé libère son slot le jour même ; les autres échanges attendent
+  le dimanche, et un slot laissé vacant doit y être repris.
 - Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
   qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
   de l'app (§11.10).

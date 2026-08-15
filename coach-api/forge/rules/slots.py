@@ -17,8 +17,22 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-MAX_ACTIVE = 3
+BASE_SLOTS = 3
+ABSOLUTE_MAX_SLOTS = 5
 MAX_PER_DOMAIN = 2
+
+# Rang requis et régularité exigée pour chaque slot supplémentaire (SPEC §4.3).
+# Le rang seul ne suffit jamais : l'XP monte avec le volume, et le volume est le
+# mode de défaillance du §0.2. Ce qui débloque, c'est la régularité tenue.
+SLOT_UNLOCKS = (
+    (4, "A", 3, 4),      # 4ᵉ slot : rang A, 3 semaines tenues sur les 4 dernières
+    (5, "S", 6, 8),      # 5ᵉ slot : rang S, 6 sur les 8 dernières
+)
+
+RANK_ORDER = ("F", "E", "D", "C", "B", "A", "S", "SS")
+
+# Rétro-compatibilité : la limite de base, pour les appels qui n'ont pas de rang.
+MAX_ACTIVE = BASE_SLOTS
 
 CODE = "code"
 CORPS = "corps"
@@ -37,7 +51,45 @@ DOMAIN_LABELS = {
 }
 
 
-def assign_slot(taken: Iterable[tuple[int, str]], domain: str) -> int | None:
+def unlocked_slots(rank: str, *, weeks_kept: int = 0, weeks_window: int = 0) -> int:
+    """Combien de slots sont ouverts, compte tenu du rang **et** de la régularité.
+
+    Débloquer sur l'XP seule récompenserait la dispersion par la permission de
+    se disperser davantage (SPEC §4.3). Le droit de tenir quatre projets
+    s'obtient en démontrant qu'on en tient trois.
+    """
+    if rank not in RANK_ORDER:
+        return BASE_SLOTS
+    niveau = RANK_ORDER.index(rank)
+
+    total = BASE_SLOTS
+    for slots, rang_requis, tenues, fenetre in SLOT_UNLOCKS:
+        assez_haut = niveau >= RANK_ORDER.index(rang_requis)
+        assez_regulier = weeks_window >= fenetre and weeks_kept >= tenues
+        if assez_haut and assez_regulier:
+            total = max(total, slots)
+    return min(total, ABSOLUTE_MAX_SLOTS)
+
+
+def next_unlock(rank: str, *, weeks_kept: int = 0, weeks_window: int = 0) -> str | None:
+    """Ce qui manque pour le prochain slot. Un fait, jamais une carotte."""
+    ouverts = unlocked_slots(rank, weeks_kept=weeks_kept, weeks_window=weeks_window)
+    for slots, rang_requis, tenues, fenetre in SLOT_UNLOCKS:
+        if slots <= ouverts:
+            continue
+        niveau = RANK_ORDER.index(rank) if rank in RANK_ORDER else 0
+        manques = []
+        if niveau < RANK_ORDER.index(rang_requis):
+            manques.append(f"rang {rang_requis}")
+        if weeks_kept < tenues:
+            manques.append(f"{tenues} semaines d'engagements tenus sur {fenetre} (tu en as {weeks_kept})")
+        return f"{slots}ᵉ slot : il manque " + " et ".join(manques) if manques else None
+    return None
+
+
+def assign_slot(
+    taken: Iterable[tuple[int, str]], domain: str, *, total_slots: int = BASE_SLOTS
+) -> int | None:
     """Le slot qu'un projet de ce domaine peut prendre, ou rien.
 
     ``taken`` est la liste des ``(slot, domaine)`` déjà actifs. Rendre ``None``
@@ -45,18 +97,58 @@ def assign_slot(taken: Iterable[tuple[int, str]], domain: str) -> int | None:
     """
     taken = list(taken)
     used = {slot for slot, _ in taken}
-    if len(used) >= MAX_ACTIVE:
+    if len(used) >= total_slots:
         return None
     if sum(1 for _, d in taken if d == domain) >= MAX_PER_DOMAIN:
         return None
-    return next((slot for slot in range(1, MAX_ACTIVE + 1) if slot not in used), None)
+    return next((slot for slot in range(1, total_slots + 1) if slot not in used), None)
 
 
-def refused_reason(taken: Iterable[tuple[int, str]], domain: str) -> str | None:
+SUNDAY = 6
+
+
+def can_replace(*, weekday: int, project_finished: bool, has_sessions: bool) -> tuple[bool, str]:
+    """Peut-on sortir un projet de son slot aujourd'hui ?
+
+    Le dimanche protège contre l'abandon d'un projet pour un autre plus
+    excitant. Il ne protège pas contre la réussite : un projet dont la roadmap
+    est finie libère son slot le jour même.
+
+    La session enregistrée n'est pas un soupçon, c'est une garde-fou : sans
+    elle, une roadmap d'une seule étape cochée servirait à contourner le
+    dimanche. Le système ne sanctionne pas la triche, il la rend inutile.
+    """
+    if weekday == SUNDAY:
+        return True, "Dimanche : l'échange est ouvert."
+    if project_finished and has_sessions:
+        return True, "Roadmap terminée : le slot se libère sans attendre dimanche."
+    if project_finished:
+        return False, (
+            "Roadmap marquée finie, mais aucune session enregistrée sur ce projet. "
+            "L'échange attend dimanche."
+        )
+    return False, "L'échange de slot se fait le dimanche."
+
+
+def must_fill_vacancy(*, weekday: int, vacant: int) -> bool:
+    """Un slot laissé vacant doit être repris le dimanche.
+
+    Sans cette règle, une limite de 3 se transformerait en limite de 2 par
+    simple inertie.
+    """
+    return weekday == SUNDAY and vacant > 0
+
+
+def refused_reason(
+    taken: Iterable[tuple[int, str]], domain: str, *, total_slots: int = BASE_SLOTS
+) -> str | None:
     """Pourquoi le projet n'a pas trouvé de slot. Factuel, sans reproche."""
     taken = list(taken)
-    if len({slot for slot, _ in taken}) >= MAX_ACTIVE:
-        return "Les trois slots sont pris. Le projet part au frigo, l'échange se fait le dimanche."
+    if len({slot for slot, _ in taken}) >= total_slots:
+        return (
+            f"Les {total_slots} slots sont pris. Le projet part au frigo, "
+            "l'échange se fait le dimanche."
+        )
     same = sum(1 for _, d in taken if d == domain)
     if same >= MAX_PER_DOMAIN:
         label = DOMAIN_LABELS.get(domain, domain)
