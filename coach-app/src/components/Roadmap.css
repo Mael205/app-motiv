@@ -1,0 +1,140 @@
+.rm {
+  position: relative;
+  list-style: none;
+  padding-left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Le rail : la colonne vertébrale du chemin. */
+.rm__rail {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 15px;
+  width: 2px;
+  background: rgba(237, 230, 245, 0.09);
+}
+
+.rm__rail-done {
+  width: 100%;
+  background: linear-gradient(180deg, var(--project), color-mix(in srgb, var(--project) 40%, transparent));
+  box-shadow: 0 0 10px -1px var(--project);
+}
+
+.rm__step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.rm__node {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--dim);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  transition: color 160ms, border-color 160ms, background 160ms, transform 160ms var(--ease-out);
+}
+
+.rm__node-index {
+  font-size: 11px;
+}
+
+.rm__node:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--project);
+  background: color-mix(in srgb, var(--project) 26%, var(--panel));
+  transform: scale(1.12);
+}
+
+/* L'étape courante est la seule à porter du relief : c'est la seule
+   sur laquelle on peut agir ce soir. */
+.rm__step--doing .rm__node {
+  color: #1a1206;
+  background: var(--project);
+  border-color: var(--project);
+  box-shadow: 0 0 18px -2px var(--project);
+}
+
+.rm__step--done .rm__node {
+  color: #10241f;
+  background: var(--turquoise);
+  border-color: var(--turquoise);
+}
+
+.rm__body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.rm__label {
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.rm__step--doing .rm__label {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rm__step--done .rm__label {
+  color: var(--dim);
+  text-decoration: line-through;
+  text-decoration-color: rgba(237, 230, 245, 0.25);
+}
+
+.rm__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rm__badge {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rm__badge--doing {
+  color: var(--project);
+  border: 1px solid color-mix(in srgb, var(--project) 45%, transparent);
+  background: color-mix(in srgb, var(--project) 12%, transparent);
+}
+
+.rm__badge--split {
+  color: var(--rose);
+  border: 1px solid color-mix(in srgb, var(--rose) 40%, transparent);
+}
+
+/* Une pastille par session estimée : le poids de l'étape se lit sans chiffre. */
+.rm__pips {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.rm__pip {
+  width: 5px;
+  height: 5px;
+  background: rgba(237, 230, 245, 0.22);
+  transform: rotate(45deg);
+}
+
+.rm__step--doing .rm__pip {
+  background: color-mix(in srgb, var(--project) 70%, transparent);
+}

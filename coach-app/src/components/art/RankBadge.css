@@ -1,18 +1,26 @@
 .rankbadge {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rankbadge__crest {
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
+  width: 100%;
 }
 
-.rankbadge svg {
+.rankbadge__crest svg {
   position: absolute;
   inset: 0;
   overflow: visible;
 }
 
 .rankbadge__plate {
-  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--accent) 55%, transparent));
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--accent) 50%, transparent));
 }
 
 .rankbadge__edge {
@@ -33,35 +41,63 @@
   stroke-width: 1.1;
 }
 
-/* Respiration très lente, une seule animation par aile, sur l'opacité — la
-   seule propriété que le compositeur sait animer sans repeindre le SVG. */
+/* Deux animations pour tout le badge — une par aile, sur le groupe entier.
+   Un léger battement combiné à l'opacité : c'est visible, et le compositeur
+   n'a que deux nœuds à gérer au lieu de douze. */
 .rankbadge__wing {
-  will-change: opacity;
-  animation: wing-breathe 6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: wing-flap 3.4s ease-in-out infinite;
+}
+
+.rankbadge__wing--left {
+  transform-origin: right center;
 }
 
 .rankbadge__wing--right {
-  animation-delay: -3s;
+  transform-origin: left center;
+  animation-delay: -0.15s;
 }
 
-@keyframes wing-breathe {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+@keyframes wing-flap {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(-3.5deg) translateY(-2px);
+  }
+}
+
+.rankbadge__wing--right {
+  animation-name: wing-flap-right;
+}
+
+@keyframes wing-flap-right {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(3.5deg) translateY(-2px);
+  }
 }
 
 .rankbadge__code {
   position: relative;
-  font-size: 42px;
+  font-size: 40px;
   line-height: 1;
   color: var(--accent);
   text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 75%, transparent);
-  transform: translateY(-6px);
 }
 
 .rankbadge__level {
-  position: absolute;
-  bottom: 16px;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--muted);
   letter-spacing: 0.04em;
 }

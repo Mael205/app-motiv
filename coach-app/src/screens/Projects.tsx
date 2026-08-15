@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { ProjectDetail } from '../types'
 import { Icon } from '../components/art/Icons'
+import { Roadmap } from '../components/Roadmap'
 import './Projects.css'
 
 /** L'onglet Projets : les trois slots, leurs roadmaps, le frigo.
@@ -105,42 +106,49 @@ function ProjectCard({
   onComplete: (stepId: number) => void
 }) {
   const done = project.steps.filter((s) => s.state === 'done').length
+  const percent = Math.round(project.completion * 100)
 
   return (
     <article className="pcard" style={{ ['--project' as string]: project.color }}>
       <header className="pcard__head">
-        <span className="pcard__emblem">{project.emblem}</span>
+        <ProgressRing percent={percent} emblem={project.emblem} />
+
         <div className="pcard__titles">
           <h3 className="pcard__name">{project.name}</h3>
           <span className="label">
-            {project.slot ? `Slot ${project.slot}` : 'Hors slot'} · {done}/{project.steps.length} étapes ·
-            engagement {project.weekly_commitment}/semaine
+            {project.slot ? `Slot ${project.slot}` : 'Hors slot'} · {done} sur {project.steps.length} étapes
+          </span>
+          <span className="pcard__commit">
+            <Icon.target size={13} /> {project.weekly_commitment} sessions visées par semaine
           </span>
         </div>
-        <span className="num pcard__percent">{Math.round(project.completion * 100)}%</span>
       </header>
 
-      <div className="pcard__bar">
-        <div className="pcard__bar-fill" style={{ width: `${project.completion * 100}%` }} />
-      </div>
-
-      <ol className="steps">
-        {project.steps.map((step) => (
-          <li key={step.id} className={`step step--${step.state}`}>
-            <button
-              className="step__box"
-              onClick={() => step.state !== 'done' && onComplete(step.id)}
-              disabled={step.state === 'done'}
-              aria-label={`Terminer : ${step.label}`}
-            >
-              {step.state === 'done' ? <Icon.check size={14} /> : null}
-            </button>
-            <span className="step__label">{step.label}</span>
-            {step.needs_split && <span className="step__split">à découper</span>}
-            <span className="num step__estimate">{step.estimated_sessions}×</span>
-          </li>
-        ))}
-      </ol>
+      <Roadmap steps={project.steps} onComplete={onComplete} />
     </article>
+  )
+}
+
+/** Anneau de complétion, avec l'emblème du projet au centre. */
+function ProgressRing({ percent, emblem }: { percent: number; emblem: string }) {
+  const radius = 26
+  const circumference = 2 * Math.PI * radius
+
+  return (
+    <div className="ring-mini">
+      <svg viewBox="0 0 64 64" width="60" height="60" aria-label={`${percent}% de la roadmap`}>
+        <circle className="ring-mini__track" cx="32" cy="32" r={radius} />
+        <circle
+          className="ring-mini__fill"
+          cx="32"
+          cy="32"
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - percent / 100)}
+        />
+      </svg>
+      <span className="ring-mini__emblem">{emblem}</span>
+      <span className="ring-mini__percent num">{percent}%</span>
+    </div>
   )
 }

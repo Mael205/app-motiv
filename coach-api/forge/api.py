@@ -6,6 +6,8 @@ décision à recomposer, il affiche ce que le serveur a décidé (SPEC §11.1).
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -13,8 +15,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
-from .models import FridgeIdea, Project, RoadmapStep, Session, Track
-from .rules.calendar import coach_day
+from .models import FridgeIdea, Project, RoadmapStep, Session
+from .rules.calendar import coach_day, week_start
 
 
 @api_view(["GET"])
@@ -184,6 +186,128 @@ def fridge(request):
             for i in FridgeIdea.objects.filter(user=request.user, promoted_at__isnull=True)
         ]
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def start_relax(request):
+    """Le sas de détente : 30 minutes sans jugement, une fois par soir."""
+    from django.conf import settings
+
+    from .models import RelaxWindow
+
+    profile = request.user.profile
+    now = timezone.now()
+    today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+
+    state = services.home_state(request.user)
+    if state["streak"]["sanction_level"] >= 1 and not state["validated_today"]:
+        # Le privilège de scroller avant de bosser se perd quand la soirée
+        # précédente est partie en scroll (SPEC §14, palier 1).
+        return Response(
+            {"detail": "Sas révoqué après un jour raté. Il revient dès que la journée est validée."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    minutes = settings.COACH["RELAX_MINUTES"]
+    window, created = RelaxWindow.objects.get_or_create(
+        user=request.user,
+        coach_day=today,
+        defaults={"started_at": now, "ends_at": now + timedelta(minutes=minutes)},
+    )
+    if not created:
+        left = int((window.ends_at - now).total_seconds() // 60)
+        return Response(
+            {
+                "detail": "Sas déjà utilisé ce soir."
+                + (f" Il se termine dans {left} min." if left > 0 else "")
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    return Response(
+        {"started_at": window.started_at.isoformat(), "ends_at": window.ends_at.isoformat()},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def declare_day_off(request):
+    """Un jour off déclaré au moins la veille est neutre (SPEC §11.5)."""
+    from django.conf import settings
+
+    from .models import DayOff
+
+    profile = request.user.profile
+    now = timezone.now()
+    today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+
+    try:
+        target = date.fromisoformat(request.data.get("date", ""))
+    except ValueError:
+        return Response({"detail": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if target <= today:
+        return Response(
+            {
+                "detail": "Un jour off se déclare au moins la veille. "
+                "Aujourd'hui, c'est un jour raté normal."
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    week = week_start(target)
+    taken = DayOff.objects.filter(
+        user=request.user, date__gte=week, date__lt=week + timedelta(days=7)
+    ).count()
+    if taken >= settings.COACH["MAX_DAYS_OFF_PER_WEEK"]:
+        return Response(
+            {"detail": f"Déjà {taken} jours off cette semaine-là. Le plafond est atteint."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    day_off, created = DayOff.objects.get_or_create(user=request.user, date=target)
+    return Response(
+        {
+            "date": day_off.date.isoformat(),
+            "created": created,
+            "detail": "Jour off enregistré. Il ne consomme pas de bouclier et ne casse pas le streak, "
+            "mais il remet à zéro la progression vers le prochain bouclier.",
+        },
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def register_push(request):
+    """Enregistre un abonnement Web Push pour cet appareil."""
+    from .models import Device
+
+    subscription = request.data.get("subscription")
+    if not subscription:
+        return Response({"detail": "Abonnement manquant."}, status=status.HTTP_400_BAD_REQUEST)
+
+    device, _ = Device.objects.update_or_create(
+        user=request.user,
+        name=request.data.get("name", "Appareil"),
+        defaults={
+            "kind": request.data.get("kind", Device.PHONE),
+            "push_subscription": subscription,
+            "last_seen_at": timezone.now(),
+        },
+    )
+    return Response({"id": device.id, "name": device.name})
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def push_key(request):
+    """Clé publique VAPID, nécessaire au client pour s'abonner."""
+    from django.conf import settings
+
+    return Response({"public_key": settings.COACH["VAPID_PUBLIC_KEY"]})
 
 
 @api_view(["GET"])

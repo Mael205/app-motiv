@@ -30,113 +30,81 @@
 .pcard__head {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.pcard__emblem {
-  font-size: 24px;
-  color: var(--project);
-  filter: drop-shadow(0 0 10px var(--project));
+  gap: 15px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .pcard__titles {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .pcard__name {
   font-family: var(--body);
-  font-size: 16.5px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
+  line-height: 1.25;
   color: var(--text);
 }
 
-.pcard__percent {
-  font-size: 20px;
-  color: var(--project);
-}
-
-.pcard__bar {
-  height: 4px;
-  margin: 12px 0 14px;
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.pcard__bar-fill {
-  height: 100%;
-  background: var(--project);
-  box-shadow: 0 0 10px var(--project);
-  transition: width 400ms var(--ease-out);
-}
-
-.steps {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.step {
-  display: flex;
+.pcard__commit {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 14px;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--dim);
 }
 
-.step__box {
+/* Anneau de complétion : le pourcentage se lit en forme, pas seulement en chiffre. */
+.ring-mini {
+  position: relative;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 19px;
-  height: 19px;
-  flex: 0 0 auto;
-  color: var(--bg);
-  border: 1px solid var(--line-strong);
-  background: rgba(0, 0, 0, 0.3);
-  transition: border-color 140ms, background 140ms;
+  width: 60px;
+  height: 60px;
 }
 
-.step__box:hover:not(:disabled) {
-  border-color: var(--project);
-  background: color-mix(in srgb, var(--project) 22%, transparent);
+.ring-mini svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
 }
 
-.step--done .step__box {
-  background: var(--turquoise);
-  border-color: var(--turquoise);
-  color: #10241f;
+.ring-mini__track {
+  fill: none;
+  stroke: rgba(237, 230, 245, 0.09);
+  stroke-width: 4;
 }
 
-.step--doing .step__box {
-  border-color: var(--project);
-  box-shadow: 0 0 10px -2px var(--project);
+.ring-mini__fill {
+  fill: none;
+  stroke: var(--project);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px var(--project));
+  transition: stroke-dashoffset 600ms var(--ease-out);
 }
 
-.step__label {
-  flex: 1;
+.ring-mini__emblem {
+  font-size: 19px;
+  line-height: 1;
+  color: var(--project);
+  transform: translateY(-5px);
 }
 
-.step--done .step__label {
-  color: var(--dim);
-  text-decoration: line-through;
-}
-
-.step--doing .step__label {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.step__split {
-  font-size: 10.5px;
-  padding: 2px 7px;
-  color: var(--rose);
-  border: 1px solid color-mix(in srgb, var(--rose) 40%, transparent);
-}
-
-.step__estimate {
-  font-size: 12px;
-  color: var(--dim);
+.ring-mini__percent {
+  position: absolute;
+  bottom: 11px;
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .ideas {

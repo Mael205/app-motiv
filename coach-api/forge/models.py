@@ -20,8 +20,11 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     timezone_name = models.CharField(max_length=64, default="Europe/Paris")
     day_rollover_hour = models.PositiveSmallIntegerField(default=4)
-    telegram_chat_id = models.CharField(max_length=64, blank=True)
+    discord_webhook = models.URLField(blank=True, help_text="Webhook d'un salon perso, canal de redondance")
     buddy_channel = models.CharField(max_length=255, blank=True)
+    guardian_minutes_before_end = models.PositiveSmallIntegerField(
+        default=90, help_text="Le gardien se déclenche N minutes avant la fin de la fenêtre du soir"
+    )
     buddy_disable_requested_at = models.DateTimeField(null=True, blank=True)
     shards = models.IntegerField(default=0)
     coach_quota_enabled = models.BooleanField(
@@ -343,6 +346,42 @@ class RelaxWindow(models.Model):
 
     class Meta:
         unique_together = ("user", "coach_day")
+
+
+class Device(models.Model):
+    """Un appareil appairé. Porte l'abonnement Web Push quand il y en a un."""
+
+    PC, PHONE = "pc", "phone"
+    KINDS = [(PC, "PC"), (PHONE, "Téléphone")]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="devices")
+    kind = models.CharField(max_length=8, choices=KINDS, default=PHONE)
+    name = models.CharField(max_length=64)
+    push_subscription = models.JSONField(null=True, blank=True)
+    paired_at = models.DateTimeField(default=timezone.now)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_kind_display()})"
+
+
+class NotificationLog(models.Model):
+    """Ce qui a été envoyé, et par quel canal. Sert à prouver qu'un gardien
+    a bien été déclenché — et à ne jamais le déclencher deux fois."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField(max_length=32)
+    coach_day = models.DateField(db_index=True)
+    title = models.CharField(max_length=140)
+    body = models.TextField()
+    channels = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-created_at",)
+        # Un gardien par soir, un rappel par créneau : l'unicité est une règle
+        # métier, pas une précaution technique.
+        unique_together = ("user", "kind", "coach_day")
 
 
 class AgentEvent(models.Model):

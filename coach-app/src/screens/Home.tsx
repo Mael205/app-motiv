@@ -1,6 +1,7 @@
 import type { HomeState } from '../types'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { NightHud } from '../components/NightHud'
+import { RelaxGate } from '../components/RelaxGate'
 import { SeasonBanner } from '../components/SeasonBanner'
 import './Home.css'
 
@@ -42,6 +43,8 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
         requiredMinutes={state.required_minutes}
         validated={state.validated_today}
       />
+
+      {!state.validated_today && <RelaxGate used={state.relax_used} onStarted={onStarted} />}
 
       {state.quests.length > 0 && (
         <ul className="questline">

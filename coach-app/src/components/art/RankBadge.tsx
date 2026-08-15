@@ -25,32 +25,33 @@ export const RankBadge = memo(function RankBadge({
   const spread = 0.55 + tier * 0.05
 
   return (
-    <div className="rankbadge" style={{ width: size * 1.9, height: size }}>
-      <svg viewBox="0 0 190 100" width={size * 1.9} height={size} aria-label={`Rang ${rank}, niveau ${level}`}>
-        <defs>
-          <linearGradient id="rb-plate" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(255,255,255,0.16)" />
-            <stop offset="1" stopColor="rgba(0,0,0,0.35)" />
-          </linearGradient>
-        </defs>
+    <div className="rankbadge" style={{ width: size * 1.9 }}>
+      <div className="rankbadge__crest" style={{ height: size }}>
+        <svg viewBox="0 0 190 100" width={size * 1.9} height={size} aria-label={`Rang ${rank}`}>
+          <defs>
+            <linearGradient id="rb-plate" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="rgba(255,255,255,0.16)" />
+              <stop offset="1" stopColor="rgba(0,0,0,0.35)" />
+            </linearGradient>
+          </defs>
 
-        <Wing side="left" feathers={feathers} spread={spread} />
-        <Wing side="right" feathers={feathers} spread={spread} />
+          <Wing side="left" feathers={feathers} spread={spread} />
+          <Wing side="right" feathers={feathers} spread={spread} />
 
-        {/* L'écu hexagonal */}
-        <path
-          className="rankbadge__plate"
-          d="M95 8 L124 25 L124 59 L95 76 L66 59 L66 25 Z"
-          fill="url(#rb-plate)"
-        />
-        <path
-          className="rankbadge__edge"
-          d="M95 8 L124 25 L124 59 L95 76 L66 59 L66 25 Z"
-        />
-        <path className="rankbadge__inner" d="M95 14 L119 28 L119 56 L95 70 L71 56 L71 28 Z" />
-      </svg>
+          {/* L'écu hexagonal */}
+          <path
+            className="rankbadge__plate"
+            d="M95 8 L124 25 L124 59 L95 76 L66 59 L66 25 Z"
+            fill="url(#rb-plate)"
+          />
+          <path className="rankbadge__edge" d="M95 8 L124 25 L124 59 L95 76 L66 59 L66 25 Z" />
+          <path className="rankbadge__inner" d="M95 14 L119 28 L119 56 L95 70 L71 56 L71 28 Z" />
+        </svg>
 
-      <span className="rankbadge__code display">{rank}</span>
+        <span className="rankbadge__code display">{rank}</span>
+      </div>
+
+      {/* Le niveau vit sous l'écu, pas dessus : il empiétait sur le glyphe. */}
       <span className="rankbadge__level num">niv. {level}</span>
     </div>
   )

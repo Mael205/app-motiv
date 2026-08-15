@@ -107,6 +107,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+
+  startRelax: () =>
+    request<{ started_at: string; ends_at: string }>('/relax/start', { method: 'POST' }),
+
+  declareDayOff: (day: string) =>
+    request<{ date: string; detail: string }>('/days-off', {
+      method: 'POST',
+      body: JSON.stringify({ date: day }),
+    }),
+
+  pushKey: () => request<{ public_key: string }>('/push/key'),
+
+  subscribePush: (subscription: PushSubscriptionJSON, name: string, kind: 'pc' | 'phone') =>
+    request<{ id: number; name: string }>('/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ subscription, name, kind }),
+    }),
 }
 
 export interface RunningSessionResponse {

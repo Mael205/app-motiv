@@ -17,4 +17,8 @@ urlpatterns = [
     path("api/steps/<int:step_id>/complete", api.complete_step),
     path("api/fridge", api.fridge),
     path("api/journal", api.journal),
+    path("api/relax/start", api.start_relax),
+    path("api/days-off", api.declare_day_off),
+    path("api/push/subscribe", api.register_push),
+    path("api/push/key", api.push_key),
 ]
