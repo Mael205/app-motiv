@@ -1,8 +1,16 @@
 import { DEFAULT_RULES } from './categories.js'
 
+/** Adaptateur Chrome / Firefox.
+ *
+ * Firefox expose `browser.*` avec des promesses ; Chrome expose `api.*`,
+ * qui rend des promesses en MV3. Passer par cette variable évite de dépendre
+ * du comportement de `api.*` sous Firefox, qui a changé selon les versions.
+ */
+const api = globalThis.browser ?? globalThis.chrome
+
 const $ = (id) => document.getElementById(id)
 
-const stored = await chrome.storage.local.get(['apiUrl', 'token', 'rules', 'lastFlush', 'lastError'])
+const stored = await api.storage.local.get(['apiUrl', 'token', 'rules', 'lastFlush', 'lastError'])
 $('apiUrl').value = stored.apiUrl || 'http://127.0.0.1:8000'
 $('token').value = stored.token || ''
 $('rules').value = JSON.stringify(stored.rules || DEFAULT_RULES, null, 2)
@@ -24,7 +32,7 @@ $('save').addEventListener('click', async () => {
     state.className = 'state err'
     return
   }
-  await chrome.storage.local.set({
+  await api.storage.local.set({
     apiUrl: $('apiUrl').value.trim(),
     token: $('token').value.trim(),
     rules,

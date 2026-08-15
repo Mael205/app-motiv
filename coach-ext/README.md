@@ -36,8 +36,28 @@ certifie rien** (SPEC §11.10). L'extension ne déclare jamais une journée tenu
 
    Copie-le : seule son empreinte est stockée, il ne sera plus jamais affiché.
 
-2. Dans Chrome ou Edge : `chrome://extensions` → **Mode développeur** →
+2. **Chrome ou Edge** : `chrome://extensions` → **Mode développeur** →
    **Charger l'extension non empaquetée** → choisis le dossier `coach-ext/`.
+
+   **Firefox** : renomme d'abord les manifestes, Firefox ne sachant lire que
+   `manifest.json` :
+
+   ```bash
+   cd coach-ext
+   mv manifest.json manifest.chrome.json && mv manifest.firefox.json manifest.json
+   ```
+
+   Puis `about:debugging` → **Ce Firefox** → **Charger un module temporaire** →
+   choisis `manifest.json`.
+
+   La différence tient à une seule ligne : Firefox ne supporte pas
+   `background.service_worker` en MV3 et attend un script de fond classique.
+   Le code, lui, est commun — il passe par `globalThis.browser ?? globalThis.chrome`
+   plutôt que de dépendre du comportement de `chrome.*` sous Firefox, qui a
+   changé selon les versions.
+
+   Attention : un module temporaire Firefox **disparaît à la fermeture du
+   navigateur**. Il faut le recharger à chaque démarrage, ou signer l'extension.
 
 3. Clique sur l'icône de l'extension, colle l'adresse de l'API et le jeton,
    puis **Enregistrer**.
@@ -62,7 +82,8 @@ laisse-la vide et garde cette garde en déclaration manuelle.
   ni un autre profil, ni la navigation privée. C'est exactement pourquoi le
   silence d'une sonde ne prouve rien.
 - **Non empaquetée.** Chrome affichera un avertissement au démarrage tant que
-  l'extension est chargée en mode développeur.
+  l'extension est chargée en mode développeur. Sous Firefox, elle est retirée
+  à chaque fermeture du navigateur.
 - Le blocage des Shorts et du feed d'accueil (§9.1) n'est **pas** dans cette
   version : il dépend de l'état « armé » côté serveur, et un blocage permanent
   serait contraire au §17. Il viendra avec le sas de détente.

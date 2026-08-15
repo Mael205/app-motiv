@@ -11,6 +11,14 @@
 
 import { AUTRE, DEFAULT_RULES, categoryOf, toEntries } from './categories.js'
 
+/** Adaptateur Chrome / Firefox.
+ *
+ * Firefox expose `browser.*` avec des promesses ; Chrome expose `api.*`,
+ * qui rend des promesses en MV3. Passer par cette variable évite de dépendre
+ * du comportement de `api.*` sous Firefox, qui a changé selon les versions.
+ */
+const api = globalThis.browser ?? globalThis.chrome
+
 const FLUSH_ALARM = 'coach-flush'
 const FLUSH_MINUTES = 5
 const IDLE_SECONDS = 120
@@ -20,7 +28,7 @@ let buffer = {}
 let bufferSince = Date.now()
 
 async function settings() {
-  const stored = await chrome.storage.local.get(['apiUrl', 'token', 'rules'])
+  const stored = await api.storage.local.get(['apiUrl', 'token', 'rules'])
   return {
     apiUrl: stored.apiUrl || 'http://127.0.0.1:8000',
     token: stored.token || '',
@@ -39,10 +47,10 @@ function accumulate(nextCategory) {
 }
 
 async function refresh() {
-  const state = await chrome.idle.queryState(IDLE_SECONDS)
+  const state = await api.idle.queryState(IDLE_SECONDS)
   if (state !== 'active') return accumulate(AUTRE)
 
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+  const [tab] = await api.tabs.query({ active: true, lastFocusedWindow: true })
   if (!tab || !tab.url) return accumulate(AUTRE)
 
   const { rules } = await settings()
@@ -72,27 +80,27 @@ async function flush() {
     })
     if (response.status === 401) {
       // Jeton mort : inutile de réessayer en boucle avec un secret périmé.
-      await chrome.storage.local.set({ lastError: 'Jeton refusé. Réémets-en un.' })
+      await api.storage.local.set({ lastError: 'Jeton refusé. Réémets-en un.' })
       return
     }
     if (!response.ok) return             // on garde le tampon pour le prochain envoi
     buffer = {}
     bufferSince = Date.now()
-    await chrome.storage.local.set({ lastFlush: new Date().toISOString(), lastError: '' })
+    await api.storage.local.set({ lastFlush: new Date().toISOString(), lastError: '' })
   } catch {
     // Serveur éteint : le tampon reste, rien n'est perdu.
   }
 }
 
-chrome.tabs.onActivated.addListener(refresh)
-chrome.tabs.onUpdated.addListener((_id, change) => change.url && refresh())
-chrome.windows.onFocusChanged.addListener(refresh)
-chrome.idle.onStateChanged.addListener(refresh)
+api.tabs.onActivated.addListener(refresh)
+api.tabs.onUpdated.addListener((_id, change) => change.url && refresh())
+api.windows.onFocusChanged.addListener(refresh)
+api.idle.onStateChanged.addListener(refresh)
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
+api.runtime.onInstalled.addListener(() => {
+  api.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
 })
-chrome.runtime.onStartup.addListener(() => {
-  chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
+api.runtime.onStartup.addListener(() => {
+  api.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
 })
-chrome.alarms.onAlarm.addListener((alarm) => alarm.name === FLUSH_ALARM && flush())
+api.alarms.onAlarm.addListener((alarm) => alarm.name === FLUSH_ALARM && flush())
