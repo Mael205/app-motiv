@@ -69,6 +69,48 @@ Projets → Nouveau projet → Copier le prompt.
 
 ---
 
+## Conçu, à trancher
+
+### Planchers progressifs
+
+L'idée : que le plancher quotidien monte avec le temps au lieu de rester à 25
+minutes pour toujours.
+
+**La précaution qui décide de la forme.** Le §4.1 dit que le plancher est
+*volontairement ridicule pour survivre aux mauvais soirs*. Le monter revient
+donc à rendre les mauvais soirs plus durs — et c'est précisément le soir où on
+rentre à 22h que le streak casse.
+
+**Donc : monter la barre normale, jamais l'issue de secours.**
+
+- Le **mode dégradé reste à 10 minutes**, définitivement. C'est lui qui empêche
+  « j'ai rien fait donc j'arrête » (§0.3).
+- La **session normale** peut passer de 25 à 30 puis 35 minutes, indexée sur le
+  **rang** — donc sur les semaines d'engagements tenus, jamais sur l'XP, pour la
+  raison du §4.4 : l'XP monte avec le volume, et le volume est le mode de
+  défaillance.
+
+Même logique que les slots gagnés : ce qui monte est l'exigence, pas la
+fragilité. À trancher avant de coder, notamment le palier exact et s'il faut un
+plafond.
+
+### Piste « Savoir » séparée de l'Atelier
+
+Aujourd'hui l'apprentissage est un **domaine** (`savoir`) de la piste Atelier :
+il est distingué, compté à part, et occupe une place que le code ne peut pas
+prendre grâce à la règle des deux slots par domaine.
+
+Une **piste** ajouterait autre chose : un streak propre et un objectif propre.
+Une soirée de cours ne validerait plus le streak d'Atelier, et inversement —
+comme aujourd'hui entre Atelier et Corps.
+
+La question à trancher n'est donc pas « faut-il distinguer » (c'est déjà fait)
+mais **« veut-on un streak d'apprentissage séparé »** — donc deux compteurs à
+tenir au lieu d'un. Le modèle `Track` accepte déjà de nouveaux types : l'ajouter
+coûte une migration et une règle de slots, pas une refonte.
+
+---
+
 ## Limites assumées, à ne pas « corriger »
 
 Ces points reviennent régulièrement ; ils sont notés ici pour ne pas être
