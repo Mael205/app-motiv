@@ -1,0 +1,33 @@
+# Profils de lancement — modele a copier en profiles.local.toml
+#
+#     cp profiles.example.toml profiles.local.toml
+#
+# profiles.local.toml est IGNORE PAR GIT, et c'est volontaire : il contient les
+# chemins de ta machine, et surtout il est la SEULE source de ce que l'agent a
+# le droit d'executer.
+#
+# La regle du SPEC 8, non negociable :
+#
+#     Le serveur ne peut jamais faire executer une commande arbitraire.
+#
+# Le serveur envoie uniquement le NOM du projet. L'agent le cherche ici. Un
+# projet absent de ce fichier ne lance rien du tout. Meme une reponse de modele
+# detournee ne peut, au pire, qu'ouvrir un programme que tu as toi-meme ecrit
+# ci-dessous.
+#
+# Le nom de section doit correspondre au nom du projet dans le coach, a la
+# casse et aux espaces pres. Attention aux tirets longs des noms seedes.
+
+["Bestiaire — app mobile"]
+folders = ['C:\Users\mael2\bestiaire-app']
+executables = ['C:\Users\mael2\AppData\Local\Programs\Microsoft VS Code\Code.exe']
+urls = ["http://localhost:8081"]
+# commands = ["npm start --prefix C:/Users/mael2/bestiaire-app"]
+
+["Evolve — prototype 4v1 UE5"]
+folders = ['C:\Dev\Evolve']
+# executables = ['C:\Program Files\Epic Games\UE_5.4\Engine\Binaries\Win64\UnrealEditor.exe']
+
+["Développement du coach"]
+folders = ['C:\Dev\app-motiv']
+urls = ["http://localhost:5173"]

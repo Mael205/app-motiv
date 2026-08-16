@@ -36,6 +36,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import adguard
+import profiles as profiles_module
+import toast
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -162,6 +164,136 @@ def post_entries(base_url: str, token: str, entries: list[dict]) -> dict:
         return json.load(response)
 
 
+def last_activity() -> datetime | None:
+    """Instant du dernier événement vu par ActivityWatch, ou ``None``.
+
+    Sert uniquement à la détection de session fantôme, et ``None`` y est une
+    réponse à part entière : sans mesure, le serveur refuse de clôturer.
+    """
+    import json
+
+    dernier: datetime | None = None
+    try:
+        with urllib.request.urlopen(f"{ACTIVITYWATCH}/api/0/buckets", timeout=3) as response:
+            buckets = json.load(response)
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+    for name, bucket in buckets.items():
+        if "window" not in bucket.get("type", ""):
+            continue
+        segment = urllib.parse.quote(name, safe="")
+        try:
+            with urllib.request.urlopen(
+                f"{ACTIVITYWATCH}/api/0/buckets/{segment}/events?limit=1", timeout=5
+            ) as response:
+                events = json.load(response)
+        except (urllib.error.URLError, OSError, ValueError):
+            continue
+        for event in events:
+            brut = event.get("timestamp")
+            if not brut:
+                continue
+            try:
+                moment = datetime.fromisoformat(brut.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if dernier is None or moment > dernier:
+                dernier = moment
+    return dernier
+
+
+def get_json(config: dict, chemin: str) -> dict | None:
+    """GET authentifié par le jeton de sonde. Rend ``None`` si injoignable."""
+    import json
+
+    request = urllib.request.Request(
+        f"{config['api_url'].rstrip('/')}{chemin}",
+        headers={"X-Probe-Token": config["token"]},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.load(response)
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def post_json(config: dict, chemin: str, payload: dict) -> dict | None:
+    import json
+
+    request = urllib.request.Request(
+        f"{config['api_url'].rstrip('/')}{chemin}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Probe-Token": config["token"]},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.load(response)
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+class Suivi:
+    """Ce que l'agent a déjà fait, pour ne pas le refaire à chaque cycle."""
+
+    def __init__(self) -> None:
+        self.session_lancee: int | None = None
+        self.notifications_vues: set[int] = set()
+
+
+def suivre_session(config: dict, etat: dict, suivi: Suivi, liste_blanche) -> None:
+    """Ouvre l'environnement d'un projet, et signale les sessions fantômes.
+
+    Le nom du projet est la **seule** donnée du serveur utilisée ici, et
+    uniquement comme clé de recherche dans la liste blanche locale (SPEC §8).
+    """
+    session = etat.get("running_session")
+    if not session:
+        suivi.session_lancee = None
+        return
+
+    if suivi.session_lancee != session["id"]:
+        suivi.session_lancee = session["id"]
+        plan = liste_blanche.plan_for(session["project"])
+        if plan.empty:
+            print(
+                f"  session sur « {session['project']} » : aucun profil de lancement déclaré "
+                "dans profiles.local.toml"
+            )
+        else:
+            print(f"  ouverture de l'environnement ({plan.summary()})")
+            for fait in profiles_module.launch(plan):
+                print(f"    {fait}")
+
+    # Session fantôme : on rapporte la mesure, le serveur décide (SPEC §8.7).
+    depassement = session["elapsed_minutes"] - session["planned_minutes"]
+    if depassement > 15:
+        dernier = last_activity()
+        reponse = post_json(
+            config,
+            "/api/agent/ghost",
+            {
+                "session_id": session["id"],
+                "last_active_at": dernier.isoformat() if dernier else None,
+            },
+        )
+        if reponse and reponse.get("closed"):
+            minutes = reponse.get("minutes", 0)
+            print(f"  session fantôme close à {minutes} min réelles : {reponse.get('reason')}")
+            toast.show("Session clôturée", f"Sans activité depuis un moment. {minutes} min comptées.")
+
+
+def afficher_notifications(etat: dict, suivi: Suivi) -> None:
+    """Affiche en natif ce que le serveur a envoyé, une seule fois (SPEC §8.6)."""
+    for notification in reversed(etat.get("notifications", [])):
+        if notification["id"] in suivi.notifications_vues:
+            continue
+        suivi.notifications_vues.add(notification["id"])
+        if toast.show(notification["title"], notification["body"]):
+            print(f"  notification affichée : {notification['title']}")
+
+
 def poll_adguard(config: dict, categoriser: Categoriser, *, since: datetime, verbose: bool) -> None:
     """Lit le résolveur, catégorise **ici**, n'envoie que des catégories."""
     section = config.get("adguard") or {}
@@ -246,9 +378,25 @@ def post_signals(
         return json.load(response)
 
 
-def cycle(config: dict, categoriser: Categoriser, *, window_minutes: int, verbose: bool) -> None:
+def cycle(
+    config: dict,
+    categoriser: Categoriser,
+    *,
+    window_minutes: int,
+    verbose: bool,
+    suivi: Suivi | None = None,
+    liste_blanche=None,
+) -> None:
     until = datetime.now(timezone.utc)
     since = until - timedelta(minutes=window_minutes)
+
+    if suivi is not None:
+        etat = get_json(config, "/api/agent/state")
+        if etat is None:
+            print("Coach injoignable — les sondes continuent, rien n'est lancé ni affiché.")
+        else:
+            suivre_session(config, etat, suivi, liste_blanche)
+            afficher_notifications(etat, suivi)
 
     poll_adguard(config, categoriser, since=since, verbose=verbose)
 
@@ -307,10 +455,25 @@ def main() -> int:
         return 1
 
     categoriser = Categoriser(load_categories())
+    liste_blanche = profiles_module.load_profiles()
+    suivi = Suivi()
     interval = int(config.get("interval_seconds", DEFAULT_INTERVAL_SECONDS))
 
+    if not liste_blanche.entries:
+        print(
+            "Aucun profil de lancement : crée profiles.local.toml pour qu'une session "
+            "ouvre ton environnement (voir README)."
+        )
+
     while True:
-        cycle(config, categoriser, window_minutes=args.window, verbose=not args.quiet)
+        cycle(
+            config,
+            categoriser,
+            window_minutes=args.window,
+            verbose=not args.quiet,
+            suivi=suivi,
+            liste_blanche=liste_blanche,
+        )
         if args.once:
             return 0
         time.sleep(interval)

@@ -12,7 +12,7 @@ traçabilité du §15 avant suppression.
 |---|---|---|
 | `coach-api/` | Django 5 + DRF — source de vérité, logique métier | **J0/J1 en cours** |
 | `coach-app/` | React + Vite, PWA installable — PC et mobile | **J0/J1 en cours** |
-| `coach-agent/` | Python, Windows — ActivityWatch, git, AdGuard Home | **première version** |
+| `coach-agent/` | Python, Windows — lancement, sessions fantômes, sondes | **J4 fait** |
 | `coach-ext/` | Extension navigateur — sonde web par domaine | **première version** |
 | `coach-mobile/` | Sonde Android — temps d'écran | recette MacroDroid + natif à bâtir |
 
@@ -51,11 +51,11 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 251 tests, l'API
-.venv/Scripts/python -m pytest ../coach-agent        # 10 tests, la sonde PC
+cd coach-api && .venv/Scripts/python -m pytest      # 292 tests, l'API
+.venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-280 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+316 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -103,6 +103,12 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   marque, une absence de détection ne certifie rien.
 - Jetons de sonde : longs, révocables, et limités au seul endpoint `/api/signals`.
   Un secret qui fuit d'une extension ne donne accès à rien d'autre.
+- L'agent ouvre l'environnement d'un projet au démarrage d'une session, détecte
+  les sessions fantômes et affiche les notifications en natif (§8). La liste de
+  ce qu'il peut exécuter vit **chez lui**, jamais sur le serveur.
+- Couche modèle (§5.6) : abstraction `LLMProvider`, routage Opus/Sonnet selon
+  que la tâche demande un jugement ou une transformation, et une **porte de
+  qualité** qui refuse un briefing proposant plusieurs pistes (§0.9).
 - Preuve de travail sans saisie : chaque projet déclare **comment il se vérifie**
   à sa création (`git`, `fichiers`, `premier_plan`, `manuelle`), et un projet qui
   annonce `git` sans dépôt est signalé — se croire vérifié est pire qu'assumer

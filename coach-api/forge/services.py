@@ -30,6 +30,7 @@ from .models import (
     RoadmapStep,
     Routine,
     RoutineCheck,
+    NotificationLog,
     Season,
     SeasonBoss,
     Session,
@@ -38,6 +39,7 @@ from .models import (
 )
 from . import filescan, gitscan
 from .rules import gardes as garde_rules
+from .rules import ghost as ghost_rules
 from .rules import ranks as rank_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
@@ -680,6 +682,94 @@ def create_project_from_markdown(user, markdown: str) -> Project:
             done_at=timezone.now() if step.state == RoadmapStep.DONE else None,
         )
     return project
+
+
+# --------------------------------------------------------------------------
+# L'agent local (SPEC §8)
+# --------------------------------------------------------------------------
+
+def agent_state(user, *, now: datetime | None = None) -> dict:
+    """Le strict nécessaire à l'agent : que lancer, et quoi afficher.
+
+    Volontairement pauvre. L'agent s'authentifie avec un jeton de sonde, qui
+    peut fuir d'une machine ; il ne reçoit donc ni historique, ni gardes, ni
+    journal. Le nom du projet suffit à retrouver un profil de lancement dans
+    **sa propre** liste blanche — le serveur n'envoie jamais de commande
+    (SPEC §8, sécurité non négociable).
+    """
+    now = now or timezone.now()
+    profile = user.profile
+    today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+
+    running = (
+        Session.objects.filter(user=user, status=Session.RUNNING)
+        .select_related("project")
+        .first()
+    )
+
+    recentes = NotificationLog.objects.filter(
+        user=user, created_at__gte=now - timedelta(minutes=30)
+    ).order_by("-created_at")[:5]
+
+    return {
+        "now": now.isoformat(),
+        "day": today.isoformat(),
+        "running_session": (
+            {
+                "id": running.pk,
+                "project": running.project.name,
+                "started_at": running.started_at.isoformat(),
+                "planned_minutes": running.planned_minutes,
+                "elapsed_minutes": int((now - running.started_at).total_seconds() // 60),
+            }
+            if running
+            else None
+        ),
+        "notifications": [
+            {
+                "id": n.pk,
+                "kind": n.kind,
+                "title": n.title,
+                "body": n.body,
+                "created_at": n.created_at.isoformat(),
+            }
+            for n in recentes
+        ],
+    }
+
+
+@transaction.atomic
+def close_ghost_session(
+    session: Session, *, last_active_at: datetime | None, now: datetime | None = None
+) -> dict:
+    """Clôture une session abandonnée, au dernier instant d'activité prouvé.
+
+    La décision appartient au serveur, pas à l'agent : l'agent rapporte ce
+    qu'il a mesuré, le serveur vérifie que les deux conditions du §8.7 sont
+    réunies. Un agent bavard ou compromis ne peut donc pas fermer une session
+    en cours.
+    """
+    now = now or timezone.now()
+    verdict = ghost_rules.evaluate(
+        started_at=session.started_at,
+        planned_minutes=session.planned_minutes,
+        now=now,
+        last_active_at=last_active_at,
+    )
+    if not verdict.is_ghost:
+        return {"closed": False, "reason": verdict.reason}
+
+    resultat = end_session(
+        session,
+        now=verdict.close_at,
+        note=(
+            "Session clôturée automatiquement : la sonde n'a plus vu d'activité "
+            f"après {verdict.close_at:%H:%M}."
+        ),
+        next_action="",
+    )
+    resultat.update({"closed": True, "reason": verdict.reason, "minutes": verdict.active_minutes})
+    return resultat
 
 
 # --------------------------------------------------------------------------

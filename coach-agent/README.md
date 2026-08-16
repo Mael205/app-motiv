@@ -9,6 +9,13 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
 
 ## Ce qu'elle fait aujourd'hui
 
+- **Ouvre l'environnement d'un projet** quand une session démarre : dossiers,
+  éditeur, onglets. C'est le gain du §8.1 — ne plus perdre dix minutes à se
+  remettre en place.
+- **Détecte les sessions fantômes** : une session lancée puis oubliée est
+  signalée au serveur, qui la clôture au dernier instant d'activité prouvé.
+- **Affiche les notifications en natif** sur Windows, sans dépendance à
+  installer.
 - Lit **ActivityWatch** sur `localhost:5600` — fenêtre active, inactivité,
   multi-écran, veille. L'agent n'implémente pas son propre suivi : ActivityWatch
   le fait déjà bien (SPEC §8.4).
@@ -64,6 +71,45 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
    ```bash
    python agent.py
    ```
+
+## Profils de lancement
+
+Copie le modèle, puis remplis-le avec tes chemins :
+
+```bash
+cd coach-agent
+cp profiles.example.toml profiles.local.toml
+```
+
+Le nom de section doit être **exactement** le nom du projet dans le coach —
+attention aux tirets longs des noms créés par le seed.
+
+### Pourquoi ce fichier et pas le serveur
+
+Le §8 pose une règle non négociable : *le serveur ne peut jamais faire exécuter
+une commande arbitraire*. Le serveur envoie donc uniquement le **nom** du
+projet, et l'agent le cherche dans ce fichier-ci. Un projet absent ne lance
+rien.
+
+La conséquence vaut d'être dite : même si le serveur était compromis, ou si une
+réponse de modèle était détournée, le pire cas resterait l'ouverture d'un
+programme que tu as toi-même écrit dans ce fichier. C'est pour ça qu'il n'est
+pas modifiable via l'API, et qu'il n'est pas dans git.
+
+## Sessions fantômes
+
+Une session lancée puis oubliée fausse tout : elle compterait sa durée prévue,
+c'est-à-dire du temps non travaillé, ce que le §17 interdit.
+
+L'agent **rapporte ce qu'il a mesuré**, le serveur **décide**. Deux conditions
+sont exigées, et il faut les deux : un dépassement d'au moins 15 minutes au-delà
+de la durée prévue, et aucune activité depuis 15 minutes. La session est alors
+close au dernier instant d'activité prouvé — jamais à l'instant courant, puisque
+le temps entre les deux n'a pas été travaillé.
+
+**Sans mesure d'activité, rien n'est clôturé.** C'est la même asymétrie qu'au
+§11.10 : fermer une session sur une absence de données effacerait du travail
+réel, et cette faute-là est invisible.
 
 ## AdGuard Home — couvrir le téléphone sans app Android
 

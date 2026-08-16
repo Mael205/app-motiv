@@ -18,6 +18,8 @@ urlpatterns = [
     path("api/projects/preview", api.preview_project),
     path("api/projects/import", api.import_project),
     path("api/signals", api.signals),
+    path("api/agent/state", api.agent_state),
+    path("api/agent/ghost", api.agent_ghost),
     path("api/projects/<int:project_id>/repos", api.project_repos),
     path("api/sessions/<int:session_id>/evidence", api.session_evidence),
     path("api/gardes", api.gardes),

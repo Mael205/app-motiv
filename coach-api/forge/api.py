@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -22,6 +23,12 @@ from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules import verification as verification_rules
 from .rules.calendar import coach_day, week_start
+
+
+# Les endpoints de sonde acceptent le jeton restreint **en plus** de
+# l'authentification normale : l'agent poste sans session, l'utilisateur garde
+# l'accès depuis l'app.
+PROBE_AUTH = [ProbeTokenAuthentication, *api_settings.DEFAULT_AUTHENTICATION_CLASSES]
 
 
 def _today(request) -> date:
@@ -226,9 +233,7 @@ def import_project(request):
 
 
 @api_view(["POST"])
-@authentication_classes(
-    [ProbeTokenAuthentication, *api_settings.DEFAULT_AUTHENTICATION_CLASSES]
-)
+@authentication_classes(PROBE_AUTH)
 @permission_classes([IsAuthenticated])
 def signals(request):
     """Point d'entrée des sondes : agent PC, extension, sonde Android.
@@ -288,6 +293,42 @@ def session_evidence(request, session_id: int):
     if not session:
         return Response({"detail": "Session introuvable."}, status=status.HTTP_404_NOT_FOUND)
     return Response(services.session_evidence(session))
+
+
+@api_view(["GET"])
+@authentication_classes(PROBE_AUTH)
+@permission_classes([IsAuthenticated])
+def agent_state(request):
+    """Le strict nécessaire à l'agent local (SPEC §8).
+
+    Lisible avec un jeton de sonde, donc volontairement pauvre : ni historique,
+    ni gardes, ni journal. Le serveur donne le **nom** du projet en cours ;
+    l'agent retrouve quoi lancer dans sa propre liste blanche. Le serveur ne
+    transmet jamais de commande — même une réponse de modèle compromise ne peut
+    faire exécuter que ce que l'utilisateur a lui-même autorisé.
+    """
+    return Response(services.agent_state(request.user))
+
+
+@api_view(["POST"])
+@authentication_classes(PROBE_AUTH)
+@permission_classes([IsAuthenticated])
+def agent_ghost(request):
+    """L'agent signale une session sans activité ; le serveur décide (SPEC §8.7).
+
+    L'agent rapporte ce qu'il a mesuré, jamais ce qu'il conclut : c'est le
+    serveur qui vérifie le dépassement et l'inactivité. Un agent bavard ou
+    compromis ne peut donc pas fermer une session en cours.
+    """
+    session = Session.objects.filter(
+        user=request.user, id=request.data.get("session_id"), status=Session.RUNNING
+    ).first()
+    if not session:
+        return Response({"closed": False, "reason": "aucune session en cours avec cet identifiant"})
+
+    brut = request.data.get("last_active_at")
+    last_active = parse_datetime(brut) if brut else None
+    return Response(services.close_ghost_session(session, last_active_at=last_active))
 
 
 @api_view(["GET"])

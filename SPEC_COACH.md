@@ -344,12 +344,17 @@ Règles de mise en œuvre : easing systématique (jamais de linéaire sauf le cu
 **Capacités :**
 
 1. **Profils de travail par projet.** Chaque projet déclare : exécutables (Unreal, VS Code, Rider, terminal), dossiers, URLs, commandes de démarrage. Un clic sur "Lancer une session" → l'environnement complet s'ouvre. C'est l'automatisation attendue : ne plus perdre les 10 premières minutes à se remettre en place.
+   - **Le profil vit chez l'agent, pas sur le serveur.** `profiles.local.toml` est la seule source de ce qui peut être exécuté, et la règle de sécurité ci-dessus l'impose : le serveur n'envoie que le **nom** du projet, utilisé comme clé de recherche. Un projet absent du fichier ne lance rien.
+   - C'est pourquoi le `WorkProfile` du §10 n'a **pas** d'équivalent côté serveur : deux sources de vérité pour ce qui s'exécute, dont une modifiable à distance, annuleraient la garantie.
 2. **Fermeture de fin de session** (optionnelle, à confirmer) : ferme les onglets et apps de distraction, jamais l'environnement de travail.
 3. **Journal automatique depuis git** : `git log --since=<début de session>` sur les dépôts déclarés, envoyé pour pré-remplir le debrief. Lit aussi `TODO.md` pour l'import de roadmap.
 4. **Mesure d'activité via ActivityWatch.** L'agent n'implémente pas son propre suivi de fenêtre : il lit l'API locale d'ActivityWatch (`localhost:5600`), qui gère déjà proprement la fenêtre active, l'inactivité clavier/souris, le multi-écran et la veille. L'agent se contente de catégoriser (travail du projet / travail hors projet / scroll passif / jeu / autre) et d'agréger. Si ActivityWatch n'est pas installé, l'agent le signale et la qualité de session est simplement absente. **Aucune capture d'écran, aucun keylogging** — même pour soi, la ligne est là.
 5. **Blocage du scroll passif** : actif uniquement après le sas de détente ou après le gardien du soir sans session. Domaines pleins (TikTok, X, Instagram, Reddit) via fichier hosts, YouTube via l'extension. L'élévation nécessaire au fichier hosts est isolée dans un petit service Windows séparé qui n'accepte que deux ordres, `block` et `unblock`, via un pipe local — l'agent lui-même tourne en utilisateur normal. Toujours désactivable en 2 clics avec temporisation de 60 secondes : la friction suffit, l'emprisonnement non.
 6. **Notifications Windows natives** relayant les mêmes déclencheurs que le push mobile, avec boutons d'action (démarrer 10 min, reporter 15 min).
 7. **Détection de session fantôme** : si une session tourne depuis > durée + 15 min sans activité, l'agent alerte le serveur qui clôture au temps réellement actif.
+   - **L'agent rapporte, le serveur décide.** L'agent envoie l'instant de la dernière activité mesurée ; c'est le serveur qui vérifie les deux conditions et clôture. Un agent bavard ou compromis ne peut pas fermer une session en cours.
+   - La clôture se fait au **dernier instant d'activité prouvé**, jamais à l'instant courant : le temps entre les deux n'a pas été travaillé, et le compter violerait le §17.
+   - **Sans mesure d'activité, rien n'est clôturé.** Même asymétrie qu'au §11.10 : fermer sur une absence de données effacerait du travail réel, et cette faute est invisible — personne ne remarque une session close trente minutes trop tôt.
 8. **Transcription vocale locale** (Whisper) pour le debrief, et pont vers Ollama pour le backend LLM local.
 
 ---
@@ -385,7 +390,8 @@ Project(id, user, track, name, status[active|fridge|archived], slot[1..3|null], 
         emblem, domain[code|corps|creatif|savoir|pratique], is_coach_project,
         created_at, archived_at)
 ProjectRepo(id, project, path, remote)
-WorkProfile(id, project, executables[], folders[], urls[], commands[])
+# WorkProfile : volontairement absent du serveur — voir §8.1, la liste blanche
+#              vit dans coach-agent/profiles.local.toml et nulle part ailleurs
 RoadmapStep(id, project, order, label, state[todo|doing|done], estimated_sessions,
             needs_split, done_at)
 TimeSlot(id, project, weekday, start_time, duration_minutes, active)     # rendez-vous fixes
