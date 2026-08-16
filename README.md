@@ -48,14 +48,39 @@ npm run dev
 
 L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 
+### 3. L'assistant — facultatif
+
+Rien à faire si le CLI `claude` est déjà installé et connecté : le coach le
+détecte et passe par lui, donc par l'abonnement. Sinon :
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude          # ouvre la connexion, puis quitte avec /exit
+```
+
+Pour vérifier, ouvre l'accueil : le bloc de décision se recharge après quelques
+secondes et affiche « Décidé pour ce soir » au lieu de « Ton amorce ».
+
+Deux réglages, tous deux facultatifs :
+
+| Variable | Défaut | Effet |
+|---|---|---|
+| `COACH_AI_ENABLED` | `1` | `0` coupe l'IA. L'app reste entière — c'est le but du test. |
+| `COACH_AI_BACKEND` | `auto` | `cli` impose l'abonnement, `api` impose `ANTHROPIC_API_KEY`. |
+
+**Sans rien de tout ça, l'app fonctionne.** Chaque appel de modèle a un repli
+déterministe, et l'accueil s'affiche à la même vitesse qu'avant : le briefing
+part en fond une fois l'écran déjà utilisable, et ne remplace la proposition que
+s'il arrive et passe la porte de qualité.
+
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 292 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 348 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-316 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+372 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -66,6 +91,12 @@ plus importants : aucun compteur d'Entretien ne redescend, aucune routine ne
 rapporte d'XP, aucun message de dépassement d'une garde ne contient un mot de
 jugement, et **aucune sonde ne peut déclarer une journée tenue**. Ces règles-là
 se perdent au premier refactoring si personne ne les surveille.
+
+Les tests du briefing suivent la même idée et un seul d'entre eux vérifie le cas
+nominal : tous les autres coupent le modèle, le font halluciner un projet,
+répondre en prose ou proposer deux options, et exigent qu'il reste **une action
+décidée à l'écran**. C'est le chemin qu'on emprunte un soir de panne, et celui
+qu'on n'essaie jamais à la main.
 
 La logique vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est
 dupliquée nulle part ailleurs — surtout pas côté client.
@@ -106,9 +137,16 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - L'agent ouvre l'environnement d'un projet au démarrage d'une session, détecte
   les sessions fantômes et affiche les notifications en natif (§8). La liste de
   ce qu'il peut exécuter vit **chez lui**, jamais sur le serveur.
-- Couche modèle (§5.6) : abstraction `LLMProvider`, routage Opus/Sonnet selon
-  que la tâche demande un jugement ou une transformation, et une **porte de
-  qualité** qui refuse un briefing proposant plusieurs pistes (§0.9).
+- **Briefing et debrief assistés (§5.1, §5.2)**, avec une architecture inversée :
+  le serveur calcule d'abord sa proposition sans IA, puis demande au modèle s'il
+  ferait mieux. Modèle absent, lent, ou réponse refusée par la porte de qualité
+  — l'utilisateur voit la proposition déterministe et l'app ne ralentit pas.
+  L'IA ne peut rien casser parce qu'elle n'est jamais le chemin principal.
+- Deux backends derrière la même abstraction : le **CLI `claude`**, qui passe
+  par l'abonnement déjà payé et que le coach choisit en premier, et le SDK pour
+  les machines sans CLI. Le routage envoie le jugement à Opus et la
+  transformation à Sonnet, et la **porte de qualité** refuse un briefing qui
+  propose plusieurs pistes (§0.9) ou une tâche floue (§4.5).
 - Preuve de travail sans saisie : chaque projet déclare **comment il se vérifie**
   à sa création (`git`, `fichiers`, `premier_plan`, `manuelle`), et un projet qui
   annonce `git` sans dépôt est signalé — se croire vérifié est pire qu'assumer

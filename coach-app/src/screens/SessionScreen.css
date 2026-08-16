@@ -181,3 +181,22 @@
 .result__achievement .muted {
   font-size: 12px;
 }
+
+/* Le bouton de suggestion reste secondaire : c'est une aide, pas le chemin.
+   Le champ d'amorce doit continuer d'attirer l'oeil en premier. */
+.session__suggest {
+  align-self: flex-start;
+  font-size: 0.85rem;
+}
+
+.session__hint {
+  font-size: 0.8rem;
+  margin: -0.25rem 0 0;
+}
+
+.session__blocks {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

@@ -12,13 +12,16 @@ Le dernier point est le plus important : sans identifiant est **l'état par
 défaut** de l'app, pas un cas d'erreur exotique.
 """
 
+from unittest.mock import patch
+
 import pytest
 
 from forge.llm import Task, get_provider, set_provider
+from forge.llm.claude_code import ClaudeCodeBackend
 from forge.llm.base import LLMUnavailable, QualityGateFailed
 from forge.llm.fake import ScriptedProvider, UnavailableProvider
 from forge.llm.gate import check_briefing, check_debrief, gate
-from forge.llm.router import OPUS, SONNET, route_for
+from forge.llm.router import OPUS, RESERVE_RAISONNEMENT, SONNET, route_for
 
 PROJETS = {"Bestiaire — app mobile", "Evolve — prototype 4v1 UE5"}
 
@@ -130,8 +133,17 @@ class TestFournisseurAbsent:
     """Sans identifiant est l'état par défaut, pas un cas d'erreur."""
 
     def test_le_fournisseur_absent_leve_proprement(self):
-        with pytest.raises(LLMUnavailable, match="ant auth login"):
+        with pytest.raises(LLMUnavailable, match="connecte-toi"):
             UnavailableProvider().structured(task=Task.BRIEFING, system="", prompt="", schema={})
+
+    def test_le_message_dit_le_geste_a_faire_pas_seulement_l_echec(self):
+        """Un message qui ne dit pas quoi faire fait perdre une soirée à chercher.
+
+        Il en a d'ailleurs fait perdre une : la version précédente renvoyait vers
+        « ant auth login », une commande qui n'existe pas.
+        """
+        message = UnavailableProvider().reason
+        assert "claude" in message
 
     def test_l_indisponibilite_se_distingue_d_une_mauvaise_reponse(self):
         """Deux causes, deux gestes : configurer l'auth, ou revoir le prompt."""
@@ -173,3 +185,69 @@ class TestSelectionDuFournisseur:
     def test_la_porte_generique_dispatche(self):
         assert gate(Task.BRIEFING, briefing(), projets_connus=PROJETS)["minutes"] == 25
         assert gate(Task.DECOUPAGE, {"libre": "passe tel quel"}) == {"libre": "passe tel quel"}
+
+
+class TestBudgetDeSortie:
+    """Le raisonnement est décompté de ``max_tokens`` sur Opus 5 (§5.6).
+
+    Ces tests existent à cause d'un vrai défaut : les premiers budgets étaient
+    calibrés sur la seule réponse visible, ce qui aurait tronqué chaque briefing
+    au milieu du raisonnement — un échec qui ressemble à une panne d'API alors
+    que c'est un réglage. Ils gardent l'invariant plutôt que la valeur.
+    """
+
+    def test_chaque_route_laisse_de_la_place_a_la_reponse(self):
+        for task in Task:
+            route = route_for(task)
+            assert route.reponse_visible > 0, f"{task.value} tronquerait sa réponse"
+
+    def test_le_briefing_garde_de_quoi_ecrire_apres_avoir_pense(self):
+        assert route_for(Task.BRIEFING).reponse_visible >= 1000
+
+    def test_l_effort_eleve_reserve_plus_que_l_effort_bas(self):
+        assert RESERVE_RAISONNEMENT["high"] > RESERVE_RAISONNEMENT["low"]
+
+
+class TestBackendCLI:
+    """Le backend qui passe par l'abonnement. Aucun sous-processus lancé ici."""
+
+    def test_la_lecture_tolere_un_bloc_de_code(self):
+        """Le CLI n'impose pas de schéma : il rend parfois du markdown."""
+        assert ClaudeCodeBackend._json_de('```json\n{"a": 1}\n```') == {"a": 1}
+
+    def test_la_lecture_tolere_une_phrase_avant_le_json(self):
+        assert ClaudeCodeBackend._json_de('Voici :\n{"a": 1}') == {"a": 1}
+
+    def test_une_reponse_sans_json_leve_indisponible(self):
+        """Pas une exception nue : l'appelant doit pouvoir retomber sur le repli."""
+        with pytest.raises(LLMUnavailable):
+            ClaudeCodeBackend._json_de("je ne peux pas répondre")
+
+    def test_le_cli_absent_est_une_indisponibilite_pas_un_plantage(self):
+        backend = ClaudeCodeBackend(executable=None)
+        backend._executable = None
+        with patch("forge.llm.claude_code.cli_path", return_value=None):
+            with pytest.raises(LLMUnavailable, match="introuvable"):
+                backend.structured(task=Task.BRIEFING, system="s", prompt="p", schema={})
+
+    def test_aucun_outil_n_est_pretee_au_modele(self):
+        """Le §8 interdit au serveur de faire exécuter quoi que ce soit."""
+        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system="s")
+
+        assert argv[argv.index("--allowedTools") + 1] == ""
+        for interdit in ("Bash", "Edit", "Write", "Read"):
+            assert interdit in argv
+
+    def test_les_reglages_du_depot_sont_ignores(self):
+        """Le prompt contient du texte écrit par l'utilisateur et par un modèle."""
+        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system="s")
+
+        assert argv[argv.index("--setting-sources") + 1] == ""
+        assert "--strict-mcp-config" in argv
+
+    def test_converse_refuse_les_outils_au_lieu_de_les_ignorer(self):
+        """Accepter puis ignorer donnerait une réponse fausse sans le dire."""
+        with pytest.raises(LLMUnavailable, match="exécuter"):
+            ClaudeCodeBackend(executable="claude").converse(
+                task=Task.BRIEFING, system="s", messages=[], tools=[{"name": "x"}]
+            )

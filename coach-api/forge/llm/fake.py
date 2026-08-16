@@ -59,7 +59,7 @@ class UnavailableProvider(LLMProvider):
     fournisseur qui le prouve dans les tests.
     """
 
-    def __init__(self, reason: str = "aucun identifiant Claude — lance « ant auth login »"):
+    def __init__(self, reason: str = "aucun identifiant Claude — lance « claude » et connecte-toi"):
         self.reason = reason
 
     def structured(self, **_kwargs) -> LLMResponse:

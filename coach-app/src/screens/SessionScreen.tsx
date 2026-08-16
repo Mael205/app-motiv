@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
-import type { RunningSession, SessionResult } from '../types'
+import type { DebriefSuggestion, RunningSession, SessionResult } from '../types'
 import './SessionScreen.css'
 
 type Phase = 'running' | 'debrief' | 'result'
@@ -26,6 +26,31 @@ export function SessionScreen({
   const [result, setResult] = useState<SessionResult | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
+  const [suggestion, setSuggestion] = useState<DebriefSuggestion | null>(null)
+
+  /** Propose une amorce a partir des notes brutes. **Ne cloture rien.**
+   *
+   * Le §11.3 fait de l'amorce le prix paye pour le demarrage a froid de la
+   * prochaine session. La faire ecrire par un modele sans relecture viderait
+   * l'exercice de son sens : on validerait par reflexe une consigne que
+   * personne n'a comprise, et la session suivante demarrerait a faux. Elle
+   * arrive donc dans le champ, modifiable, et c'est toujours l'utilisateur qui
+   * cloture. */
+  async function suggest() {
+    if (!note.trim()) return
+    setSuggesting(true)
+    setError('')
+    try {
+      const recu = await api.debrief(session.id, note)
+      setSuggestion(recu)
+      if (recu.amorce) setNextAction(recu.amorce)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Suggestion indisponible.')
+    } finally {
+      setSuggesting(false)
+    }
+  }
 
   const planned = session.planned_minutes * 60
   const started = new Date(session.started_at).getTime()
@@ -131,6 +156,24 @@ export function SessionScreen({
                 placeholder="Deux phrases suffisent."
               />
             </label>
+
+            <button
+              className="ghost session__suggest"
+              onClick={suggest}
+              disabled={suggesting || !note.trim()}
+            >
+              {suggesting ? 'Lecture des notes…' : 'Proposer une amorce à partir des notes'}
+            </button>
+
+            {suggestion?.ai_note && <p className="muted session__hint">{suggestion.ai_note}</p>}
+
+            {suggestion && suggestion.blocages.length > 0 && (
+              <ul className="session__blocks">
+                {suggestion.blocages.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            )}
 
             <label className="field">
               <span className="label">L’amorce — première action de la prochaine session</span>

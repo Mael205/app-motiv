@@ -1,4 +1,6 @@
 import type {
+  Briefing,
+  DebriefSuggestion,
   EntretienPanel,
   GardesPanel,
   HomeState,
@@ -87,6 +89,14 @@ export const api = {
   home: () => request<HomeState>('/home'),
 
   projects: () => request<ProjectDetail[]>('/projects'),
+
+  briefing: () => request<Briefing>('/briefing'),
+
+  debrief: (id: number, note: string) =>
+    request<DebriefSuggestion>(`/sessions/${id}/debrief`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
 
   journal: () => request<JournalEntry[]>('/journal'),
 

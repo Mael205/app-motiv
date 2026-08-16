@@ -1,4 +1,5 @@
 import type { HomeState } from '../types'
+import { useBriefing } from '../hooks/useBriefing'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { GardePanel } from '../components/GardePanel'
 import { NightHud } from '../components/NightHud'
@@ -17,6 +18,11 @@ import './Home.css'
  * écran qui doit déclencher une action ne peut pas être un tableau de bord.
  */
 export function Home({ state, onStarted }: { state: HomeState; onStarted: () => void }) {
+  // Le briefing arrive apres coup et remplace la proposition ; tant qu'il n'est
+  // pas la, l'ecran est deja complet et deja actionnable.
+  const briefing = useBriefing(state.proposal, state.day + state.minutes_today)
+  const decision = briefing ?? state.proposal
+
   return (
     <>
       <SeasonBanner season={state.season} progression={state.progression} streak={state.streak} />
@@ -34,8 +40,8 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
         </div>
       )}
 
-      {state.proposal ? (
-        <DecisionBlock proposal={state.proposal} onStarted={onStarted} />
+      {decision ? (
+        <DecisionBlock proposal={decision} onStarted={onStarted} />
       ) : (
         <section className="panel empty">
           <h2 className="display empty__title">Aucun projet actif</h2>

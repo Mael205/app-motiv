@@ -128,3 +128,14 @@
   font-size: 13.5px;
   color: var(--rose);
 }
+
+/* La definition de fini : ce qui permet de s'arreter sans se demander si c'est
+   fait. Discrete, mais toujours visible — la cacher derriere un depliant la
+   rendrait inutile, puisqu'on ne la depliera pas un soir de fatigue. */
+.decision__done {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-left: 2px solid color-mix(in srgb, var(--project) 45%, transparent);
+  padding-left: 0.6rem;
+}

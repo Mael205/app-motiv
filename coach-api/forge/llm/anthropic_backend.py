@@ -1,10 +1,15 @@
 """Le backend distant : Claude via le SDK officiel (SPEC §5.6).
 
-L'authentification passe par **l'abonnement Claude**, pas par une clé API
-facturée à part : le SDK résout ses identifiants dans l'ordre
-``ANTHROPIC_API_KEY`` → ``ANTHROPIC_AUTH_TOKEN`` → profil OAuth déposé par
-``ant auth login``. Un client construit sans argument prend donc le profil tout
-seul. Rien à écrire dans le code, rien à stocker dans le dépôt.
+**Ce n'est pas le chemin par défaut.** Le SDK s'authentifie par clé API, donc
+par une facturation à l'usage distincte de l'abonnement. Pour utiliser
+l'abonnement, c'est ``claude_code.ClaudeCodeBackend`` qu'il faut, et c'est lui
+que ``get_provider()`` choisit en premier. Ce module sert le cas où le CLI n'est
+pas installé — un serveur, une autre machine — ou quand on veut délibérément une
+clé.
+
+Le client construit sans argument résout ses identifiants dans l'ordre
+``ANTHROPIC_API_KEY`` → ``ANTHROPIC_AUTH_TOKEN`` → profil sur disque. Rien à
+écrire dans le code, rien à stocker dans le dépôt.
 
 **Dégradation plutôt que panne.** Ce backend a été écrit sans pouvoir être
 essayé contre l'API — les identifiants n'existaient pas encore. Plutôt que de
@@ -105,7 +110,8 @@ class AnthropicBackend(LLMProvider):
             raise LLMUnavailable("API Claude injoignable — vérifie la connexion") from error
         except anthropic.AuthenticationError as error:
             raise LLMUnavailable(
-                "aucun identifiant Claude valide — lance « ant auth login »"
+                "aucune clé API valide — pose ANTHROPIC_API_KEY, ou installe le CLI "
+                "« claude » pour passer par l'abonnement"
             ) from error
 
     def _usage(self, response) -> Usage:

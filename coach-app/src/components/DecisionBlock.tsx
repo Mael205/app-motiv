@@ -1,7 +1,7 @@
 import { memo, useState } from 'react'
 import { motion } from 'motion/react'
 import { api } from '../api'
-import type { Proposal } from '../types'
+import type { Briefing, Proposal } from '../types'
 import { Icon } from './art/Icons'
 import './DecisionBlock.css'
 
@@ -15,7 +15,7 @@ export const DecisionBlock = memo(function DecisionBlock({
   proposal,
   onStarted,
 }: {
-  proposal: Proposal
+  proposal: Proposal | Briefing
   onStarted: () => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -33,8 +33,13 @@ export const DecisionBlock = memo(function DecisionBlock({
     }
   }
 
+  const brief = 'source' in proposal ? proposal : null
   const task = proposal.amorce || proposal.step?.label
-  const taskKind = proposal.amorce ? 'Ton amorce' : 'Étape en cours'
+
+  // D'ou vient la tache affichee. Le dire n'est pas de la transparence pour la
+  // forme : une tache decidee par un modele et une amorce qu'on a ecrite
+  // soi-meme la veille ne se relisent pas avec la meme confiance.
+  const taskKind = brief?.source === 'modele' ? 'Décidé pour ce soir' : proposal.amorce ? 'Ton amorce' : 'Étape en cours'
 
   return (
     <section className="decision" style={{ ['--project' as string]: proposal.project.color }}>
@@ -59,6 +64,9 @@ export const DecisionBlock = memo(function DecisionBlock({
         <div className="decision__task">
           <span className="label">{taskKind}</span>
           <p className="decision__task-text">{task}</p>
+          {brief?.definition_de_fini && (
+            <p className="decision__done">Fini quand : {brief.definition_de_fini}</p>
+          )}
           {proposal.step?.needs_split && (
             <p className="decision__warn">Cette étape est trop grosse : elle demande un découpage.</p>
           )}

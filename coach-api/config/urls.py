@@ -11,6 +11,8 @@ urlpatterns = [
     path("api/auth/refresh", TokenRefreshView.as_view()),
     path("api/home", api.home),
     path("api/projects", api.projects),
+    path("api/briefing", api.briefing),
+    path("api/sessions/<int:session_id>/debrief", api.debrief),
     path("api/sessions/start", api.start_session),
     path("api/sessions/<int:session_id>/end", api.end_session),
     path("api/sessions/<int:session_id>/abandon", api.abandon_session),

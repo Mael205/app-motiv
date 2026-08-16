@@ -49,7 +49,6 @@ Projets → Nouveau projet → Copier le prompt.
 
 | Quoi | Pourquoi moi non | Combien de temps |
 |---|---|---|
-| `ant auth login` | Ouvre un navigateur pour l'authentification de ton abonnement Claude | 30 secondes |
 | Charger l'extension dans Firefox | Manipulation dans l'interface du navigateur | 2 minutes |
 | DNS du téléphone → l'IP du PC | Réglages Wi-Fi d'Android, et à faire sur ton réseau définitif | 1 minute |
 | Installer AdGuard en service | Fait, mais à refaire si tu changes de machine | — |
@@ -69,7 +68,7 @@ Projets → Nouveau projet → Copier le prompt.
 
 ---
 
-## Conçu, à trancher
+## Conçu, à construire
 
 ### Planchers progressifs
 
@@ -91,23 +90,10 @@ rentre à 22h que le streak casse.
   défaillance.
 
 Même logique que les slots gagnés : ce qui monte est l'exigence, pas la
-fragilité. À trancher avant de coder, notamment le palier exact et s'il faut un
-plafond.
+fragilité.
 
-### Piste « Savoir » séparée de l'Atelier
-
-Aujourd'hui l'apprentissage est un **domaine** (`savoir`) de la piste Atelier :
-il est distingué, compté à part, et occupe une place que le code ne peut pas
-prendre grâce à la règle des deux slots par domaine.
-
-Une **piste** ajouterait autre chose : un streak propre et un objectif propre.
-Une soirée de cours ne validerait plus le streak d'Atelier, et inversement —
-comme aujourd'hui entre Atelier et Corps.
-
-La question à trancher n'est donc pas « faut-il distinguer » (c'est déjà fait)
-mais **« veut-on un streak d'apprentissage séparé »** — donc deux compteurs à
-tenir au lieu d'un. Le modèle `Track` accepte déjà de nouveaux types : l'ajouter
-coûte une migration et une règle de slots, pas une refonte.
+**Tranché le 16 août 2026 : la forme est validée, reste à choisir le palier
+exact et s'il faut un plafond.**
 
 ---
 
@@ -125,3 +111,7 @@ re-débattus à chaque fois.
   Developer Edition.
 - **La muscu n'a pas de détection fiable** sans salle de sport ni objet
   connecté. Déclaration manuelle assumée.
+- **L'apprentissage reste un domaine, pas une piste** (tranché le 16 août 2026).
+  Le domaine `savoir` le distingue déjà et lui garde une place via la règle des
+  deux slots par domaine. Une piste aurait ajouté un streak séparé, donc un
+  deuxième compteur à tenir — ce n'est pas ce qui était voulu.

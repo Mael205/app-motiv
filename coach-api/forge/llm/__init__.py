@@ -49,7 +49,12 @@ def set_provider(provider: LLMProvider | None) -> None:
 def get_provider() -> LLMProvider:
     """Le fournisseur courant.
 
-    Ne vérifie pas l'authentification ici : le SDK résout ses identifiants au
+    L'ordre n'est pas cosmétique : **le CLI passe avant le SDK** parce qu'il
+    consomme l'abonnement déjà payé, là où le SDK ouvre une facturation à la
+    clé. Sur une machine où les deux sont disponibles, le bon défaut est celui
+    qui ne coûte rien de plus.
+
+    Ne vérifie aucun identifiant ici. Les deux backends résolvent les leurs au
     premier appel, et échouer au démarrage rendrait l'app inutilisable alors
     que tout le reste fonctionne sans IA.
     """
@@ -60,6 +65,14 @@ def get_provider() -> LLMProvider:
         from .fake import UnavailableProvider
 
         return UnavailableProvider("l'IA est désactivée dans les réglages")
+
+    choix = getattr(settings, "COACH_AI_BACKEND", "auto")
+
+    if choix in ("cli", "auto"):
+        from .claude_code import ClaudeCodeBackend, cli_path
+
+        if choix == "cli" or cli_path():
+            return ClaudeCodeBackend()
 
     from .anthropic_backend import AnthropicBackend
 

@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import services
+from . import coaching, services
 from .models import FridgeIdea, Garde, Project, ProjectRepo, RoadmapStep, Routine, Session
 from .probeauth import ProbeTokenAuthentication
 from .rules import signals as signal_rules
@@ -549,3 +549,39 @@ def journal(request):
             for e in entries
         ]
     )
+
+
+# --------------------------------------------------------------------------
+# L'assistant (SPEC §5.1, §5.2)
+# --------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def briefing(request):
+    """Ce qu'on fait maintenant, décidé par le modèle quand il est là.
+
+    Ne rend jamais d'erreur pour une raison d'IA : une panne de modèle produit
+    la proposition déterministe et un ``ai_note`` qui dit pourquoi. Un 503 ici
+    fermerait l'app un soir où elle sert.
+    """
+    result = coaching.briefing(request.user)
+    if result is None:
+        return Response(
+            {"detail": "Aucun projet actif à proposer."}, status=status.HTTP_404_NOT_FOUND
+        )
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def debrief(request, session_id: int):
+    """Structure des notes brutes en suggestion d'amorce. **N'écrit rien.**
+
+    La clôture reste `/end`, et l'amorce reste saisie par l'utilisateur : ce
+    qui sort d'ici est un brouillon à valider, pas une décision (SPEC §11.3).
+    """
+    session = Session.objects.filter(user=request.user, id=session_id).first()
+    if not session:
+        return Response({"detail": "Session inconnue."}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(coaching.debrief(session, note=request.data.get("note", "")))

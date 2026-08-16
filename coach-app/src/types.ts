@@ -115,6 +115,28 @@ export interface Proposal {
   reason: string
 }
 
+/** Le briefing du §5.1 : la meme proposition, avec l'origine de la decision.
+ *
+ * C'est volontairement une extension de `Proposal` et pas un type a part. Le
+ * serveur garantit qu'un briefing a toujours la forme d'une proposition
+ * complete, meme quand le modele n'a pas repondu — sans quoi l'ecran aurait
+ * deux etats a gerer au lieu d'un, et le §0.9 serait a la merci d'un `if`.
+ */
+export interface Briefing extends Proposal {
+  source: 'modele' | 'deterministe'
+  ai_note: string
+  model?: string
+  definition_de_fini?: string
+}
+
+export interface DebriefSuggestion {
+  resume: string
+  amorce: string
+  blocages: string[]
+  source: 'modele' | 'deterministe'
+  ai_note: string
+}
+
 export interface RunningSession {
   id: number
   project: string

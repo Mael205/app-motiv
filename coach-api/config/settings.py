@@ -124,3 +124,25 @@ COACH = {
     "VAPID_PRIVATE_KEY": os.getenv("VAPID_PRIVATE_KEY", ""),
     "VAPID_SUBJECT": os.getenv("VAPID_SUBJECT", "mailto:coach@localhost"),
 }
+
+# --------------------------------------------------------------------------
+# La couche modèle (SPEC §5.6)
+# --------------------------------------------------------------------------
+#
+# L'IA est un supplément, jamais un passage obligé : chaque appelant a un repli
+# déterministe, et l'app doit rester entière quand rien n'est configuré. Ces
+# deux réglages n'existent donc que pour choisir *comment* on y accède, pas
+# pour décider si l'app fonctionne.
+
+# Coupe-circuit. Utile pour vérifier que tout marche encore sans modèle — ce qui
+# est l'état par défaut d'une machine fraîche, pas un cas de panne.
+COACH_AI_ENABLED = os.getenv("COACH_AI_ENABLED", "1") not in ("0", "false", "False")
+
+# "auto" (défaut) : le CLI « claude » s'il est installé, sinon le SDK.
+# "cli"           : impose le CLI, donc l'abonnement déjà payé.
+# "api"           : impose le SDK, donc une clé facturée à l'usage.
+#
+# Le défaut privilégie le CLI, et ce n'est pas neutre : sur une machine où les
+# deux marchent, le bon défaut est celui qui n'ouvre pas une seconde ligne de
+# facturation.
+COACH_AI_BACKEND = os.getenv("COACH_AI_BACKEND", "auto")
