@@ -227,3 +227,48 @@ def _add_warnings(parsed: ParsedProject) -> None:
         parsed.warnings.append(
             f"{doing} étapes sont marquées « en cours ». Une seule étape courante rend la proposition du soir nette."
         )
+
+
+# --------------------------------------------------------------------------
+# L'écriture du format, symétrique de sa lecture
+# --------------------------------------------------------------------------
+
+def render(donnees: dict) -> str:
+    """Écrit le markdown canonique à partir de champs structurés.
+
+    **Pourquoi cette fonction existe.** Un modèle à qui l'on demande de produire
+    ce format le rate régulièrement : il met les métadonnées en gras, numérote
+    les étapes, ajoute une section « objectif ». Le résultat est souvent un
+    meilleur document — et un échec complet, parce que le parseur y perd la
+    vérification et le chemin du dépôt sans que rien ne le signale.
+
+    Trois tours de reproche n'ont pas suffi à le corriger, et c'était la bonne
+    leçon : on ne fiabilise pas une grammaire en la répétant plus fort. Le modèle
+    rend donc des **champs**, que cette fonction met en forme. Le format devient
+    juste par construction, et il n'y a plus rien à vérifier de ce côté.
+
+    Vit ici, à côté de ``parse``, pour que les deux ne puissent pas diverger :
+    le test qui compte est l'aller-retour.
+    """
+    lignes = [f"# {donnees['nom']}", ""]
+
+    meta = [
+        ("Domaine", donnees.get("domaine")),
+        ("Vérification", donnees.get("verification")),
+        ("Dépôt", donnees.get("depot")),
+        ("Branche", donnees.get("branche")),
+        ("Couleur", donnees.get("couleur")),
+        ("Emblème", donnees.get("embleme")),
+        ("Engagement", donnees.get("engagement")),
+    ]
+    lignes += [f"{cle}: {valeur}" for cle, valeur in meta if valeur not in (None, "", 0)]
+
+    lignes += ["", "## Roadmap", ""]
+
+    marques = {DOING: ">", DONE: "x", TODO: " "}
+    for etape in donnees.get("etapes", []):
+        marque = marques.get(etape.get("etat", TODO), " ")
+        sessions = etape.get("sessions") or DEFAULT_ESTIMATE
+        lignes.append(f"- [{marque}] {etape['libelle']} ({sessions})")
+
+    return "\n".join(lignes) + "\n"

@@ -76,6 +76,11 @@ class ClaudeCodeBackend(LLMProvider):
             "--print",
             "--output-format", "json",
             "--model", route.model,
+            # Le réglage qui décide de la qualité réelle. Sans lui, un entretien
+            # de projet rend une roadmap plausible au lieu d'une roadmap juste,
+            # et la différence ne se voit qu'au bout de trois semaines de travail
+            # sur des étapes mal découpées.
+            "--effort", route.effort,
             "--system-prompt", system,
             # Aucun outil : ce backend produit du texte, il n'agit pas.
             "--allowedTools", "",

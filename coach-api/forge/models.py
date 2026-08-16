@@ -658,3 +658,49 @@ class AgentEvent(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+class ProjectInterview(models.Model):
+    """L'entretien qui produit une roadmap (SPEC §4.5, §5.6).
+
+    **Le serveur porte la conversation, pas le modèle.** Chaque tour renvoie
+    l'échange complet au fournisseur, plutôt que de s'appuyer sur une session
+    ouverte de son côté. C'est un peu plus de jetons et beaucoup moins de
+    surprises : l'entretien survit à un redémarrage, se reprend depuis le
+    téléphone, se relit, et se teste sans réseau.
+
+    Rien n'est écrit dans ``Project`` avant que l'utilisateur ait vu le markdown
+    et confirmé. Un modèle qui aurait mal compris produit alors un brouillon
+    qu'on jette, pas un projet à supprimer.
+    """
+
+    EN_COURS, PROPOSE, IMPORTE, ABANDONNE = "en_cours", "propose", "importe", "abandonne"
+    STATUSES = [
+        (EN_COURS, "Entretien en cours"),
+        (PROPOSE, "Roadmap proposée"),
+        (IMPORTE, "Projet créé"),
+        (ABANDONNE, "Abandonné"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="interviews"
+    )
+    status = models.CharField(max_length=16, choices=STATUSES, default=EN_COURS)
+    # [{"role": "assistant"|"user", "content": "…"}] — l'échange tel qu'affiché.
+    messages = models.JSONField(default=list, blank=True)
+    markdown = models.TextField(blank=True, help_text="La roadmap proposée, pas encore importée")
+    project = models.ForeignKey(
+        "Project", null=True, blank=True, on_delete=models.SET_NULL, related_name="interviews"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"Entretien {self.id} ({self.get_status_display()})"
+
+    @property
+    def questions_posees(self) -> int:
+        return sum(1 for m in self.messages if m.get("role") == "assistant")

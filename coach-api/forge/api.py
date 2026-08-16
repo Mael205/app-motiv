@@ -17,7 +17,16 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from . import coaching, services
-from .models import FridgeIdea, Garde, Project, ProjectRepo, RoadmapStep, Routine, Session
+from .models import (
+    FridgeIdea,
+    Garde,
+    Project,
+    ProjectInterview,
+    ProjectRepo,
+    RoadmapStep,
+    Routine,
+    Session,
+)
 from .probeauth import ProbeTokenAuthentication
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -585,3 +594,59 @@ def debrief(request, session_id: int):
         return Response({"detail": "Session inconnue."}, status=status.HTTP_404_NOT_FOUND)
 
     return Response(coaching.debrief(session, note=request.data.get("note", "")))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def interview_start(request):
+    """Ouvre un entretien de projet et pose la première question (§4.5)."""
+    try:
+        return Response(coaching.interview_start(request.user), status=status.HTTP_201_CREATED)
+    except coaching.InterviewUnavailable as error:
+        # 503 et non 500 : ce n'est pas un bug, c'est un service absent, et le
+        # client doit pouvoir proposer le collage de markdown à la place.
+        return Response(
+            {"detail": str(error), "fallback": "markdown"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def interview(request, interview_id: int):
+    """GET relit l'entretien, POST y répond et rend le tour suivant."""
+    entretien = ProjectInterview.objects.filter(user=request.user, id=interview_id).first()
+    if not entretien:
+        return Response({"detail": "Entretien inconnu."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "GET":
+        return Response(coaching._payload(entretien))
+
+    try:
+        return Response(coaching.interview_reply(entretien, answer=request.data.get("answer", "")))
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+    except coaching.InterviewUnavailable as error:
+        return Response(
+            {"detail": str(error), "fallback": "markdown"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def interview_import(request, interview_id: int):
+    """Crée le projet depuis la roadmap proposée, après confirmation à l'écran."""
+    entretien = ProjectInterview.objects.filter(user=request.user, id=interview_id).first()
+    if not entretien:
+        return Response({"detail": "Entretien inconnu."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        projet = coaching.interview_import(entretien)
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {"id": projet.id, "name": projet.name, "slot": projet.slot, "status": projet.status},
+        status=status.HTTP_201_CREATED,
+    )

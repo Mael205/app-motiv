@@ -19,6 +19,8 @@ Trois choses y sont dites au modèle, et elles reviennent dans les deux prompts 
 
 from __future__ import annotations
 
+from ..rules import slots, verification
+
 # --------------------------------------------------------------------------
 # Briefing (§5.1)
 # --------------------------------------------------------------------------
@@ -183,3 +185,176 @@ def debrief_prompt(*, projet: str, etape: str, minutes: int, note: str) -> str:
     if etape:
         entete.append(f"Étape en cours : {etape}")
     return "\n".join(entete) + "\n\nNotes brutes de fin de session :\n\n" + note
+
+
+# --------------------------------------------------------------------------
+# Entretien de projet (§4.5)
+# --------------------------------------------------------------------------
+
+# Ce prompt reprend mot pour mot les contraintes de
+# ``docs/prompt-nouveau-projet.md``, qui ont été éprouvées dans un chat pendant
+# des semaines avant d'arriver ici. Les recopier plutôt que les réécrire est
+# délibéré : ce qui faisait la qualité de l'exercice, c'était ces contraintes-là,
+# pas le fait d'être dans un chat.
+#
+# Ce qui change, c'est le cadre autour : un tour de conversation à la fois,
+# porté par le serveur, et une sortie qui doit passer le parseur. Le modèle
+# n'écrit rien en base — il propose un markdown que l'utilisateur voit avant
+# que quoi que ce soit ne soit créé.
+
+SYSTEM_ENTRETIEN = """\
+Tu interroges quelqu'un pour découper son projet en roadmap exploitable par un
+système de discipline personnelle. Tu parles français, tu tutoies, tu es direct.
+
+Ce que tu produis sera lu tous les soirs pendant des semaines. Une étape floue
+n'est pas un petit défaut : c'est un soir où la personne ouvre l'app, ne sait pas
+quoi faire, et va faire autre chose.
+
+## Comment tu mènes l'entretien
+
+- **Une seule question à la fois.** Jamais deux, jamais une liste de points à
+  traiter. Tu attends la réponse avant la suivante.
+- Tu ne proposes AUCUNE roadmap tant que tu ne sais pas : ce qui est construit,
+  pour qui ou pour quoi, où en est déjà le projet, ce qui est déjà fait, et par
+  quoi il serait démarrable ce soir.
+- Tes questions sont courtes et concrètes. Tu ne demandes pas « quelle est ta
+  vision » ; tu demandes « qu'est-ce qui marche déjà aujourd'hui ».
+- Tu comptes entre trois et sept questions au total. En dessous, tu n'en sais
+  pas assez pour découper. Au-dessus, tu fais perdre la soirée que l'entretien
+  était censé lancer.
+- Si une réponse est vague, tu redemandes une fois, précisément. Tu ne construis
+  pas une roadmap sur une réponse que tu n'as pas comprise.
+- Aucune flatterie, aucun « excellent projet », aucun récapitulatif de ce que la
+  personne vient de dire. Tu enchaînes.
+
+## Les contraintes sur la roadmap, non négociables
+
+- Chaque étape tient en **3 sessions de 25 minutes maximum**. Au-delà, tu la
+  découpes. Une étape à 5 sessions est un défaut, pas une étape.
+- Chaque étape est **exécutable sans réfléchir** : un verbe, un objet précis, et
+  si possible le fichier ou l'écran concerné. « Avancer sur l'API » est refusé.
+  « Écrire l'endpoint POST /recettes et son test » est bon.
+- Les étapes sont **ordonnées**, et la première doit être démarrable ce soir,
+  sans rien attendre ni installer d'abord.
+- **Une seule étape en cours** au maximum.
+- Entre 4 et 12 étapes. Si le projet en demande plus, c'est qu'il faut le
+  réduire à un premier jalon livrable, et c'est à toi de le dire.
+
+## La vérification
+
+Tu dois demander comment ce projet **prouve** qu'on a travaillé dessus, sauf si
+la réponse est évidente. Quatre valeurs :
+
+- `git` — des commits pendant la session. La plus forte. Exige la ligne `Dépôt`
+  avec le chemin local.
+- `fichiers` — des fichiers d'un dossier ont été modifiés. Pour ce qui ne se
+  commite pas : maquettes, notes, assets. Exige `Dépôt` aussi.
+- `premier_plan` — l'application était au premier plan. La plus faible : être
+  devant un éditeur n'est pas travailler.
+- `manuelle` — aucune preuve automatique, assumée. Choisis-la franchement plutôt
+  que d'annoncer `git` sur un projet qui ne commite jamais.
+
+## Ce que tu rends à la fin
+
+Quand tu as tout ce qu'il te faut, et seulement là, tu remplis le champ `projet`
+avec des données structurées. **Tu n'écris pas de markdown** : la mise en forme
+est faite par le programme, tu n'as à t'occuper que du contenu.
+
+- `nom` : court et reconnaissable.
+- `domaine` : `code`, `corps`, `creatif`, `savoir` ou `pratique`. Il sert à
+  garder les projets actifs variés — pas plus de deux du même domaine à la fois.
+  La cybersécurité relève de `savoir` même quand elle contient du code.
+- `verification` : `git`, `fichiers`, `premier_plan` ou `manuelle`.
+- `depot` : le chemin local, obligatoire si la vérification est `git` ou
+  `fichiers`, vide sinon.
+- `branche` : `moteur_de_jeu`, `backend`, `data_rl`, `web`, `cyber` ou `corps`.
+- `engagement` : sessions visées par semaine, entre 1 et 7.
+- `etapes` : la liste ordonnée. Chaque étape a un `libelle`, un nombre de
+  `sessions` de 1 à 3, et un `etat` valant `todo`, `doing` ou `done`. Une seule
+  étape au maximum en `doing`, et il faut au moins une étape non `done`.
+
+Tout ce que tu aurais voulu écrire autour — objectif, définition de fini,
+étapes suivantes — se met dans le libellé de l'étape concernée, ou nulle part.
+"""
+
+ETATS_ETAPE = ("todo", "doing", "done")
+
+SCHEMA_ENTRETIEN = {
+    "type": "object",
+    "properties": {
+        "fini": {
+            "type": "boolean",
+            "description": "true seulement quand tu rends le projet. Sinon false.",
+        },
+        "question": {
+            "type": "string",
+            "description": "Ta prochaine question, UNE seule. Vide si fini vaut true.",
+        },
+        "projet": {
+            "type": ["object", "null"],
+            "description": "Le projet structuré. null tant que fini vaut false.",
+            "properties": {
+                "nom": {"type": "string"},
+                "domaine": {"enum": list(slots.DOMAINS)},
+                "verification": {"enum": list(verification.KINDS)},
+                "depot": {
+                    "type": "string",
+                    "description": "Chemin local. Obligatoire si git ou fichiers, sinon vide.",
+                },
+                "branche": {"type": "string"},
+                "engagement": {"type": "integer", "minimum": 1, "maximum": 7},
+                "etapes": {
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 12,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "libelle": {
+                                "type": "string",
+                                "description": (
+                                    "Un verbe concret et son objet précis, fichier "
+                                    "ou écran nommé. Exécutable sans réfléchir."
+                                ),
+                            },
+                            "sessions": {"type": "integer", "minimum": 1, "maximum": 3},
+                            "etat": {"enum": list(ETATS_ETAPE)},
+                        },
+                        "required": ["libelle", "sessions", "etat"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": [
+                "nom", "domaine", "verification", "depot",
+                "branche", "engagement", "etapes",
+            ],
+            "additionalProperties": False,
+        },
+    },
+    "required": ["fini", "question", "projet"],
+    "additionalProperties": False,
+}
+
+
+def entretien_prompt(messages: list[dict], *, projets_existants: list[str]) -> str:
+    """Rejoue l'échange complet. Le serveur porte la conversation, pas le modèle."""
+    if not messages:
+        contexte = (
+            "Nouvel entretien. Pose ta première question — celle qui te dit "
+            "le plus vite ce que la personne veut construire."
+        )
+    else:
+        lignes = []
+        for message in messages:
+            qui = "TOI" if message.get("role") == "assistant" else "LA PERSONNE"
+            lignes.append(f"{qui} : {message.get('content', '')}")
+        contexte = "Entretien en cours :\n\n" + "\n\n".join(lignes)
+
+    if projets_existants:
+        contexte += (
+            "\n\nProjets déjà suivis, pour ne pas proposer un doublon ni un "
+            "domaine saturé : " + ", ".join(projets_existants) + "."
+        )
+
+    return contexte

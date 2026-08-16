@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 348 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 374 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-372 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+398 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -113,9 +113,17 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   boss dont la vie descend avec le travail réel, hauts faits.
 - Piste Entretien : routines courtes ancrées sur un geste, mesurées à la semaine,
   sans streak cassable, payées en Éclats et jamais en XP (§11.9).
-- Création d'un projet en collant le markdown produit par un chat, avec aperçu
-  avant écriture. Le prompt est embarqué dans l'app, copiable en un tap, et
-  documenté dans [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
+- **Entretien de projet dans l'app (§4.5)** : le coach interroge une question à
+  la fois, puis rend le projet en **champs structurés** que le serveur met en
+  forme. Ce dernier point vient d'un vrai raté — un modèle à qui l'on demande ce
+  markdown produit régulièrement un document plus agréable à lire et
+  inexploitable, où le parseur perd la vérification `git` et le chemin du dépôt
+  **sans rien signaler**. Trois tours de reproche n'y ont rien changé ; laisser
+  le serveur écrire le format le rend juste par construction.
+- Le collage de markdown reste, en second : il marche sans IA, sert quand une
+  roadmap existe déjà, et passe par le même parseur. Le prompt est embarqué dans
+  l'app et documenté dans
+  [docs/prompt-nouveau-projet.md](docs/prompt-nouveau-projet.md).
 - **Deux axes séparés** (§4.4) : l'XP mesure le volume et ne paie qu'en loot,
   dégâts au boss et Éclats ; le **rang** mesure la fiabilité — les semaines où
   tous les engagements ont été tenus — et lui seul ouvre des droits. Un système

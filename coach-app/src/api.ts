@@ -2,6 +2,7 @@ import type {
   Briefing,
   DebriefSuggestion,
   EntretienPanel,
+  Interview,
   GardesPanel,
   HomeState,
   JournalEntry,
@@ -91,6 +92,19 @@ export const api = {
   projects: () => request<ProjectDetail[]>('/projects'),
 
   briefing: () => request<Briefing>('/briefing'),
+
+  startInterview: () => request<Interview>('/interviews', { method: 'POST' }),
+
+  replyInterview: (id: number, answer: string) =>
+    request<Interview>(`/interviews/${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ answer }),
+    }),
+
+  importInterview: (id: number) =>
+    request<{ id: number; name: string; slot: number | null }>(`/interviews/${id}/import`, {
+      method: 'POST',
+    }),
 
   debrief: (id: number, note: string) =>
     request<DebriefSuggestion>(`/sessions/${id}/debrief`, {

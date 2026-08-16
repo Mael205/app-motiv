@@ -1,4 +1,4 @@
-"""Tests du briefing et du debrief (SPEC §5.1, §5.2, §0.9).
+"""Tests du briefing, du debrief et de l'entretien (SPEC §5.1, §5.2, §4.5, §0.9).
 
 Aucun appel réseau : le fournisseur est toujours factice. Ce n'est pas une
 limite de la suite, c'est son sujet. La qualité d'un modèle ne se teste pas
@@ -22,7 +22,15 @@ from forge import coaching, services
 from forge.llm import set_provider
 from forge.llm.base import LLMUnavailable
 from forge.llm.fake import ScriptedProvider, UnavailableProvider
-from forge.models import JournalEntry, Profile, Project, RoadmapStep, Session, Track
+from forge.models import (
+    JournalEntry,
+    Profile,
+    Project,
+    ProjectInterview,
+    RoadmapStep,
+    Session,
+    Track,
+)
 from forge.rules.calendar import coach_day
 
 
@@ -287,3 +295,262 @@ class TestDebrief:
         coaching.debrief(session, note="fait l'écran")
 
         assert not JournalEntry.objects.filter(session=session).exists()
+
+
+PROJET_VALIDE = {
+    "nom": "Analyseur Smash",
+    "domaine": "code",
+    "verification": "git",
+    "depot": "C:/Dev/analyseur-smash",
+    "branche": "data_rl",
+    "engagement": 3,
+    "etapes": [
+        {"libelle": "Écrire le test qui reproduit le crash à 4 joueurs", "sessions": 2, "etat": "doing"},
+        {"libelle": "Lire le bloc Event Payloads dynamiquement dans parser.py", "sessions": 2, "etat": "todo"},
+        {"libelle": "Parser Game Start et les ports réellement actifs", "sessions": 3, "etat": "todo"},
+        {"libelle": "Rejouer la banque de replays en batch et corriger les restes", "sessions": 2, "etat": "todo"},
+    ],
+}
+
+
+def tour_question(texte="Qu'est-ce qui marche déjà aujourd'hui dans ce projet ?") -> dict:
+    return {"fini": False, "question": texte, "projet": None}
+
+
+def tour_final(**champs) -> dict:
+    """Le tour de conclusion. ``champs`` remplace des clés du projet valide."""
+    return {"fini": True, "question": "", "projet": {**PROJET_VALIDE, **champs}}
+
+
+class TestEntretien:
+    """L'entretien du §4.5 — le seul service sans repli déterministe."""
+
+    def test_l_entretien_s_ouvre_sur_une_question(self, user):
+        set_provider(ScriptedProvider([tour_question()]))
+        etat = coaching.interview_start(user)
+
+        assert etat["status"] == "en_cours"
+        assert etat["messages"][0]["role"] == "assistant"
+        assert etat["markdown"] == ""
+
+    def test_l_echange_complet_est_renvoye_a_chaque_tour(self, user):
+        """Le serveur porte la conversation : elle survit à tout redémarrage."""
+        fournisseur = ScriptedProvider([tour_question("Première ?"), tour_question("Deuxième ?")])
+        set_provider(fournisseur)
+
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+        coaching.interview_reply(entretien, answer="c'est un outil d'analyse de replays")
+
+        envoye = fournisseur.calls[1]["prompt"]
+        assert "Première ?" in envoye
+        assert "analyse de replays" in envoye
+
+    def test_les_projets_existants_sont_transmis(self, user):
+        """Pour ne pas proposer un doublon ni saturer un domaine (§4.3)."""
+        fournisseur = ScriptedProvider([tour_question()])
+        set_provider(fournisseur)
+        coaching.interview_start(user)
+
+        assert "Bestiaire" in fournisseur.calls[0]["prompt"]
+
+    def test_la_roadmap_arrive_a_la_fin_et_rien_n_est_cree(self, user):
+        set_provider(ScriptedProvider([tour_question(), tour_final()]))
+
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+        etat = coaching.interview_reply(entretien, answer="rien encore, je pars de zéro")
+
+        assert etat["status"] == "propose"
+        assert "Analyseur Smash" in etat["markdown"]
+        assert not Project.objects.filter(name="Analyseur Smash").exists()
+
+    def test_l_import_passe_par_le_meme_parseur_que_le_collage(self, user):
+        """Le chemin de l'IA n'a aucun privilège sur celui qu'on emprunte sans elle."""
+        set_provider(ScriptedProvider([tour_final()]))
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+
+        projet = coaching.interview_import(entretien)
+
+        assert projet.name == "Analyseur Smash"
+        assert projet.steps.count() == 4
+        assert projet.verification == "git"
+        entretien.refresh_from_db()
+        assert entretien.status == "importe"
+
+    def test_une_reponse_vide_est_refusee(self, user):
+        set_provider(ScriptedProvider([tour_question()]))
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+
+        with pytest.raises(ValueError):
+            coaching.interview_reply(entretien, answer="   ")
+
+    def test_la_reponse_est_gardee_meme_si_le_modele_echoue_ensuite(self, user):
+        """Réessayer doit reprendre l'entretien, pas le recommencer."""
+        set_provider(ScriptedProvider([tour_question()]))
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+
+        set_provider(UnavailableProvider())
+        with pytest.raises(coaching.InterviewUnavailable):
+            coaching.interview_reply(entretien, answer="un outil d'analyse de replays")
+
+        entretien.refresh_from_db()
+        assert entretien.messages[-1]["content"] == "un outil d'analyse de replays"
+
+    def test_l_entretien_s_arrete_de_questionner_au_bout_du_compte(self, user):
+        """Un entretien plus long que la session qu'il devait lancer a échoué."""
+        questions = [tour_question(f"Question {i} ?") for i in range(coaching.MAX_QUESTIONS)]
+        set_provider(ScriptedProvider([*questions, tour_final()]))
+
+        etat = coaching.interview_start(user)
+        entretien = ProjectInterview.objects.get(id=etat["id"])
+        for i in range(coaching.MAX_QUESTIONS):
+            etat = coaching.interview_reply(entretien, answer=f"réponse {i}")
+
+        assert etat["status"] == "propose"
+        assert any("Assez de questions" in m["content"] for m in entretien.messages)
+
+
+class TestEntretienSansModele:
+    """Sans repli possible : il faut le dire, pas le masquer."""
+
+    def test_sans_modele_l_entretien_ne_pretend_pas_marcher(self, user):
+        with pytest.raises(coaching.InterviewUnavailable):
+            coaching.interview_start(user)
+
+    def test_l_indisponibilite_de_l_entretien_ne_se_confond_pas_avec_celle_du_modele(self):
+        """Deux gestes opposés : renvoyer vers le collage, ou retomber sur le repli."""
+        assert not issubclass(coaching.InterviewUnavailable, LLMUnavailable)
+
+
+class TestPorteDeLaRoadmap:
+    """Ce qui rattrape une roadmap inexploitable avant qu'elle ne coûte des semaines.
+
+    Le modèle ne rend plus de markdown mais des champs, et le serveur écrit le
+    format. Ce n'est pas une simplification de confort : trois essais réels ont
+    montré qu'un modèle à qui l'on demande ce format produit régulièrement un
+    document plus agréable à lire et inexploitable — métadonnées en gras, étapes
+    numérotées — où le parseur perdait la vérification « git » et le chemin du
+    dépôt **sans rien signaler**. Trois tours de reproche n'y ont rien changé.
+
+    Le format est donc juste par construction, et il ne reste à contrôler ici que
+    ce qu'un schéma ne sait pas dire.
+    """
+
+    def _refus(self, user, tour):
+        """Le même mauvais tour à chaque essai : la reprise a lieu, puis on renonce."""
+        set_provider(ScriptedProvider([tour] * coaching.MAX_ESSAIS))
+        with pytest.raises(coaching.InterviewUnavailable) as capture:
+            coaching.interview_start(user)
+        return str(capture.value)
+
+    def test_un_refus_donne_droit_a_une_reprise_avec_le_motif(self, user):
+        """Sans repli, abandonner sur une réponse mal tournée serait absurde."""
+        fournisseur = ScriptedProvider(
+            [{"fini": True, "question": "", "projet": None}, tour_question()]
+        )
+        set_provider(fournisseur)
+
+        etat = coaching.interview_start(user)
+
+        assert etat["status"] == "en_cours"
+        assert len(fournisseur.calls) == 2
+        assert "refusée" in fournisseur.calls[1]["prompt"]
+        assert "sans projet" in fournisseur.calls[1]["prompt"]
+
+    def test_la_reprise_n_a_pas_lieu_indefiniment(self, user):
+        """Un modèle qui ne corrige pas au second essai ne corrigera pas au dixième."""
+        fournisseur = ScriptedProvider([{"fini": True, "question": "", "projet": None}] * 6)
+        set_provider(fournisseur)
+
+        with pytest.raises(coaching.InterviewUnavailable):
+            coaching.interview_start(user)
+
+        assert len(fournisseur.calls) == coaching.MAX_ESSAIS
+
+    def test_le_markdown_est_ecrit_par_le_serveur_pas_par_le_modele(self, user):
+        """Le format devient juste par construction : plus rien à plaider."""
+        set_provider(ScriptedProvider([tour_final()]))
+        etat = coaching.interview_start(user)
+
+        assert etat["markdown"].startswith("# Analyseur Smash")
+        assert "Vérification: git" in etat["markdown"]
+        assert "Dépôt: C:/Dev/analyseur-smash" in etat["markdown"]
+        assert "- [>] Écrire le test qui reproduit le crash à 4 joueurs (2)" in etat["markdown"]
+
+    def test_une_etape_floue_est_refusee(self, user):
+        floue = [{"libelle": "Avancer sur le parseur de replays", "sessions": 2, "etat": "todo"}]
+        motif = self._refus(user, tour_final(etapes=PROJET_VALIDE["etapes"][:3] + floue))
+
+        assert "floue" in motif
+        assert "verbe concret" in motif
+
+    def test_une_roadmap_trop_courte_est_refusee(self, user):
+        assert "Découpe" in self._refus(user, tour_final(etapes=PROJET_VALIDE["etapes"][:2]))
+
+    def test_une_roadmap_trop_longue_dit_quoi_faire(self, user):
+        """Un reproche formulé en conseil ne converge pas ; une consigne chiffrée si.
+
+        Constaté en vrai : « il faut réduire le projet » a fait passer de 34
+        étapes à 17, puis à 17 encore.
+        """
+        trop = [
+            {"libelle": f"Écrire le module numéro {i} dans mod{i}.py", "sessions": 2, "etat": "todo"}
+            for i in range(15)
+        ]
+        motif = self._refus(user, tour_final(etapes=trop))
+
+        assert "maximum 12" in motif
+        assert "supprime le reste" in motif
+
+    def test_une_roadmap_entierement_faite_est_refusee(self, user):
+        finies = [{**e, "etat": "done"} for e in PROJET_VALIDE["etapes"]]
+        assert "par quoi commencer" in self._refus(user, tour_final(etapes=finies))
+
+    def test_deux_etapes_en_cours_sont_refusees(self, user):
+        deux = [{**e, "etat": "doing"} for e in PROJET_VALIDE["etapes"]]
+        assert "étape courante" in self._refus(user, tour_final(etapes=deux))
+
+    def test_une_verification_annoncee_sans_les_moyens_est_refusee(self, user):
+        """Le §6 : se croire vérifié est pire que le manuel assumé."""
+        motif = self._refus(user, tour_final(depot=""))
+
+        assert "manuelle" in motif
+
+    def test_un_domaine_invente_est_refuse(self, user):
+        assert "inconnu" in self._refus(user, tour_final(domaine="jeu-video"))
+
+    def test_une_verification_inventee_est_refusee(self, user):
+        assert "inconnue" in self._refus(user, tour_final(verification="magique"))
+
+    def test_une_question_en_deux_propositions_reste_acceptee(self, user):
+        """« C'est quoi, et pourquoi maintenant ? » est une question, en français.
+
+        La version stricte de cette règle refusait des questions parfaitement
+        bonnes et tuait l'entretien, faute de repli. Le test garde le réglage
+        corrigé, pas celui qu'on aurait deviné.
+        """
+        set_provider(
+            ScriptedProvider([tour_question("C'est quoi le projet, et pourquoi maintenant ?")])
+        )
+
+        assert coaching.interview_start(user)["status"] == "en_cours"
+
+    def test_un_questionnaire_est_refuse(self, user):
+        """La dérive réelle : le modèle vide son sac au lieu d'interroger."""
+        tour = tour_question("C'est quoi ? Où en es-tu ? Tu utilises quoi ? Et pour quand ?")
+        assert "questionnaire" in self._refus(user, tour)
+
+    def test_une_question_en_liste_a_puces_est_refusee(self, user):
+        tour = tour_question("Dis-moi :\n- ce que tu construis\n- où tu en es")
+        assert "liste" in self._refus(user, tour)
+
+    def test_une_question_avec_un_projet_est_refusee(self, user):
+        tour = {"fini": False, "question": "Encore une chose ?", "projet": PROJET_VALIDE}
+        assert "choisir" in self._refus(user, tour)
+
+    def test_un_entretien_fini_sans_projet_est_refuse(self, user):
+        assert "sans projet" in self._refus(user, {"fini": True, "question": "", "projet": None})

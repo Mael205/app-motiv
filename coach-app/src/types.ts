@@ -129,6 +129,21 @@ export interface Briefing extends Proposal {
   definition_de_fini?: string
 }
 
+export interface InterviewMessage {
+  role: 'assistant' | 'user'
+  content: string
+}
+
+/** L'entretien du §4.5. `markdown` reste vide tant que le statut est en_cours. */
+export interface Interview {
+  id: number
+  status: 'en_cours' | 'propose' | 'importe' | 'abandonne'
+  messages: InterviewMessage[]
+  markdown: string
+  questions_posees: number
+  max_questions: number
+}
+
 export interface DebriefSuggestion {
   resume: string
   amorce: string

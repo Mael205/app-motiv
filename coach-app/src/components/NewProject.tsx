@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ProjectInterview } from './ProjectInterview'
 import { api } from '../api'
 import { PROJECT_PROMPT } from '../lib/projectPrompt'
 import type { ProjectPreview } from '../types'
@@ -24,6 +25,7 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [aiNote, setAiNote] = useState('')
 
   async function copyPrompt() {
     try {
@@ -76,8 +78,23 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
 
   return (
     <div className="newproject">
+      {/* L'entretien en premier : c'est le chemin normal depuis le §5.6. Le
+          collage reste dessous parce qu'il marche sans IA, et parce qu'il sert
+          aussi quand on a deja une roadmap ecrite ailleurs. */}
+      {!aiNote && (
+        <ProjectInterview
+          onProposed={(md) => {
+            setMarkdown(md)
+            setPreview(null)
+          }}
+          onUnavailable={setAiNote}
+        />
+      )}
+
       <p className="section-hint">
-        Copie le prompt, fais-toi interroger dans un chat, puis colle le markdown obtenu ici.
+        {aiNote
+          ? `Entretien indisponible (${aiNote}). Copie le prompt, fais-toi interroger dans un chat, puis colle le markdown obtenu ici.`
+          : 'Ou colle directement le markdown d’une roadmap deja ecrite.'}
       </p>
 
       <div className="row">

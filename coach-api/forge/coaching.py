@@ -1,7 +1,7 @@
-"""Le briefing et le debrief (SPEC §5.1, §5.2).
+"""Le briefing, le debrief et l'entretien de projet (SPEC §5.1, §5.2, §4.5).
 
-Ces deux services sont les seuls endroits où un modèle parle à l'utilisateur.
-Ils partagent une architecture, et elle tient en une phrase :
+Les seuls endroits où un modèle parle à l'utilisateur. Le briefing et le debrief
+partagent une architecture, et elle tient en une phrase :
 
     **Le déterministe décide d'abord ; le modèle n'a le droit que d'améliorer.**
 
@@ -23,6 +23,14 @@ jamais un identifiant : il nomme un projet, et le serveur retrouve l'objet par
 ce nom parmi les projets réellement actifs. Un nom inconnu est une hallucination
 et fait tomber le briefing sur le repli. Aucune réponse de modèle ne devient
 une écriture en base sans passer par un geste de l'utilisateur.
+
+**L'entretien de projet est la seule exception à l'architecture ci-dessus**, et
+il faut le dire franchement : il n'a pas de repli. Aucun algorithme ne sait
+interroger quelqu'un sur son projet, et prétendre le contraire produirait un
+questionnaire à cases qui donne exactement les roadmaps floues que le §4.5
+traite comme des défauts. Quand le modèle manque, l'utilisateur est renvoyé vers
+le collage de markdown — qui, lui, marche sans IA et produit le même résultat
+par le même parseur.
 """
 
 from __future__ import annotations
@@ -37,7 +45,7 @@ from django.utils import timezone
 from . import services
 from .llm import LLMUnavailable, QualityGateFailed, Task, gate, get_provider
 from .llm import prompts
-from .models import JournalEntry, Profile, Project, Session, Track
+from .models import JournalEntry, Profile, Project, ProjectInterview, Session, Track
 from .rules.calendar import coach_day, evening_window, week_start
 
 logger = logging.getLogger(__name__)
@@ -312,3 +320,169 @@ def _debrief_brut(note: str, raison: str) -> dict:
         "source": SOURCE_DETERMINISTE,
         "ai_note": raison,
     }
+
+
+# --------------------------------------------------------------------------
+# Entretien de projet (§4.5)
+# --------------------------------------------------------------------------
+
+# Au-delà, on arrête d'interroger. Le prompt vise trois à sept questions ; cette
+# borne n'est pas la consigne, c'est le garde-fou du cas où le modèle tourne en
+# rond. Un entretien qui dure plus longtemps que la session qu'il devait lancer
+# a échoué, même s'il finit par produire une bonne roadmap.
+MAX_QUESTIONS = 10
+
+# Un refus de la porte vaut une reprise, motif à l'appui. Trois essais, et pas
+# deux : un essai réel sur une roadmap trop longue a montré une convergence
+# progressive — 34 étapes, puis 17 — là où deux tours s'arrêtaient juste avant
+# d'aboutir. Au-delà de trois en revanche, on fait attendre quelqu'un devant un
+# écran pour un modèle qui ne corrigera plus.
+MAX_ESSAIS = 3
+
+
+class InterviewUnavailable(Exception):
+    """L'entretien ne peut pas avoir lieu — pas de modèle joignable.
+
+    Distincte de ``LLMUnavailable`` pour une raison de produit : ici il n'y a
+    **pas de repli déterministe**. Un briefing raté retombe sur un calcul ; un
+    entretien raté ne retombe sur rien, parce qu'aucun algorithme ne sait
+    interroger quelqu'un sur son projet. L'appelant doit donc renvoyer
+    l'utilisateur vers le collage de markdown, qui lui marche sans IA.
+    """
+
+
+def _projets_existants(user) -> list[str]:
+    return [
+        f"{p.name} ({p.get_domain_display()})"
+        for p in Project.objects.filter(user=user).exclude(status=Project.ARCHIVED)
+    ]
+
+
+def _tour(interview, *, reproche: str = "", essai: int = 1) -> dict:
+    """Un tour d'entretien : rejoue l'échange, valide, et range le résultat.
+
+    **Un refus de la porte donne droit à une seconde tentative**, et le motif
+    est renvoyé au modèle. C'est la différence importante avec le briefing : là
+    -bas un refus retombe sur un calcul déterministe, ici il ne retombe sur
+    rien, et abandonner la création d'un projet parce qu'une question était mal
+    tournée serait absurde. Dire au modèle ce qu'on lui reproche coûte un aller
+    -retour et corrige la plupart des écarts du premier coup.
+
+    Une seule reprise, cependant. Un modèle qui échoue deux fois de suite sur le
+    même reproche ne le corrigera pas au troisième essai, et l'utilisateur
+    attend devant un écran.
+    """
+    prompt = prompts.entretien_prompt(
+        interview.messages, projets_existants=_projets_existants(interview.user)
+    )
+    if reproche:
+        prompt += (
+            f"\n\nTa réponse précédente a été refusée : {reproche}. "
+            "Corrige exactement ce point et réponds à nouveau."
+        )
+
+    try:
+        reponse = get_provider().structured(
+            task=Task.ENTRETIEN_PROJET,
+            system=prompts.SYSTEM_ENTRETIEN,
+            prompt=prompt,
+            schema=prompts.SCHEMA_ENTRETIEN,
+        )
+    except LLMUnavailable as error:
+        raise InterviewUnavailable(str(error)) from error
+
+    if reponse.refused:
+        raise InterviewUnavailable("le modèle a décliné la demande")
+
+    payload = reponse.content if isinstance(reponse.content, dict) else {}
+    try:
+        valide = gate(Task.ENTRETIEN_PROJET, payload)
+    except QualityGateFailed as error:
+        logger.warning("entretien refusé par la porte (essai %s) : %s", essai, error.reason)
+        if essai < MAX_ESSAIS:
+            return _tour(interview, reproche=error.reason, essai=essai + 1)
+        # Contrairement au briefing, on ne masque pas : sans repli, taire le
+        # motif laisserait l'utilisateur devant un écran figé sans rien à faire.
+        raise InterviewUnavailable(f"réponse du modèle refusée : {error.reason}") from error
+
+    if valide["fini"]:
+        interview.markdown = valide["markdown"]
+        interview.status = interview.PROPOSE
+    else:
+        interview.messages = [
+            *interview.messages,
+            {"role": "assistant", "content": valide["question"]},
+        ]
+
+    interview.save()
+    return _payload(interview)
+
+
+def _payload(interview) -> dict:
+    """Ce que le client affiche. Le markdown n'est rendu qu'une fois proposé."""
+    return {
+        "id": interview.id,
+        "status": interview.status,
+        "messages": interview.messages,
+        "markdown": interview.markdown,
+        "questions_posees": interview.questions_posees,
+        "max_questions": MAX_QUESTIONS,
+    }
+
+
+def interview_start(user) -> dict:
+    """Ouvre un entretien et pose la première question."""
+    interview = ProjectInterview.objects.create(user=user)
+    return _tour(interview)
+
+
+def interview_reply(interview, *, answer: str) -> dict:
+    """Enregistre une réponse et rend le tour suivant.
+
+    La réponse de l'utilisateur est écrite **avant** l'appel au modèle : si le
+    modèle échoue, ce qu'on vient de taper n'est pas perdu, et réessayer reprend
+    l'entretien là où il en était plutôt qu'au début.
+    """
+    answer = (answer or "").strip()
+    if not answer:
+        raise ValueError("Une réponse vide ne fait pas avancer l'entretien.")
+    if interview.status != interview.EN_COURS:
+        raise ValueError("Cet entretien est terminé.")
+
+    interview.messages = [*interview.messages, {"role": "user", "content": answer}]
+    interview.save(update_fields=["messages", "updated_at"])
+
+    if interview.questions_posees >= MAX_QUESTIONS:
+        # On force la conclusion plutôt que d'abandonner : le modèle a de quoi
+        # écrire quelque chose, et une roadmap perfectible se corrige à l'écran
+        # de confirmation, alors qu'un entretien abandonné se refait en entier.
+        interview.messages = [
+            *interview.messages,
+            {
+                "role": "user",
+                "content": (
+                    "Assez de questions. Rends maintenant la roadmap au format "
+                    "demandé, avec ce que tu sais."
+                ),
+            },
+        ]
+        interview.save(update_fields=["messages", "updated_at"])
+
+    return _tour(interview)
+
+
+def interview_import(interview) -> "Project":
+    """Crée le projet depuis la roadmap proposée, et lie l'entretien.
+
+    Passe par ``create_project_from_markdown``, donc par le même parseur, les
+    mêmes règles de slot et les mêmes avertissements que le collage manuel. Le
+    chemin de l'IA n'a aucun privilège sur celui qu'on emprunte sans elle.
+    """
+    if interview.status != interview.PROPOSE:
+        raise ValueError("Aucune roadmap à importer pour cet entretien.")
+
+    projet = services.create_project_from_markdown(interview.user, interview.markdown)
+    interview.project = projet
+    interview.status = interview.IMPORTE
+    interview.save(update_fields=["project", "status", "updated_at"])
+    return projet
