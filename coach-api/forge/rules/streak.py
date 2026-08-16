@@ -31,6 +31,36 @@ COMEBACK_MISSED_THRESHOLD = 3   # nombre de jours ratés qui déclenche le retou
 FLOOR_MINUTES = 25
 DEBT_MINUTES = 10               # dette du palier 2 (SPEC §14)
 
+# Plancher progressif de la session normale, indexé sur le **rang**.
+#
+# Le §4.1 dit que le plancher est *volontairement ridicule pour survivre aux
+# mauvais soirs*. La règle ci-dessous ne le contredit pas, parce qu'elle ne
+# touche pas au même seuil : il y en a deux.
+#
+# * Le **mode dégradé** reste à 10 minutes, définitivement. C'est l'issue de
+#   secours, celle du soir où l'on rentre à 22h, et c'est elle qui empêche
+#   « j'ai rien fait donc j'arrête » (§0.3). La monter reviendrait à fermer la
+#   porte exactement le soir où elle sert.
+# * La **session normale** monte : à mesure qu'on démontre qu'on tient, on
+#   attend plus. Ce qui monte est l'exigence, jamais la fragilité — la même
+#   logique que les slots gagnés du §4.3.
+#
+# Indexé sur le rang et jamais sur l'XP, pour la raison du §4.4 : l'XP monte
+# avec le volume, et le volume est le mode de défaillance. Un plancher qui
+# monterait avec l'XP demanderait plus à quelqu'un précisément parce qu'il vient
+# de forcer.
+#
+# Le plafond est à 35. Au-delà, on quitte le registre du plancher : une barre
+# quotidienne de 40 minutes n'est plus un minimum, c'est un objectif, et un
+# minimum inatteignable un soir de fatigue est une mécanique morte.
+FLOOR_BY_RANK = {"B": 30, "A": 35, "S": 35, "SS": 35}
+MAX_FLOOR_MINUTES = 35
+
+
+def floor_for(rank: str) -> int:
+    """Le plancher de la session normale à ce rang."""
+    return min(MAX_FLOOR_MINUTES, FLOOR_BY_RANK.get(rank, FLOOR_MINUTES))
+
 
 class DayState(str, Enum):
     VALIDEE = "validee"
@@ -64,6 +94,7 @@ class StreakState:
     last_validated: date | None = None
     missed_run: int = 0                 # jours ratés consécutifs en cours
     broken_at: date | None = None
+    floor_minutes: int = FLOOR_MINUTES   # monte avec le rang (§4.1)
     events: list[StreakEvent] = field(default_factory=list)
 
     @property
@@ -78,17 +109,19 @@ class StreakState:
         Le palier 2 ajoute une dette de 10 minutes, une seule journée, jamais
         cumulable (SPEC §14).
         """
-        return FLOOR_MINUTES + DEBT_MINUTES if self.missed_run == 2 else FLOOR_MINUTES
+        return self.floor_minutes + DEBT_MINUTES if self.missed_run == 2 else self.floor_minutes
 
 
-def evaluate(days: list[Day], *, starting_shields: int = 2) -> StreakState:
+def evaluate(
+    days: list[Day], *, starting_shields: int = 2, floor_minutes: int = FLOOR_MINUTES
+) -> StreakState:
     """Rejoue l'historique complet et rend l'état du streak.
 
     ``days`` doit être trié par date croissante et contenir **toutes** les
     journées de la période, y compris les ratées : c'est l'appelant qui décide
     ce qu'est une journée ratée, pas cette fonction.
     """
-    state = StreakState(shields=starting_shields)
+    state = StreakState(shields=starting_shields, floor_minutes=floor_minutes)
     previous_effective: DayState | None = None  # dernier jour non neutre
 
     for day in sorted(days, key=lambda d: d.date):

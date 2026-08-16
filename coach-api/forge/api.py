@@ -110,10 +110,14 @@ def projects(request):
 @permission_classes([IsAuthenticated])
 def start_session(request):
     project_id = request.data.get("project_id")
+    # 30 et 35 entrent avec le plancher progressif du §4.1 : ce sont les durées
+    # que le serveur propose lui-même aux rangs B et A, et les refuser ici
+    # rendrait sa propre proposition impossible à démarrer.
     minutes = int(request.data.get("minutes", 25))
-    if minutes not in (10, 25, 50):
+    if minutes not in (10, 25, 30, 35, 50):
         return Response(
-            {"detail": "Durées possibles : 10, 25 ou 50 minutes."}, status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Durées possibles : 10, 25, 30, 35 ou 50 minutes."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     project = Project.objects.filter(user=request.user, id=project_id).first()

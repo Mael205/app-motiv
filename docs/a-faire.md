@@ -72,49 +72,25 @@ Projets → Nouveau projet → Copier le prompt.
 
 ---
 
-## Conçu, à construire
-
-### Planchers progressifs
-
-L'idée : que le plancher quotidien monte avec le temps au lieu de rester à 25
-minutes pour toujours.
-
-**La précaution qui décide de la forme.** Le §4.1 dit que le plancher est
-*volontairement ridicule pour survivre aux mauvais soirs*. Le monter revient
-donc à rendre les mauvais soirs plus durs — et c'est précisément le soir où on
-rentre à 22h que le streak casse.
-
-**Donc : monter la barre normale, jamais l'issue de secours.**
-
-- Le **mode dégradé reste à 10 minutes**, définitivement. C'est lui qui empêche
-  « j'ai rien fait donc j'arrête » (§0.3).
-- La **session normale** peut passer de 25 à 30 puis 35 minutes, indexée sur le
-  **rang** — donc sur les semaines d'engagements tenus, jamais sur l'XP, pour la
-  raison du §4.4 : l'XP monte avec le volume, et le volume est le mode de
-  défaillance.
-
-Même logique que les slots gagnés : ce qui monte est l'exigence, pas la
-fragilité.
-
-**Tranché le 16 août 2026 : la forme est validée, reste à choisir le palier
-exact et s'il faut un plafond.**
-
-**Précision du 16 août 2026, parce que la note se lisait mal.** « Ne pas monter
-le plancher » ne voulait jamais dire « ne rien monter ». La lecture juste est
-celle de l'utilisateur : *monter en rang, c'est qu'on attend plus de moi.*
-C'est exactement ce que dit la décision — l'exigence monte, et elle monte sur
-le rang, donc sur la fiabilité prouvée. Ce qui ne monte pas est le **mode
-dégradé**, qui n'est pas la barre mais l'issue de secours : c'est lui qui
-récupère le soir où on rentre à 22h, et c'est ce soir-là que tout se joue.
-
----
-
 ## Fait depuis
 
 - **Le §14 en entier** (16 août 2026). Régénération du boss — le champ existait
   sans que rien ne l'écrive —, vitrine fermée, gel du slot gagné, titre en
   sursis, quart de la mise prélevé, écran de reprise du palier 3 et porte de
   sortie de saison au-delà de cinq jours.
+- **Les planchers progressifs** (16 août 2026). La session normale suit le
+  rang : 25 min de F à C, 30 au rang B, 35 au rang A, plafond à 35. Le **mode
+  dégradé reste à 10 minutes, définitivement**.
+
+  La note précédente se lisait à l'envers, et la lecture juste est celle de
+  l'utilisateur : *monter en rang, c'est qu'on attend plus de moi*. Il y a deux
+  seuils, pas un. Celui qui monte est la barre normale ; celui qui ne bouge
+  jamais est l'issue de secours, celle du soir où l'on rentre à 22h — et c'est
+  ce soir-là que tout se joue.
+
+  Indexé sur le rang et jamais sur l'XP (§4.4) : l'XP monte avec le volume, et
+  un plancher indexé dessus demanderait plus à quelqu'un précisément parce
+  qu'il vient de forcer.
 
 ---
 

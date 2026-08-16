@@ -428,7 +428,7 @@ class TestVitrineEtSlots:
         # Le rang ouvre un quatrième slot, mais deux jours ratés le gèlent.
         from unittest.mock import patch
 
-        with patch.object(services, "rank_state", return_value={"slots": 4}):
+        with patch.object(services, "rank_state", return_value={"slots": 4, "code": "B"}):
             assert services.free_slot(user, slot_rules.SAVOIR, today=today) is None
 
     def test_le_gel_ne_deloge_aucun_projet(self, user, today):
@@ -507,3 +507,39 @@ class TestRienDeRetroactif:
         state = services.streak_state(user, atelier, today=today)
 
         assert etat["sanctions"]["level"] == state.sanction_level
+
+
+class TestPlancherProgressif:
+    """Le §4.1 après la décision du 16 août 2026.
+
+    Ce qui monte est l'exigence, jamais la fragilité. Le test qui compte est le
+    second : si un jour le mode dégradé se met à suivre le rang, c'est toute la
+    protection contre « j'ai rien fait donc j'arrête » qui tombe.
+    """
+
+    def test_le_plancher_monte_avec_le_rang(self):
+        assert streak_rules.floor_for("F") == 25
+        assert streak_rules.floor_for("C") == 25
+        assert streak_rules.floor_for("B") == 30
+        assert streak_rules.floor_for("A") == 35
+
+    def test_le_mode_degrade_ne_monte_jamais(self):
+        """L'issue de secours du soir où l'on rentre à 22h ne bouge pas."""
+        from forge.services import DEGRADED_MINUTES
+
+        assert DEGRADED_MINUTES == 10
+
+    def test_le_plancher_plafonne_a_35(self):
+        for rang in ("A", "S", "SS"):
+            assert streak_rules.floor_for(rang) == streak_rules.MAX_FLOOR_MINUTES
+
+    def test_un_rang_inconnu_reste_au_plancher_de_base(self):
+        assert streak_rules.floor_for("") == streak_rules.FLOOR_MINUTES
+
+    def test_la_dette_s_ajoute_au_plancher_du_rang_et_pas_a_la_constante(self):
+        """Au rang B, deux jours ratés demandent 40 min, pas 35."""
+        etat = streak_rules.StreakState(missed_run=2, floor_minutes=30)
+        assert etat.required_minutes == 40
+
+    def test_sans_dette_le_plancher_du_rang_est_le_seuil(self):
+        assert streak_rules.StreakState(missed_run=0, floor_minutes=35).required_minutes == 35

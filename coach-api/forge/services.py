@@ -118,6 +118,11 @@ def _season_pause_days(user, start: date, until: date) -> set[date]:
     return pauses
 
 
+def floor_minutes(user, *, today: date) -> int:
+    """Le plancher de la session normale, indexé sur le rang (§4.1, §4.4)."""
+    return streak_rules.floor_for(rank_state(user, today=today)["code"])
+
+
 def streak_state(user, track: Track, *, today: date) -> streak_rules.StreakState:
     """État du streak, évalué côté serveur à chaque lecture.
 
@@ -125,7 +130,7 @@ def streak_state(user, track: Track, *, today: date) -> streak_rules.StreakState
     pas ratée.
     """
     history = resolve_days(user, track, until=today - timedelta(days=1))
-    return streak_rules.evaluate(history)
+    return streak_rules.evaluate(history, floor_minutes=floor_minutes(user, today=today))
 
 
 # --------------------------------------------------------------------------
@@ -223,7 +228,10 @@ def _sanctions(
         current_streak=state.current,
         broken_once=state.broken_at is not None,
         validated_today=validated_today,
-        debt_minutes=state.required_minutes - streak_rules.FLOOR_MINUTES,
+        # La dette se mesure contre le plancher **du jour**, qui monte avec le
+        # rang : la comparer à la constante ferait apparaître une dette de 10 min
+        # permanente dès le rang B.
+        debt_minutes=state.required_minutes - state.floor_minutes,
     )
 
 
@@ -664,6 +672,7 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
         return (has_slot_today, remaining, staleness, -(project.slot or 99))
 
     chosen = max(projects, key=score)
+    plancher = floor_minutes(user, today=today)
     step = chosen.current_step
     slot = next(
         (ts for ts in chosen.timeslots.all() if ts.weekday == today.weekday() and ts.active), None
@@ -684,7 +693,10 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
             "emblem": chosen.emblem,
             "completion": chosen.completion,
         },
-        "minutes": DEGRADED_MINUTES if comeback else (slot.duration_minutes if slot else 25),
+        # Sans créneau déclaré, la durée proposée **est** le plancher du rang :
+        # c'est le seul endroit où la progression du §4.1 devient visible sans
+        # qu'on aille lire un chiffre.
+        "minutes": DEGRADED_MINUTES if comeback else (slot.duration_minutes if slot else plancher),
         "step": {"id": step.id, "label": step.label, "needs_split": step.needs_split} if step else None,
         "amorce": amorce or "",
         "reason": (
@@ -718,7 +730,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     # en descendent tous les deux, et deux lectures séparées finiraient par
     # afficher un palier qui ne correspond plus au streak affiché à côté.
     history = resolve_days(user, atelier, until=today - timedelta(days=1))
-    state = streak_rules.evaluate(history)
+    rang = rank_state(user, today=today)
+    state = streak_rules.evaluate(history, floor_minutes=streak_rules.floor_for(rang["code"]))
     season = current_season(user, today=today)
 
     window = evening_window(today, profile.windows_by_weekday(), profile.timezone_name)
@@ -728,7 +741,6 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     minutes_today = sum(s.actual_minutes for s in sessions_today if s.status == Session.DONE)
 
     total_xp = Session.objects.filter(user=user, status=Session.DONE).aggregate(t=Sum("xp_awarded"))["t"] or 0
-    rang = rank_state(user, today=today)
     running = next((s for s in sessions_today if s.status == Session.RUNNING), None)
 
     # Les deux écritures du §14, posées à la lecture de l'accueil. Comme la

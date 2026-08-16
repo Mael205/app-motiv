@@ -113,6 +113,14 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 
 - Streak, boucliers, trois états de journée, règle « jamais deux fois d'affilée »,
   reprise après décrochage qui rend un bouclier.
+- **Plancher progressif (§4.1)** : la session normale suit le rang — 25 min de F
+  à C, 30 au rang B, 35 au rang A, plafond à 35 —, tandis que le **mode dégradé
+  reste à 10 minutes pour toujours**. Il y a deux seuils et un seul monte :
+  l'exigence, jamais l'issue de secours. Un plancher qui monterait partout
+  fermerait la porte exactement le soir où l'on rentre à 22h, c'est-à-dire le
+  soir qui décide du streak. Indexé sur le rang et jamais sur l'XP (§4.4) :
+  l'XP monte avec le volume, donc un plancher indexé dessus en demanderait plus
+  à quelqu'un précisément parce qu'il vient de forcer.
 - Bascule de journée à 4h, fenêtre du soir paramétrable par jour de semaine.
 - XP avec bonus de première session, bonus avant 20h, multiplicateurs de streak
   et de momentum, **et le plafond de régime** qui éteint la récompense au-delà de
