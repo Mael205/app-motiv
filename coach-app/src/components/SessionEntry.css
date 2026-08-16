@@ -1,0 +1,87 @@
+/* L'entree en session (§7.1). Elle couvre une requete en vol : elle ne doit
+   donc rien retarder, et surtout pas etre plus longue que l'appel qu'elle
+   masque. Tout est fini en 600 ms. */
+.entry {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(70% 60% at 50% 50%,
+      color-mix(in srgb, var(--project) 14%, transparent), rgba(6, 4, 10, 0.97) 70%);
+}
+
+/* Les volets se ferment depuis le haut et le bas. Une fermeture dit « on
+   entre quelque part » ; un fondu dirait seulement « ca change ». */
+.entry__shutter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(var(--bg-deep), #000);
+  transform-origin: top center;
+}
+
+.entry__shutter--top { top: 0; }
+.entry__shutter--bottom { bottom: 0; transform-origin: bottom center; }
+
+.entry__core {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  will-change: transform;
+}
+
+.entry__stamp {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+
+.entry__emblem {
+  font-size: 74px;
+  line-height: 1;
+  color: var(--project);
+  text-shadow:
+    0 0 40px color-mix(in srgb, var(--project) 80%, transparent),
+    0 0 110px color-mix(in srgb, var(--project) 40%, transparent);
+}
+
+/* L'anneau d'impact. Une seule propagation, pas de boucle : c'est un choc,
+   pas un radar. */
+.entry__ring {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border: 2px solid var(--project);
+  border-radius: 50%;
+  animation: entry-ring 620ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
+  pointer-events: none;
+}
+
+@keyframes entry-ring {
+  from { transform: scale(0.4); opacity: 0.85; }
+  to { transform: scale(2.6); opacity: 0; }
+}
+
+.entry__project {
+  font-size: clamp(26px, 6vw, 38px);
+  line-height: 1;
+  text-align: center;
+  max-width: 90vw;
+}
+
+.entry__minutes {
+  font-size: 15px;
+  color: var(--project);
+  letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry__ring { animation: none; opacity: 0; }
+}

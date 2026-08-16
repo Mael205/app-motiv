@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 480 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 483 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-504 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+507 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -194,12 +194,17 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   se perd. Puis l'ouverture enchaîne : trois modificateurs qui **annoncent leur
   prix** (vie du boss, multiplicateur de mise, mention « difficile »), trois
   fantômes avec leur total en heures, et la mise à engager.
-- **Le juice du §7**, canalisé sur ses quatre moments : secousse par trauma
-  décroissant, compteurs à décélération marquée, gerbes en canvas, couronne de
-  rayons, et une séquence d'ascension qui enchaîne niveau, palier de branche,
-  relique et carte — chaque temps court et passable d'un clic.
-  `prefers-reduced-motion` désactive l'animation sans jamais supprimer
-  l'information.
+- **Les quatre séquences de juice du §7 sont faites** — entrée en session, fin
+  de session, passage de niveau, fin de saison — plus la mort du boss, ajoutée
+  parce que c'est le seul événement d'une saison qui dépasse le passage de
+  niveau en rareté. Secousse par trauma décroissant, compteurs à décélération
+  marquée, gerbes en canvas, couronnes de rayons ; chaque temps court et
+  passable d'un clic, et `prefers-reduced-motion` désactive l'animation sans
+  jamais supprimer l'information. La grammaire commune est écrite dans
+  [docs/direction-visuelle.md](docs/direction-visuelle.md).
+- L'entrée en session **ne retarde rien** : la requête part au clic et la
+  séquence couvre son attente. Le §7 l'exige — jamais d'animation sur le chemin
+  critique.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session
   avec sa séquence de fin, et un **HUD à trois colonnes** au-delà de 1160 px —
   la décision garde sa largeur de téléphone, donc sa dominance.

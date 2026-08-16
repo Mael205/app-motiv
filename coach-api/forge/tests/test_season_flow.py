@@ -281,3 +281,46 @@ class TestOuverture:
 
         assert saison.modifier_key
         assert saison.phantom_choice == phantom_rules.MEILLEURE
+
+
+class TestMortDuBoss:
+    """Le §12.4 : tuer le boss déclenche la fin de saison en avance."""
+
+    def test_le_boss_tombe_au_moment_ou_il_tombe(self, user, today):
+        """C'est le franchissement qui se met en scène, pas l'état — sinon la
+        séquence se rejouerait à chaque session jusqu'à la clôture."""
+        saison = services.open_season(user, starts_on=today - timedelta(days=2), stake=0)
+        saison.boss.damage_taken = saison.boss.max_hp - 10
+        saison.boss.save()
+
+        projet = Project.objects.get(user=user)
+        session = services.start_session(user, projet, planned_minutes=25)
+        session.started_at = timezone.now() - timedelta(minutes=25)
+        session.save(update_fields=["started_at"])
+
+        resultat = services.end_session(session, next_action="suite")
+
+        assert resultat["boss_killed"] is not None
+        assert resultat["boss_killed"]["name"] == saison.boss.name
+
+    def test_un_boss_deja_mort_ne_se_retue_pas(self, user, today):
+        saison = services.open_season(user, starts_on=today - timedelta(days=2), stake=0)
+        saison.boss.damage_taken = saison.boss.max_hp * 2
+        saison.boss.save()
+
+        projet = Project.objects.get(user=user)
+        session = services.start_session(user, projet, planned_minutes=25)
+        session.started_at = timezone.now() - timedelta(minutes=25)
+        session.save(update_fields=["started_at"])
+
+        assert services.end_session(session, next_action="suite")["boss_killed"] is None
+
+    def test_un_boss_vivant_ne_declenche_rien(self, user, today):
+        services.open_season(user, starts_on=today - timedelta(days=2), stake=0)
+
+        projet = Project.objects.get(user=user)
+        session = services.start_session(user, projet, planned_minutes=25)
+        session.started_at = timezone.now() - timedelta(minutes=25)
+        session.save(update_fields=["started_at"])
+
+        assert services.end_session(session, next_action="suite")["boss_killed"] is None

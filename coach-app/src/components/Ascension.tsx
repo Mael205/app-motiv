@@ -7,6 +7,7 @@ import type { SessionResult } from '../types'
 import './Ascension.css'
 
 type Beat =
+  | { kind: 'boss'; name: string; season: string; daysLeft: number }
   | { kind: 'level'; level: number }
   | { kind: 'branch'; label: string; title: string; emblem: string; color: string; hours: number }
   | { kind: 'relic'; label: string; lore: string; emblem: string }
@@ -37,6 +38,17 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
 
   const beats = useMemo<Beat[]>(() => {
     const list: Beat[] = []
+    // Le boss d'abord : c'est l'événement le plus rare de la saison, et il
+    // ouvre la fin de saison en avance (§12.4). Le montrer après un palier de
+    // branche l'aurait fait passer pour une conséquence de celui-ci.
+    if (result.boss_killed) {
+      list.push({
+        kind: 'boss',
+        name: result.boss_killed.name,
+        season: result.boss_killed.season,
+        daysLeft: result.boss_killed.days_left,
+      })
+    }
     if (result.levelled_up) list.push({ kind: 'level', level: result.level_after })
     if (result.branch_tier) {
       list.push({
@@ -62,7 +74,18 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
   // un palier de branche n'est pas un passage de niveau.
   useEffect(() => {
     if (!beat) return
-    shake(beat.kind === 'level' ? 0.85 : beat.kind === 'branch' ? 0.5 : 0.3)
+    // Dosage sur l'importance (voir docs/direction-visuelle.md). La mort du
+    // boss est le seul événement qui dépasse le passage de niveau : elle
+    // n'arrive qu'une fois par saison, et parfois pas du tout.
+    shake(
+      beat.kind === 'boss'
+        ? 1
+        : beat.kind === 'level'
+          ? 0.85
+          : beat.kind === 'branch'
+            ? 0.5
+            : 0.3,
+    )
   }, [step, beat, shake])
 
   const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))
@@ -85,6 +108,20 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
 
       <motion.div className="asc__stage" style={style}>
         <AnimatePresence mode="wait">
+          {beat.kind === 'boss' && (
+            <motion.div key="boss" className="asc__beat asc__beat--boss" {...enterSlam(reduced)}>
+              <Rays count={20} color="var(--rose)" />
+              <p className="label asc__over asc__over--boss">Boss abattu</p>
+              <h2 className="asc__boss display">{beat.name}</h2>
+              <p className="asc__sub muted">
+                {beat.season} · il restait <span className="num">{beat.daysLeft}</span> jour
+                {beat.daysLeft > 1 ? 's' : ''}. La saison se clôt en avance.
+              </p>
+              <Burst count={54} color="#DE5F7E" spread={380} />
+              <Burst count={30} spread={260} />
+            </motion.div>
+          )}
+
           {beat.kind === 'level' && (
             <motion.div key="level" className="asc__beat" {...enterSlam(reduced)}>
               <Rays count={16} />

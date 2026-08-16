@@ -140,3 +140,24 @@
   .asc__flash, .asc__hint { animation: none; }
   .asc__hint { opacity: 0.6; }
 }
+
+/* --- La mort du boss --------------------------------------------------- */
+
+/* Le seul evenement qui depasse le passage de niveau : il n'arrive qu'une fois
+   par saison, et parfois pas du tout. Il emprunte le rose du theme, qui ne
+   sert nulle part ailleurs a une bonne nouvelle — et c'est justement ce qui le
+   rend reconnaissable au premier coup d'oeil. */
+.asc__beat--boss { --accent: var(--rose); }
+
+.asc__over--boss { color: color-mix(in srgb, var(--rose) 80%, var(--muted)); }
+
+.asc__boss {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(38px, 9vw, 66px);
+  line-height: 1;
+  color: var(--rose);
+  text-shadow:
+    0 0 50px color-mix(in srgb, var(--rose) 85%, transparent),
+    0 0 130px color-mix(in srgb, var(--rose) 40%, transparent);
+}

@@ -64,11 +64,19 @@ Chacun pris seul est faible. Empilés, ils lisent comme un seul événement.
 
 | Événement | Secousse | Gerbe | Couronne |
 |---|---|---|---|
+| **Mort du boss** | 1,00 | 54 + 30 particules | 20 rayons |
 | Passage de niveau | 0,85 | 40 particules | 16 rayons |
+| Titre de fin de saison | 0,80 | 44 particules | 18 rayons |
+| Entrée en session | 0,55 | 18 particules | — |
 | Palier de branche | 0,50 | 26 particules | 12 rayons |
 | Relique | 0,30 | — | 14 rayons |
 | Carte commune | — | — | — |
 | Carte légendaire | — | 46 particules | 18 rayons |
+
+La mort du boss est seule au-dessus du passage de niveau : elle n'arrive
+qu'une fois par saison, et parfois pas du tout. Elle emprunte le **rose** du
+thème, qui ne sert nulle part ailleurs à une bonne nouvelle — c'est ce qui la
+rend reconnaissable au premier coup d'œil, avant même d'avoir lu.
 
 Si tout scintille, plus rien ne scintille.
 
@@ -139,9 +147,33 @@ animé**. Une fois arrivé sur les trois modificateurs, tout se calme. On décid
 de son mois ; un choix pressé par une animation n'est pas un choix. Le §12.2
 autorise le théâtre sur l'identité de la saison, pas sur ce qu'on engage.
 
-## Ce qui reste à porter à ce niveau
+**L'entrée en session** (`SessionEntry.tsx`) est la seule séquence qui joue
+pendant qu'une requête est en vol, et ça contraint tout son dessin. Elle se
+monte au même instant que l'appel et couvre son attente ; elle ne la précède
+pas et ne l'allonge pas. Deux choix en découlent :
 
-- **Démarrage de session** (§7, séquence 1) — l'interface se replie sur le
-  timer, tout le reste s'éteint, l'emblème du projet s'imprime.
-- **Mort du boss** — non prévue par la spec comme séquence, mais c'est le seul
-  événement de la saison qui mérite le traitement du passage de niveau.
+- **Des volets qui se ferment**, pas un fondu. Une fermeture dit « on entre
+  quelque part » ; un fondu dirait seulement « ça change ».
+- **L'emblème s'imprime.** Il arrive de loin, légèrement de travers, et se pose
+  à plat avec un anneau d'impact qui se propage une fois. C'est le vocabulaire
+  du tampon, choisi parce qu'il dit « c'est acté » là où une apparition en
+  fondu dirait « voici ».
+
+En cas d'échec de la requête, la séquence se **retire** et le motif s'affiche.
+Une erreur masquée par un bel effet serait la pire des deux.
+
+## Les quatre séquences du §7 sont faites
+
+| §7 | Où |
+|---|---|
+| 1. Démarrage de session | `SessionEntry.tsx` |
+| 2. Fin de session | `SessionScreen.tsx` → `ResultStage` |
+| 3. Passage de niveau | `Ascension.tsx` |
+| 4. Fin de saison | `SeasonCeremony.tsx` |
+
+Plus la **mort du boss**, que la spec ne prévoyait pas comme séquence et qui a
+été ajoutée : c'est le seul événement de la saison qui dépasse le passage de
+niveau en rareté.
+
+Ce qui viendra ensuite s'ajoute au banc d'essai (`juice.html`) et suit ce
+document.

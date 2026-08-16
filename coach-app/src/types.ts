@@ -313,6 +313,7 @@ export interface SessionResult {
   progression: { level: number; into_level: number; needed: number; ratio: number }
   momentum: Momentum
   branch_tier: BranchTier | null
+  boss_killed: BossKill | null
   cards: LootCardDrawn[]
   relics: RelicGranted[]
 }
@@ -412,6 +413,13 @@ export interface SkillBranch {
   next_hours: number | null
   progress: number
   maxed: boolean
+}
+
+export interface BossKill {
+  name: string
+  max_hp: number
+  season: string
+  days_left: number
 }
 
 export interface BranchTier {

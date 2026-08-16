@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { api } from '../api'
 import type { Briefing, Proposal } from '../types'
 import { Icon } from './art/Icons'
+import { SessionEntry } from './SessionEntry'
 import './DecisionBlock.css'
 
 /** Zone 2 : la décision, et rien d'autre.
@@ -20,14 +21,28 @@ export const DecisionBlock = memo(function DecisionBlock({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [entering, setEntering] = useState(0)
 
+  /** Le chemin critique du §7 : la requête part **avant** toute animation.
+   *
+   * L'ordre des deux premières lignes est le sujet. La séquence d'entrée se
+   * monte au même instant que l'appel et couvre son attente ; elle ne la
+   * précède pas et ne l'allonge pas. Sans elle on regarderait un bouton grisé
+   * pendant une demi-seconde, exactement au moment où l'on vient de décider de
+   * s'y mettre.
+   *
+   * En cas d'échec, la séquence se retire et le motif s'affiche : une erreur
+   * masquée par un bel effet serait la pire des deux.
+   */
   async function start(minutes: number) {
     setBusy(true)
     setError('')
+    setEntering(minutes)
     try {
       await api.startSession(proposal.project.id, minutes)
       onStarted()
     } catch (e) {
+      setEntering(0)
       setError(e instanceof Error ? e.message : 'Impossible de démarrer.')
       setBusy(false)
     }
@@ -40,6 +55,17 @@ export const DecisionBlock = memo(function DecisionBlock({
   // forme : une tache decidee par un modele et une amorce qu'on a ecrite
   // soi-meme la veille ne se relisent pas avec la meme confiance.
   const taskKind = brief?.source === 'modele' ? 'Décidé pour ce soir' : proposal.amorce ? 'Ton amorce' : 'Étape en cours'
+
+  if (entering) {
+    return (
+      <SessionEntry
+        project={proposal.project.name}
+        minutes={entering}
+        emblem={proposal.project.emblem}
+        color={proposal.project.color}
+      />
+    )
+  }
 
   return (
     <section className="decision" style={{ ['--project' as string]: proposal.project.color }}>

@@ -355,10 +355,24 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         * (1 + bonus.boss_damage_bonus)
         * (effets.body_damage_multiplier if piste_corps else 1.0)
     )
+
+    # Le boss tombe-t-il **maintenant** ? C'est le franchissement qui se met en
+    # scène, pas l'état : sans cette comparaison avant/après, la séquence se
+    # rejouerait à chaque session tant que la saison n'est pas close.
+    boss_tue = None
     if session.season and hasattr(session.season, "boss"):
         boss = session.season.boss
+        vivant_avant = not boss.is_dead
         boss.damage_taken += damage
         boss.save(update_fields=["damage_taken"])
+        boss.refresh_from_db()
+        if vivant_avant and boss.is_dead:
+            boss_tue = {
+                "name": boss.name,
+                "max_hp": boss.max_hp,
+                "season": session.season.name,
+                "days_left": session.season.days_left(session.coach_day),
+            }
 
     _update_commitment(session)
     _update_quests(session)
@@ -391,6 +405,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         "progression": xp_rules.progression(total_apres),
         "momentum": chaleur,
         "branch_tier": progression.branch_tier_crossed(session.user, session),
+        "boss_killed": boss_tue,
         "cards": cartes,
         "relics": reliques,
     }

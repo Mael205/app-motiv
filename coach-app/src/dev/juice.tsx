@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Ascension } from '../components/Ascension'
+import { SessionEntry } from '../components/SessionEntry'
 import { LootReveal } from '../components/LootReveal'
 import { MomentumEmber } from '../components/MomentumEmber'
 import { SkillTree } from '../components/SkillTree'
@@ -46,6 +47,7 @@ const RESULT: SessionResult = {
     days: [true, true, true, false, true, true, true] },
   branch_tier: { branch: 'moteur_de_jeu', label: 'Moteur de jeu', color: '#8B6FE8',
     tier: 3, title: 'Machiniste', emblem: '◆', hours: 50 },
+  boss_killed: null,
   cards: [CARDS[0]],
   relics: [{ key: 'coeur_increvable', label: 'Cœur increvable',
     lore: 'Vingt-huit jours sans céder un bouclier. Le corps se souvient.',
@@ -76,6 +78,10 @@ function Bench() {
 
       <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
         <button className="ghost" onClick={() => setScene('asc')}>Ascension complète</button>
+        <button className="ghost" onClick={() => setScene('boss')}>Mort du boss</button>
+        <button className="ghost" onClick={() => { setScene('entry'); setTimeout(() => setScene(''), 2600) }}>
+          Entrée en session
+        </button>
         {CARDS.map((c, i) => (
           <button key={c.key} className="ghost" onClick={() => { setCard(i); setScene('loot') }}>
             Carte {c.rarity_label}
@@ -90,6 +96,24 @@ function Bench() {
       </section>
 
       {scene === 'asc' && <Ascension result={RESULT} onDone={() => setScene('')} />}
+
+      {scene === 'boss' && (
+        <Ascension
+          result={{
+            ...RESULT,
+            levelled_up: false,
+            branch_tier: null,
+            relics: [],
+            cards: [],
+            boss_killed: { name: 'La Scroll-Hydre', max_hp: 4200, season: 'Purgatoire', days_left: 6 },
+          }}
+          onDone={() => setScene('')}
+        />
+      )}
+
+      {scene === 'entry' && (
+        <SessionEntry project="Evolve — prototype 4v1" minutes={50} emblem="◈" color="#8B6FE8" />
+      )}
 
       {scene === 'loot' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 80, display: 'grid',
