@@ -317,6 +317,55 @@ export interface SessionResult {
   relics: RelicGranted[]
 }
 
+export interface SeasonReport {
+  season: { index: number; name: string; accent: string; baseline: string; days: number }
+  score: number
+  hours: number
+  title: string
+  won: boolean
+  boss: { name: string; ratio_killed: number; is_dead: boolean }
+  stake: number
+  stake_delta: number
+  modifier: SeasonModifier
+  phantom: {
+    line: string
+    available: boolean
+    ahead: boolean
+    delta: number
+    reference: string
+    series: { day: number; mine: number | null; phantom: number | null }[]
+  }
+  already_closed: boolean
+  cards: LootCardDrawn[]
+  offer?: SeasonOffer
+}
+
+export interface SeasonOffer {
+  index: number
+  name: string
+  accent: string
+  baseline: string
+  starts_on: string
+  ends_on: string
+  boss: { name: string; hp: number }
+  modifiers: {
+    key: string
+    name: string
+    effet: string
+    boss_hp: number
+    stake_multiplier: number
+    hard: boolean
+  }[]
+  phantoms: { key: string; label: string; available: boolean; reference: string; hours: number }[]
+  shards: number
+}
+
+export interface SeasonState {
+  pending_close: boolean
+  running: boolean
+  offer: SeasonOffer | null
+}
+
 export interface Phantom {
   line: string
   available: boolean

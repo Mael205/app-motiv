@@ -139,7 +139,22 @@ def current_season(user, *, today: date) -> Season | None:
 
 
 @transaction.atomic
-def open_season(user, *, starts_on: date, stake: int = 0) -> Season:
+def open_season(
+    user,
+    *,
+    starts_on: date,
+    stake: int = 0,
+    modifier_key: str = "",
+    phantom_choice: str = "",
+) -> Season:
+    """Ouvre une saison. ``modifier_key`` et ``phantom_choice`` viennent des
+    choix faits à l'écran d'ouverture (§12.5, §12.7) ; vides, le plan décide.
+
+    Les deux sont pris **avant** de créer le boss et la mise, parce que le
+    modificateur les dimensionne tous les deux. Les appliquer après coup
+    obligerait à défaire ce que le plan a calculé, et c'est le genre de calcul
+    inverse qui finit par diverger.
+    """
     previous = Season.objects.filter(user=user).order_by("-index").first()
     index = (previous.index + 1) if previous else 1
     used = set(Season.objects.filter(user=user).values_list("key", flat=True))
@@ -153,6 +168,9 @@ def open_season(user, *, starts_on: date, stake: int = 0) -> Season:
         )
 
     plan = season_rules.plan_season(index, starts_on, previous_score=previous_score, used_keys=used)
+    retenu = modifier_key or plan.modifier_key
+    effets = modifier_rules.resolve(retenu)
+
     season = Season.objects.create(
         user=user,
         index=plan.index,
@@ -160,19 +178,20 @@ def open_season(user, *, starts_on: date, stake: int = 0) -> Season:
         name=plan.name,
         accent=plan.accent,
         baseline=plan.baseline,
-        modifier_key=plan.modifier_key,
+        modifier_key=retenu,
         starts_on=plan.starts_on,
         ends_on=plan.ends_on,
         # « Siège » double la mise et gonfle le boss (§12.5). Appliqué ici, à
         # l'ouverture, et jamais recalculé ensuite : une saison dont l'enjeu
         # bougerait en cours de route ne serait plus un engagement.
-        stake_shards=stake * modifier_rules.resolve(plan.modifier_key).stake_multiplier,
+        stake_shards=stake * effets.stake_multiplier,
+        **({"phantom_choice": phantom_choice} if phantom_choice else {}),
     )
     SeasonBoss.objects.create(
         season=season,
         key=plan.boss_key,
         name=plan.boss_name,
-        max_hp=round(plan.boss_hp * modifier_rules.resolve(plan.modifier_key).boss_hp_multiplier),
+        max_hp=round(plan.boss_hp * effets.boss_hp_multiplier),
     )
     return season
 

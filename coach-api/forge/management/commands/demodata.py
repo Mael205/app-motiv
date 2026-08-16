@@ -57,6 +57,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--clear", action="store_true", help="supprime l'utilisateur demo")
+        parser.add_argument(
+            "--ended",
+            action="store_true",
+            help="termine la saison courante, pour voir la cérémonie du §7.4",
+        )
 
     def handle(self, *args, **options):
         User = get_user_model()
@@ -193,6 +198,14 @@ class Command(BaseCommand):
         for _ in range(9):
             progression.draw_card(user, reason=loot_rules.CLOTURE_DE_SEMAINE, rng=rng)
         progression.grant_relics_for(user, ["increvable", "retour_du_neant"])
+
+        if options["ended"]:
+            # La saison se termine hier : la cérémonie du §7.4 se déclenche à
+            # la prochaine ouverture de l'app. Le boss est laissé debout pour
+            # voir le titre raté, qui est celui qu'on oublie de regarder.
+            saison.ends_on = today - timedelta(days=1)
+            saison.save(update_fields=["ends_on"])
+            self.stdout.write("saison terminée : la cérémonie se jouera à l'ouverture")
 
         arbre = progression.skill_tree(user)
         self.stdout.write(

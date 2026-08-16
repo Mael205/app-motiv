@@ -127,12 +127,20 @@ une heure entre deux essais. Toute nouvelle séquence s'y ajoute.
 
 ---
 
+## Étendu depuis
+
+**La cérémonie de saison** (`SeasonCeremony.tsx`) applique la même grammaire à
+la clôture et à l'ouverture, qui sont le même moment. Score en chiffre géant,
+écart au fantôme, titre décerné avec le traitement le plus fort de l'app après
+le passage de niveau — c'est ce qui reste de quatre semaines.
+
+Une décision s'y est ajoutée et vaut pour la suite : **le choix n'est jamais
+animé**. Une fois arrivé sur les trois modificateurs, tout se calme. On décide
+de son mois ; un choix pressé par une animation n'est pas un choix. Le §12.2
+autorise le théâtre sur l'identité de la saison, pas sur ce qu'on engage.
+
 ## Ce qui reste à porter à ce niveau
 
-- **Ouverture de saison** (§12.2) — *« le seul moment où l'interface a le droit
-  d'être théâtrale »*. Nom en grand, emblème, modificateur tiré, boss.
-- **Fin de saison** (§7, séquence 4) — score final, comparaison au fantôme,
-  titre décerné, ouverture de la suivante.
 - **Démarrage de session** (§7, séquence 1) — l'interface se replie sur le
   timer, tout le reste s'éteint, l'emblème du projet s'imprime.
 - **Mort du boss** — non prévue par la spec comme séquence, mais c'est le seul

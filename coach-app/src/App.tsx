@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
-import type { HomeState } from './types'
+import type { HomeState, SeasonOffer, SeasonReport } from './types'
+import { SeasonCeremony } from './components/SeasonCeremony'
 import { Home } from './screens/Home'
 import { Character } from './screens/Character'
 import { Journal } from './screens/Journal'
@@ -14,6 +15,25 @@ export default function App() {
   const [error, setError] = useState('')
   const [authed, setAuthed] = useState(() => Boolean(storedToken()))
   const [tab, setTab] = useState<Tab>('soir')
+  // La cérémonie du §7.4 : une saison finie pendant qu'on ne regardait pas doit
+  // se conclure quand on revient, pas rester en suspens jusqu'à un déclencheur.
+  const [ceremony, setCeremony] = useState<{ report: SeasonReport | null; offer: SeasonOffer } | null>(null)
+
+  const checkSeason = useCallback(async () => {
+    try {
+      const etat = await api.seasonState()
+      if (etat.pending_close) {
+        const bilan = await api.closeSeason()
+        setCeremony({ report: bilan, offer: bilan.offer ?? etat.offer! })
+      } else if (!etat.running && etat.offer) {
+        setCeremony({ report: null, offer: etat.offer })
+      } else {
+        setCeremony(null)
+      }
+    } catch {
+      /* la cérémonie n'est jamais bloquante : sans elle l'app reste entière */
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -30,10 +50,11 @@ export default function App() {
   useEffect(() => {
     if (!authed) return
     load()
+    checkSeason()
     // Repli de synchronisation en attendant le flux SSE du jalon suivant.
     const id = setInterval(load, 10_000)
     return () => clearInterval(id)
-  }, [authed, load])
+  }, [authed, load, checkSeason])
 
   if (!authed) return <LoginScreen onDone={() => setAuthed(true)} />
 
@@ -53,6 +74,22 @@ export default function App() {
       <div className="shell boot">
         <span className="label">Chargement…</span>
       </div>
+    )
+  }
+
+  // La cérémonie passe avant tout le reste : elle occupe l'écran entier, et
+  // c'est ce qui la distingue d'une notification.
+  if (ceremony) {
+    return (
+      <SeasonCeremony
+        report={ceremony.report}
+        offer={ceremony.offer}
+        onDone={() => {
+          setCeremony(null)
+          load()
+          checkSeason()
+        }}
+      />
     )
   }
 

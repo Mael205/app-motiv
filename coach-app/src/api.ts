@@ -4,6 +4,8 @@ import type {
   EntretienPanel,
   Interview,
   ProgressionPanel,
+  SeasonReport,
+  SeasonState,
   GardesPanel,
   HomeState,
   JournalEntry,
@@ -95,6 +97,16 @@ export const api = {
   briefing: () => request<Briefing>('/briefing'),
 
   progression: () => request<ProgressionPanel>('/progression'),
+
+  seasonState: () => request<SeasonState>('/season'),
+
+  closeSeason: () => request<SeasonReport>('/season/close', { method: 'POST' }),
+
+  openSeason: (body: { modifier: string; phantom: string; stake: number }) =>
+    request<{ index: number; name: string }>('/season/open', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   equipCard: (key: string) =>
     request<{ equipped: Record<string, string> }>(`/loot/${key}/equip`, { method: 'POST' }),

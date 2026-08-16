@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 454 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 480 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-478 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+504 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -187,6 +187,13 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   table, et équiper un cosmétique ne peut toucher aucune session. Le §17 pose
   que récompenser la chance plutôt que le travail est le pire mode de
   défaillance ; sa disparition serait invisible, l'app marcherait encore.
+- **Cycle de saison complet (§12.2, §7.4)** : clôture avec score en minutes,
+  comparaison au fantôme, titre décerné — *Déserteur de Purgatoire* aussi
+  franchement que *Vainqueur*, parce qu'une collection sans trous n'a aucune
+  valeur — et résolution de la mise, seul endroit du système où quelque chose
+  se perd. Puis l'ouverture enchaîne : trois modificateurs qui **annoncent leur
+  prix** (vie du boss, multiplicateur de mise, mention « difficile »), trois
+  fantômes avec leur total en heures, et la mise à engager.
 - **Le juice du §7**, canalisé sur ses quatre moments : secousse par trauma
   décroissant, compteurs à décélération marquée, gerbes en canvas, couronne de
   rayons, et une séquence d'ascension qui enchaîne niveau, palier de branche,

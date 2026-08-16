@@ -1,0 +1,210 @@
+/* La ceremonie de saison. Meme grammaire que l'ascension (voir
+   docs/direction-visuelle.md) : entree slam, couronne, chiffre geant a double
+   ombre portee, canaux empiles. */
+.cer {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  overflow-y: auto;
+  background:
+    radial-gradient(90% 60% at 50% 40%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    rgba(7, 4, 11, 0.95);
+}
+
+.cer__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 560px;
+  will-change: transform;
+}
+
+.cer__beat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: center;
+}
+
+/* Le bloc d'ouverture n'est pas un temps de spectacle : il s'aligne a gauche
+   et respire, parce qu'on y decide de son mois. */
+.cer__beat--offer { text-align: left; }
+
+.cer__over { position: relative; z-index: 2; color: color-mix(in srgb, var(--accent) 70%, var(--muted)); }
+
+.cer__big {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(64px, 17vw, 116px);
+  line-height: 0.9;
+  color: var(--accent);
+  text-shadow:
+    0 0 55px color-mix(in srgb, var(--accent) 75%, transparent),
+    0 0 130px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.cer__delta {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(52px, 14vw, 92px);
+  line-height: 0.95;
+  color: var(--muted);
+}
+
+/* Devant : l'accent. Derriere : le gris du texte attenue. Jamais de rouge —
+   le §0.2 interdit de transformer un fait en reproche. */
+.cer__delta--ahead {
+  color: var(--accent);
+  text-shadow: 0 0 50px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+/* Le titre decerne : le traitement le plus fort de l'app apres le passage de
+   niveau. C'est ce qui reste de quatre semaines. */
+.cer__title {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(34px, 8.5vw, 60px);
+  line-height: 1;
+  color: var(--accent);
+  text-shadow:
+    0 0 45px color-mix(in srgb, var(--accent) 80%, transparent),
+    0 0 120px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.cer__sub {
+  position: relative;
+  z-index: 2;
+  max-width: 380px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.cer__hint {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+/* --- L'ouverture (§12.2) ---------------------------------------------- */
+
+.open {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.open__hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 0 22px;
+  text-align: center;
+}
+
+.open__index { position: relative; z-index: 2; }
+
+.open__name {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(38px, 10vw, 62px);
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 48px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.open__baseline {
+  position: relative;
+  z-index: 2;
+  max-width: 340px;
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.open__block { display: flex; flex-direction: column; gap: 8px; }
+
+.open__choices { display: flex; flex-direction: column; gap: 6px; list-style: none; }
+
+.open__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 13px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out);
+}
+
+.open__choice:hover { background: rgba(255, 255, 255, 0.045); }
+
+.open__choice--on {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.open__choice-head { display: flex; align-items: baseline; gap: 8px; }
+
+.open__choice-name {
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.open__choice--on .open__choice-name { color: var(--accent); }
+
+/* Un modificateur dur est annonce comme tel : on le choisit en connaissance,
+   pas par surprise trois semaines plus tard. */
+.open__hard {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+
+.open__choice-effet { font-size: 12px; line-height: 1.4; }
+.open__choice-cost { font-size: 11px; color: var(--dim); }
+
+.open__row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.open__pill {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  transition: color 160ms, border-color 160ms;
+}
+
+.open__pill--on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.open__pill:disabled { opacity: 0.35; cursor: default; }
+
+.open__stake { width: 100%; accent-color: var(--accent); }
+
+.open__stake-read {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.open__error { font-size: 12.5px; color: var(--rose); }

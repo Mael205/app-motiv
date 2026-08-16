@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, progression, services
+from . import coaching, progression, season_flow, services
 from .models import (
     FridgeIdea,
     Garde,
@@ -699,3 +699,80 @@ def toggle_relic(request, key: str):
         # Le motif du plafond est écrit pour être affiché tel quel : un refus
         # muet dans une interface de jeu se lit comme un bug (§12.8).
         return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --------------------------------------------------------------------------
+# Le cycle de saison (SPEC §12.2, §7.4)
+# --------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def season_state(request):
+    """Où en est la saison : à clore, à ouvrir, ou en cours.
+
+    Un seul appel parce que le client n'a pas à recomposer cette décision. Une
+    saison finie pendant qu'on ne regardait pas doit se conclure au moment où
+    l'on revient, pas rester en suspens.
+    """
+    today = _today(request)
+    a_clore = season_flow.pending_close(request.user, today=today)
+    courante = services.current_season(request.user, today=today)
+
+    return Response(
+        {
+            "pending_close": bool(a_clore),
+            "running": bool(courante and not a_clore),
+            "offer": None if courante and not a_clore else season_flow.next_offer(request.user, today=today),
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def close_season(request):
+    """Clôt la saison finie et rend son bilan. Idempotent."""
+    today = _today(request)
+    saison = season_flow.pending_close(request.user, today=today)
+    if saison is None:
+        return Response(
+            {"detail": "Aucune saison à clore."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    bilan = season_flow.close_season(request.user, saison, today=today)
+    bilan["offer"] = season_flow.next_offer(request.user, today=today)
+    return Response(bilan)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def open_season(request):
+    """Ouvre la saison suivante avec le modificateur et le fantôme choisis."""
+    if services.current_season(request.user, today=_today(request)):
+        return Response(
+            {"detail": "Une saison est déjà en cours."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        saison = season_flow.open_next(
+            request.user,
+            today=_today(request),
+            modifier_key=request.data.get("modifier", ""),
+            phantom_choice=request.data.get("phantom", "meilleure"),
+            stake=max(0, int(request.data.get("stake", 0) or 0)),
+        )
+    except (ValueError, TypeError) as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "index": saison.index,
+            "name": saison.name,
+            "accent": saison.accent,
+            "baseline": saison.baseline,
+            "modifier": progression.season_modifier(saison),
+            "boss": services.boss_payload(saison),
+            "stake": saison.stake_shards,
+            "ends_on": saison.ends_on.isoformat(),
+        },
+        status=status.HTTP_201_CREATED,
+    )
