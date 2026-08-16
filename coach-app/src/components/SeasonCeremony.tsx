@@ -129,6 +129,16 @@ export function SeasonCeremony({
                   </>
                 )}
               </p>
+
+              {/* Ce que le palier 2 du §14 avait déjà pris en cours de route.
+                  Le dire ici évite la seule lecture qui serait fausse : croire
+                  que la clôture a résolu la mise entière. */}
+              {report.stake_forfeited > 0 && (
+                <p className="cer__sub muted">
+                  <span className="num">{report.stake_forfeited}</span> éclats étaient déjà
+                  partis en cours de saison.
+                </p>
+              )}
               {report.won && <Burst count={44} spread={340} />}
             </motion.div>
           )}

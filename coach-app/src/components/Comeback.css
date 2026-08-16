@@ -1,0 +1,133 @@
+/* L'écran de reprise du §14, palier 3.
+ *
+ * Centré et vide. Ce n'est pas une esthétique : c'est la conséquence directe
+ * de « pas de chiffres, pas de bilan de ce qui a été perdu ». Il n'y a rien à
+ * placer autour parce qu'il n'y a rien d'autre à montrer.
+ *
+ * Le mode terne du palier 1 reste actif par-dessus, donc l'écran est déjà gris.
+ * On ne rajoute pas une couche de deuil : la sobriété vient de ce qui manque,
+ * pas d'un traitement sombre supplémentaire.
+ */
+
+.comeback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  min-height: 72vh;
+  padding: 24px 18px;
+}
+
+.comeback__card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 420px;
+  padding: 30px 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+}
+
+.comeback__lede {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.comeback__project {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comeback__emblem {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--project);
+}
+
+.comeback__name {
+  font-size: 34px;
+  letter-spacing: 0.02em;
+}
+
+.comeback__task {
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--text);
+  padding-left: 12px;
+  border-left: 2px solid var(--project);
+}
+
+.comeback__error {
+  font-size: 13px;
+  color: var(--rose);
+}
+
+/* La carte est plus étroite que le bloc de décision : sans ça, « 10 MIN »
+   passait à la ligne dans le bouton sur un écran de 390 px. */
+.comeback__card .cta__minutes {
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .comeback__card {
+    padding: 26px 18px;
+  }
+}
+
+/* --- La porte de sortie, au-delà de cinq jours ------------------------- */
+/* Discrète et jamais préselectionnée. Elle doit être trouvable, pas tentante :
+   une saison close en avance reste une saison ratée. */
+
+.comeback__exit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.comeback__exit-link {
+  font-size: 12.5px;
+  color: var(--dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+}
+
+.comeback__exit-link:hover {
+  color: var(--muted);
+}
+
+.comeback__exit-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.comeback__exit-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ghost--strong {
+  color: var(--text);
+  border-color: var(--line-strong);
+}

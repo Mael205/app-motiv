@@ -25,8 +25,13 @@ const SLOT_LABELS: Record<string, string> = {
  * ne présente **qu'une décision** ; y empiler une collection de cartes et un
  * arbre à six branches détruirait exactement ce qu'il protège. Ici, à
  * l'inverse, on a le droit de flâner.
+ *
+ * Sauf après un jour raté. C'est la *vitrine fermée* du §14 : on ne consulte
+ * pas ses trophées un soir où l'on n'a rien fait. Le serveur refuse en 423 —
+ * le `locked` reçu ici ne sert qu'à ne pas demander pour rien, et la garde
+ * réelle est côté API.
  */
-export function Character() {
+export function Character({ locked = false }: { locked?: boolean }) {
   const [panel, setPanel] = useState<ProgressionPanel | null>(null)
   const [error, setError] = useState('')
   const [queue, setQueue] = useState<LootCardDrawn[]>([])
@@ -45,9 +50,10 @@ export function Character() {
   }
 
   useEffect(() => {
-    load()
-  }, [])
+    if (!locked) load()
+  }, [locked])
 
+  if (locked) return <Showcase />
   if (error) return <p className="muted">{error}</p>
   if (!panel) return <p className="muted">Chargement…</p>
 
@@ -183,6 +189,30 @@ export function Character() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+/** La vitrine fermée (§14, palier 1).
+ *
+ * Elle dit ce qui est fermé, jusqu'à quand, et rien d'autre. Pas d'aperçu
+ * grisé de la collection derrière : montrer ce qu'on ne peut pas ouvrir est
+ * une frustration entretenue, et le §14 ne veut pas d'un système qui tente.
+ * Rien n'est perdu — c'est écrit, parce que c'est la question qu'on se pose.
+ */
+function Showcase() {
+  return (
+    <div className="char char--locked">
+      <section className="panel char__locked">
+        <span className="label">Vitrine fermée</span>
+        <p className="char__locked-text">
+          L'arbre, les reliques et la collection rouvrent à la prochaine session. Dix minutes
+          suffisent.
+        </p>
+        <p className="char__locked-text muted">
+          Rien n'a bougé derrière : les heures, les hauts faits et les cartes sont acquis.
+        </p>
+      </section>
     </div>
   )
 }

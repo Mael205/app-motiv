@@ -100,7 +100,14 @@ export const api = {
 
   seasonState: () => request<SeasonState>('/season'),
 
-  closeSeason: () => request<SeasonReport>('/season/close', { method: 'POST' }),
+  /** `early` clôt une saison **en cours** au titre du §14 : au-delà de cinq
+   *  jours d'arrêt, repartir à neuf vaut mieux que traîner un retard
+   *  irrattrapable. Explicite, parce que ce chemin perd la mise. */
+  closeSeason: (early = false) =>
+    request<SeasonReport>('/season/close', {
+      method: 'POST',
+      body: JSON.stringify({ early }),
+    }),
 
   openSeason: (body: { modifier: string; phantom: string; stake: number }) =>
     request<{ index: number; name: string }>('/season/open', {

@@ -1,0 +1,50 @@
+/* Ce qui est éteint ce soir (SPEC §14, paliers 1 et 2).
+ *
+ * Volontairement terne, et pas rouge. Une bordure d'alerte ferait de la
+ * sanction un incident ; le §14 en fait un état de fait. La liste doit se lire
+ * comme un panneau d'affichage, pas comme une erreur.
+ *
+ * Le mode terne du palier 1 désature déjà tout l'écran : ce bloc n'a donc pas
+ * à crier pour être vu, il est le seul endroit encore accentué.
+ */
+
+.sanctions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border-left: 2px solid var(--dim);
+}
+
+.sanctions__head {
+  color: var(--muted);
+}
+
+.sanctions__list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  list-style: none;
+}
+
+.sanctions__item {
+  display: flex;
+  gap: 9px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.sanctions__mark {
+  color: var(--dim);
+}
+
+/* La sortie, toujours écrite. Premier invariant du §14 : réparable en dix
+   minutes — une sanction dont on ne lit pas la sortie devient une punition. */
+.sanctions__out {
+  font-size: 12.5px;
+  color: var(--muted);
+  padding-top: 2px;
+  border-top: 1px solid var(--line);
+}

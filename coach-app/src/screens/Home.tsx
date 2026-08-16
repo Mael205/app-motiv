@@ -7,6 +7,7 @@ import { NightHud } from '../components/NightHud'
 import { PhantomRace } from '../components/PhantomRace'
 import { RelaxGate } from '../components/RelaxGate'
 import { RoutinePanel } from '../components/RoutinePanel'
+import { SanctionList } from '../components/SanctionList'
 import { SeasonBanner } from '../components/SeasonBanner'
 import { SkillTree } from '../components/SkillTree'
 import './Home.css'
@@ -37,6 +38,13 @@ import './Home.css'
  * trouver la seule chose à faire. Le §11.1 ne tolère pas ça. Ils sont donc
  * groupés dans `.deck__consult`, qui passe **après** la décision en dessous du
  * seuil et reste dans le rail au-dessus.
+ *
+ * **La vitrine fermée du §14 vide les deux rails.** Braise, arbre, fantôme,
+ * quêtes : tout ce qui se *consulte* disparaît après un jour raté, et il ne
+ * reste que ce sur quoi on *agit* — la décision, la soirée, les routines et
+ * les gardes. Ces deux derniers restent parce qu'ils ne sont pas des trophées :
+ * l'Entretien n'a pas de streak à admirer (§11.9) et une garde se déclare le
+ * soir même ou pas du tout.
  */
 export function Home({ state, onStarted }: { state: HomeState; onStarted: () => void }) {
   // Le briefing arrive apres coup et remplace la proposition ; tant qu'il n'est
@@ -44,6 +52,7 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
   const briefing = useBriefing(state.proposal, state.day + state.minutes_today)
   const decision = briefing ?? state.proposal
   const grown = state.skills?.filter((b) => b.minutes > 0) ?? []
+  const locked = state.sanctions.showcase_locked
 
   return (
     <div className="deck">
@@ -59,25 +68,28 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
         )}
 
         {/* Consultatif : dans le rail a gauche sur grand ecran, mais rejete
-            APRES la decision sur telephone — voir la note de mise en page. */}
-        <div className="deck__consult">
-          {state.modifier?.active && (
-            <p className="modifier">
-              <span className="modifier__name">{state.modifier.name}</span>
-              <span className="modifier__effet">{state.modifier.effet}</span>
-            </p>
-          )}
+            APRES la decision sur telephone — voir la note de mise en page.
+            Entierement retire quand la vitrine est fermee. */}
+        {!locked && (
+          <div className="deck__consult">
+            {state.modifier?.active && (
+              <p className="modifier">
+                <span className="modifier__name">{state.modifier.name}</span>
+                <span className="modifier__effet">{state.modifier.effet}</span>
+              </p>
+            )}
 
-          {state.phantom && <PhantomRace phantom={state.phantom} />}
+            {state.phantom && <PhantomRace phantom={state.phantom} />}
 
-          {state.momentum && <MomentumEmber momentum={state.momentum} />}
+            {state.momentum && <MomentumEmber momentum={state.momentum} />}
 
-          {grown.length > 0 && (
-            <section className="panel">
-              <SkillTree branches={grown} tiers={[10, 25, 50, 100, 200, 400]} compact />
-            </section>
-          )}
-        </div>
+            {grown.length > 0 && (
+              <section className="panel">
+                <SkillTree branches={grown} tiers={[10, 25, 50, 100, 200, 400]} compact />
+              </section>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* ---- Centre : la décision, et rien d'autre --------------------- */}
@@ -87,6 +99,8 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
             {state.streak.message}
           </div>
         )}
+
+        <SanctionList sanctions={state.sanctions} />
 
         {decision ? (
           <DecisionBlock proposal={decision} onStarted={onStarted} />
@@ -108,12 +122,18 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
           validated={state.validated_today}
         />
 
-        {!state.validated_today && <RelaxGate used={state.relax_used} onStarted={onStarted} />}
+        {!state.validated_today && (
+          <RelaxGate
+            used={state.relax_used}
+            revoked={state.sanctions.relax_revoked}
+            onStarted={onStarted}
+          />
+        )}
       </div>
 
       {/* ---- Rail droit : où en est la soirée --------------------------- */}
       <aside className="deck__rail deck__rail--right">
-        {state.quests.length > 0 && (
+        {!locked && state.quests.length > 0 && (
           <ul className="questline">
             {state.quests.map((quest) => (
               <li

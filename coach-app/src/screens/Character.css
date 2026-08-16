@@ -209,3 +209,26 @@
   padding: 24px;
   background: rgba(8, 5, 12, 0.93);
 }
+
+/* --- Vitrine fermée (SPEC §14, palier 1) -------------------------------- */
+/* Pas d'aperçu grisé derrière : montrer ce qu'on ne peut pas ouvrir entretient
+   une frustration, et le §14 ne veut pas d'un système qui tente. */
+
+.char--locked {
+  display: block;
+  max-width: 460px;
+  margin: 8vh auto 0;
+}
+
+.char__locked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 22px;
+  border-left: 2px solid var(--dim);
+}
+
+.char__locked-text {
+  font-size: 14px;
+  line-height: 1.55;
+}

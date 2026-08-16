@@ -39,6 +39,17 @@
   color: var(--accent);
 }
 
+/* Vitrine fermée (SPEC §14, palier 1). L'onglet reste cliquable : le cadenas
+   annonce, l'écran explique. Un onglet grisé et muet se lit comme une panne. */
+.tabbar__item--locked {
+  color: var(--dim);
+  opacity: 0.6;
+}
+
+.tabbar__lock {
+  color: var(--dim);
+}
+
 /* Le trait sous l'onglet actif reprend l'accent de la saison. */
 .tabbar__item--active::after {
   content: '';

@@ -10,6 +10,30 @@ export interface Streak {
   message: string
 }
 
+/** Le prix du décrochage (SPEC §14).
+ *
+ * Tout est décidé côté serveur, libellés compris : un texte de sanction
+ * réécrit ici serait un texte que le test du ton ne surveille plus. Le front
+ * ne fait qu'éteindre ce que `showcase_locked` et `comeback` lui désignent.
+ */
+export interface Sanctions {
+  level: number
+  active: boolean
+  showcase_locked: boolean
+  relax_revoked: boolean
+  slots_frozen: boolean
+  frozen_slots: number
+  early_block: boolean
+  title_reprieve: boolean
+  comeback: boolean
+  season_exit_offered: boolean
+  debt_minutes: number
+  day_validated: boolean
+  boss_regen_minutes: number
+  shards_forfeited: number
+  lines: string[]
+}
+
 export interface Progression {
   total_xp: number
   level: number
@@ -80,6 +104,7 @@ export interface SeasonState {
   days_left: number
   modifier: string
   stake: number
+  stake_forfeited: number
 }
 
 export interface BossState {
@@ -267,6 +292,7 @@ export interface HomeState {
   required_minutes: number
   minutes_today: number
   streak: Streak
+  sanctions: Sanctions
   progression: Progression
   rank: RankState
   season: SeasonState | null
@@ -326,6 +352,7 @@ export interface SeasonReport {
   won: boolean
   boss: { name: string; ratio_killed: number; is_dead: boolean }
   stake: number
+  stake_forfeited: number
   stake_delta: number
   modifier: SeasonModifier
   phantom: {
@@ -364,6 +391,8 @@ export interface SeasonOffer {
 export interface SeasonState {
   pending_close: boolean
   running: boolean
+  /** La porte de sortie du palier 3 (§14). Proposée, jamais prise d'office. */
+  exit_offer: { season: string; days_left: number; stake_at_risk: number } | null
   offer: SeasonOffer | null
 }
 
@@ -474,6 +503,9 @@ export interface RelicEntry {
 }
 
 export interface ProgressionPanel {
+  /** Vitrine fermée (§14, palier 1) : le serveur refuse en 423 et les panneaux
+   *  arrivent vides. On ne consulte pas ses trophées un soir sans session. */
+  showcase_locked: boolean
   skills: { branches: SkillBranch[]; shape: TreeShape; tiers: number[] }
   momentum: Momentum
   relics: {

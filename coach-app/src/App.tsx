@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
-import type { HomeState, SeasonOffer, SeasonReport } from './types'
+import type { HomeState, SeasonOffer, SeasonReport, SeasonState as SeasonPhase } from './types'
+import { Comeback } from './components/Comeback'
 import { SeasonCeremony } from './components/SeasonCeremony'
 import { Home } from './screens/Home'
 import { Character } from './screens/Character'
@@ -18,10 +19,14 @@ export default function App() {
   // La cérémonie du §7.4 : une saison finie pendant qu'on ne regardait pas doit
   // se conclure quand on revient, pas rester en suspens jusqu'à un déclencheur.
   const [ceremony, setCeremony] = useState<{ report: SeasonReport | null; offer: SeasonOffer } | null>(null)
+  // La porte de sortie du §14. Gardée à part de la cérémonie : celle-ci
+  // s'impose, celle-là se propose et peut rester ignorée des semaines.
+  const [exitOffer, setExitOffer] = useState<SeasonPhase['exit_offer']>(null)
 
   const checkSeason = useCallback(async () => {
     try {
       const etat = await api.seasonState()
+      setExitOffer(etat.exit_offer)
       if (etat.pending_close) {
         const bilan = await api.closeSeason()
         setCeremony({ report: bilan, offer: bilan.offer ?? etat.offer! })
@@ -98,15 +103,38 @@ export default function App() {
     return <SessionScreen session={state.running_session} onFinished={load} />
   }
 
+  // Le palier 3 du §14 prend l'écran entier, barre d'onglets comprise. C'est le
+  // sens de « l'accueil devient un écran unique de reprise » : laisser les
+  // onglets, ce serait laisser la possibilité d'aller regarder ailleurs, et
+  // c'est justement ce qu'on ne propose plus à quelqu'un qui revient.
+  if (state.sanctions.comeback) {
+    return (
+      <Comeback
+        proposal={state.proposal}
+        exitOffer={exitOffer}
+        onStarted={load}
+        onExit={async () => {
+          const bilan = await api.closeSeason(true)
+          setCeremony({ report: bilan, offer: bilan.offer! })
+        }}
+      />
+    )
+  }
+
+  const locked = state.sanctions.showcase_locked
+
   return (
     <>
       <main className="shell">
         {tab === 'soir' && <Home state={state} onStarted={load} />}
         {tab === 'projets' && <Projects onChanged={load} />}
-        {tab === 'perso' && <Character />}
+        {tab === 'perso' && <Character locked={locked} />}
         {tab === 'journal' && <Journal />}
       </main>
-      <TabBar active={tab} onChange={setTab} />
+      {/* La vitrine fermée grise l'onglet mais ne le retire pas : un onglet qui
+          disparaît se lit comme une panne, et le §14 veut une sanction lisible
+          comme telle. */}
+      <TabBar active={tab} onChange={setTab} lockedTabs={locked ? ['perso'] : []} />
     </>
   )
 }
