@@ -43,7 +43,7 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
       </header>
 
       <div className="gauge__track" role="img" aria-label={`${remainingMinutes} minutes restantes ce soir`}>
-        <div className="gauge__spent" style={{ width: `${elapsed * 100}%` }} />
+        <div className="gauge__spent" style={{ transform: `scaleX(${elapsed})` }} />
 
         {hours.map((h) => (
           <div key={h.label} className="gauge__tick" style={{ left: `${h.ratio * 100}%` }}>
@@ -67,8 +67,10 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
           />
         ))}
 
-        <div className="gauge__cursor" style={{ left: `${elapsed * 100}%` }}>
-          <span className="gauge__cursor-dot" />
+        <div className="gauge__rail" style={{ transform: `translateX(${elapsed * 100}%)` }}>
+          <div className="gauge__cursor">
+            <span className="gauge__cursor-dot" />
+          </div>
         </div>
       </div>
 

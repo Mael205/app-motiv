@@ -17,6 +17,7 @@
  * qui disparaîtrait au lieu de se simplifier ferait perdre l'information.
  */
 
+export { sfx, soundMuted, setSoundMuted } from './sound'
 export { useTrauma } from './useTrauma'
 export { useHitStop } from './useHitStop'
 export { useReducedMotion } from './useReducedMotion'

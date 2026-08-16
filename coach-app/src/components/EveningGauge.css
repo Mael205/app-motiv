@@ -24,13 +24,22 @@
   overflow: hidden;
 }
 
-/* La zone déjà écoulée est en creux : le temps qui a fondu se voit. */
+/* La zone déjà écoulée est en creux : le temps qui a fondu se voit.
+ *
+ * Mise à l'échelle plutôt que redimensionnée. C'était une transition sur
+ * `width`, relancée chaque seconde par l'horloge : un recalcul de mise en page
+ * par image, en permanence, sur l'écran qu'on laisse ouvert toute la soirée.
+ * `scaleX` reste sur le compositeur et ne touche jamais la mise en page.
+ *
+ * Le liseré de droite a disparu avec : mis à l'échelle il devenait un trait
+ * sous-pixel, et le curseur occupe déjà exactement cette position. */
 .gauge__spent {
   position: absolute;
   inset: 0 auto 0 0;
+  width: 100%;
+  transform-origin: left center;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26));
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  transition: width 1s linear;
+  transition: transform 1s linear;
 }
 
 .gauge__tick {
@@ -75,14 +84,25 @@
   50% { filter: brightness(1.35); }
 }
 
+/* Le curseur voyage sur un rail pleine largeur plutôt que par sa propriété
+   `left`. Un `translateX` en pourcentage se mesure sur la largeur de l'élément
+   translaté : sur le curseur lui-même (2 px) il ne voudrait rien dire, sur un
+   rail large comme la piste il vaut exactement le ratio voulu. */
+.gauge__rail {
+  position: absolute;
+  inset: -2px 0;
+  pointer-events: none;
+  transition: transform 1s linear;
+}
+
 .gauge__cursor {
   position: absolute;
-  top: -2px;
-  bottom: -2px;
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: 2px;
   background: var(--text);
   box-shadow: 0 0 12px 1px color-mix(in srgb, var(--text) 60%, transparent);
-  transition: left 1s linear;
 }
 
 .gauge__cursor-dot {

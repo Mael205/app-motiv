@@ -138,6 +138,18 @@
   list-style: none;
 }
 
+/* La case s'étire, le bouton la remplit. Sans ces deux lignes, chaque bouton
+   prend la hauteur de son propre contenu : une carte possédée, qui porte un nom
+   et une rareté, dépassait la carte scellée d'à côté, et la grille se lisait de
+   travers ligne après ligne. */
+.collection > li {
+  display: flex;
+}
+
+.collection > li > .slotcard__btn {
+  flex: 1;
+}
+
 .slotcard__btn {
   position: relative;
   display: flex;

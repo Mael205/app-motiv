@@ -229,19 +229,46 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session
   avec sa séquence de fin, et un **HUD à trois colonnes** au-delà de 1160 px —
   la décision garde sa largeur de téléphone, donc sa dominance.
+- **L'accueil ne montre plus que ce qui sert le soir.** La braise de momentum et
+  l'arbre de compétences y étaient *en double* avec l'onglet Personnage ; le
+  fantôme y garde une phrase et laisse sa courbe sur la fiche. Un doublon ne
+  coûte pas que de la place : il enseigne que l'accueil est l'endroit où tout se
+  consulte, ce qui est exactement ce que le §11.1 interdit.
+- **Son des séquences, synthétisé et non enregistré** ([juice/sound.ts](coach-app/src/juice/sound.ts)).
+  Aucun fichier audio dans le dépôt : les cinq sons descendent des mêmes
+  oscillateurs et de la même enveloppe, donc ils s'entendent comme un seul
+  instrument, là où quatre extraits d'une banque n'auraient pas formé une
+  famille. Même règle que pour l'image : **seuls les moments du §7 sonnent**,
+  aucun son de survol ni de navigation. La coupure est dans le bandeau, à côté
+  du « ? », et elle survit au rechargement.
+- **Chaque rareté de carte a sa propre chorégraphie.** Une commune glisse et se
+  retourne en un demi-temps ; une légendaire charge, tremble, éclate et secoue
+  l'écran. La gradation est celle du son : deux voix pour une commune, douze
+  pour une légendaire. Une commune qui s'ouvrirait comme une légendaire
+  dévaluerait la légendaire.
 
-## Regarder l'interface
+## Regarder l'interface, et la mesurer
 
-Deux scripts Playwright dans [coach-app/tools/](coach-app/tools/) capturent
-l'app à trois largeurs et rejouent les séquences de juice sur `/juice.html`,
-une page servie uniquement en développement.
+Six scripts Playwright dans [coach-app/tools/](coach-app/tools/) capturent l'app
+à trois largeurs, rejouent les séquences de juice sur `/juice.html`, et
+**mesurent** ce que l'œil ne tranche pas.
 
-Ils ne sont pas du confort. Trois défauts réels ont été trouvés à l'œil et
-seulement à l'œil : une collision de classes `.hud` entre la grille de mise en
-page et un composant existant, une couronne de rayons dont le dégradé était
-inversé, et — le plus grave — la décision du soir repoussée sous la ligne de
-flottaison sur téléphone par deux panneaux consultatifs. Aucun n'aurait été vu
-par `tsc` ni par un test.
+Ils ne sont pas du confort. Les défauts trouvés par eux, et seulement par eux :
+une collision de classes `.hud`, une couronne de rayons au dégradé inversé, la
+décision du soir repoussée sous la ligne de flottaison sur téléphone — deux
+fois, d'abord par les panneaux consultatifs puis par le bandeau lui-même —, une
+container query écrite sur la boîte de bordure quand elle mesure la boîte de
+contenu, et une taille passée en style inline qui rendait cette même règle
+valide et sans effet.
+
+Trois d'entre eux comptent au lieu de regarder, et c'est là qu'est le vrai
+gain : l'œil se trompe dans les deux sens. Une animation d'ailes qui parcourait
+3,5° et 1,9 px passait pour cassée alors qu'elle tournait — mesurée, corrigée à
+9° et 3,8 px, elle se voit. Deux transitions sur `width` et `left` relancées
+chaque seconde par l'horloge du soir ne se voyaient pas du tout, et coûtaient un
+recalcul de mise en page par image pendant toute la soirée. Et un son ne se
+teste pas à l'oreille sur la machine du jour : on compte les voix qu'il
+programme.
 
 L'utilisateur `demo` (`manage.py demodata`) sert à ça : une interface de jeu
 jugée sur des compteurs à zéro se conçoit mal, parce que les problèmes de

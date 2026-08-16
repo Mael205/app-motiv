@@ -14,20 +14,30 @@ const TIERS = ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS']
 export const RankBadge = memo(function RankBadge({
   rank,
   level,
-  size = 104,
+  size,
 }: {
   rank: string
   level: number
+  /** Hauteur de l'écu. **Omettre pour laisser la feuille de style décider.**
+   *
+   * Un style inline bat toute règle de feuille sauf `!important` : tant que
+   * cette valeur était toujours posée, le bandeau ne pouvait pas rétrécir son
+   * badge par container query, et la règle était écrite, valide, et sans effet.
+   * Les appels qui n'ont pas de contrainte de place — la séquence de passage de
+   * niveau — la passent ; le bandeau ne la passe pas. */
   size?: number
 }) {
   const tier = Math.max(0, TIERS.indexOf(rank))
   const feathers = 2 + Math.floor(tier * 0.6)   // 2 plumes en F, 6 en SS
   const spread = 0.55 + tier * 0.05
 
+  // La taille passe par une variable CSS plutôt que par des attributs inline :
+  // le bandeau la réduit sur téléphone via une container query, et une valeur
+  // inline aurait obligé à la surcharger en `!important`.
   return (
-    <div className="rankbadge" style={{ width: size * 1.9 }}>
-      <div className="rankbadge__crest" style={{ height: size }}>
-        <svg viewBox="0 0 190 100" width={size * 1.9} height={size} aria-label={`Rang ${rank}`}>
+    <div className="rankbadge" style={size ? { ['--badge' as string]: `${size}px` } : undefined}>
+      <div className="rankbadge__crest">
+        <svg viewBox="0 0 190 100" preserveAspectRatio="xMidYMid meet" aria-label={`Rang ${rank}`}>
           <defs>
             <linearGradient id="rb-plate" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="rgba(255,255,255,0.16)" />

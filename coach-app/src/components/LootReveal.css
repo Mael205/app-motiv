@@ -158,3 +158,68 @@
   .loot__card--legendaire.loot__card--open .loot__front::after { animation: none; }
   .loot__card--legendaire.loot__card--open .loot__front::after { opacity: 0; }
 }
+
+/* --- La chorégraphie par rareté ---------------------------------------- */
+
+/* L'anneau du retournement : il matérialise l'instant où la carte cède. Absent
+   sur les communes, où il n'y a rien à souligner. */
+.loot__ring {
+  position: absolute;
+  z-index: 1;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 2px solid var(--rarity);
+  box-shadow: 0 0 30px -4px var(--rarity);
+  pointer-events: none;
+}
+
+/* Le frisson d'avant-retournement, sur épique et légendaire.
+ *
+ * C'est le cœur du suspense : la carte résiste. Une amplitude minuscule et une
+ * fréquence élevée — 0,7 px à 11 Hz — se lisent comme une tension, là où une
+ * grande oscillation lente se lirait comme un flottement. La rotation est
+ * volontairement absente : sur une carte en perspective, elle se confondrait
+ * avec le début du retournement et tuerait l'effet de surprise.
+ *
+ * Sur l'enveloppe, jamais sur la carte : voir la note du composant. */
+.loot__shell {
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+
+.loot__shell--frisson {
+  animation: loot-frisson 0.09s linear infinite;
+}
+
+@keyframes loot-frisson {
+  0%, 100% { transform: translate3d(-0.7px, 0, 0); }
+  50% { transform: translate3d(0.7px, 0, 0); }
+}
+
+/* La légendaire tremble plus fort, et son dos pulse plus vite : la charge
+   s'entend au son et se voit à la carte, les deux montent ensemble. */
+.loot__shell--fort.loot__shell--frisson {
+  animation-duration: 0.065s;
+}
+
+.loot--legendaire .loot__sigil {
+  animation-duration: 0.7s;
+}
+
+.loot--epique .loot__sigil {
+  animation-duration: 1s;
+}
+
+/* Sur une commune, le dos ne pulse pas du tout : il n'y a pas d'attente à
+   meubler, la carte est déjà retournée avant qu'on ait le temps de regarder. */
+.loot--commun .loot__sigil {
+  animation: none;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loot__shell--frisson { animation: none; }
+  .loot__ring { display: none; }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
-import { Burst, CountUp, Rays, useReducedMotion, useTrauma } from '../juice'
+import { Burst, CountUp, Rays, sfx, useReducedMotion, useTrauma } from '../juice'
 import { LootReveal } from './LootReveal'
 import { SeasonSigil } from './art/SeasonSigil'
 import type { SeasonOffer, SeasonReport } from '../types'
@@ -61,8 +61,16 @@ export function SeasonCeremony({
   const beat = beats[step]
 
   useEffect(() => {
-    if (beat === 'title') shake(0.8)
-    else if (beat === 'score') shake(0.35)
+    if (beat === 'title') {
+      shake(0.8)
+      // Le seul son long du produit, pour le seul moment qui arrive une fois
+      // par mois. Il est posé sur le titre et non sur le score : c'est le
+      // titre qui reste dans la collection.
+      sfx.seasonEnd()
+    } else if (beat === 'score') {
+      shake(0.35)
+      sfx.sessionEnd()
+    }
   }, [beat, shake])
 
   const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))

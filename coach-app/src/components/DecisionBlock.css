@@ -103,11 +103,27 @@
   font-size: 29px;
 }
 
+/* `nowrap` : sous 380 px, « 25 MIN » passait à la ligne et le bouton gagnait
+   36 px de haut — assez pour le faire disparaître sous la barre d'onglets. */
 .cta__minutes {
   padding-left: 12px;
   margin-left: 2px;
   font-size: 19px;
+  white-space: nowrap;
   border-left: 1px solid rgba(26, 18, 6, 0.35);
+}
+
+@media (max-width: 380px) {
+  .cta--main {
+    gap: 8px;
+    padding: 19px 14px;
+    font-size: 25px;
+  }
+
+  .cta__minutes {
+    padding-left: 9px;
+    font-size: 17px;
+  }
 }
 
 .decision__alts {
@@ -138,4 +154,21 @@
   color: var(--muted);
   border-left: 2px solid color-mix(in srgb, var(--project) 45%, transparent);
   padding-left: 0.6rem;
+}
+
+/* --- Écran court : le bloc se resserre, il ne se réduit pas --------------
+   Sur un téléphone de 740 px, quatre points de mesure séparent le bouton de la
+   barre d'onglets. Ce sont les espacements qui cèdent, jamais la taille du
+   bouton ni celle du nom de projet : le §11.1 veut que la décision *domine*,
+   et un bloc dominant qu'on ne voit pas ne domine rien. */
+@media (max-height: 780px) and (max-width: 1159px) {
+  .decision {
+    gap: 11px;
+    padding: 17px 18px;
+  }
+
+  .decision__task {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
 }

@@ -128,7 +128,7 @@ export default function App() {
       <main className="shell">
         {tab === 'soir' && <Home state={state} onStarted={load} />}
         {tab === 'projets' && <Projects onChanged={load} />}
-        {tab === 'perso' && <Character locked={locked} />}
+        {tab === 'perso' && <Character locked={locked} phantom={state.phantom} />}
         {tab === 'journal' && <Journal />}
       </main>
       {/* La vitrine fermée grise l'onglet mais ne le retire pas : un onglet qui

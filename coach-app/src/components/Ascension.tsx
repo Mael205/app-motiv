@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Burst, Rays, useReducedMotion, useTrauma } from '../juice'
+import { Burst, Rays, sfx, useReducedMotion, useTrauma } from '../juice'
 import { LootReveal } from './LootReveal'
 import { RankBadge } from './art/RankBadge'
 import type { SessionResult } from '../types'
@@ -86,6 +86,14 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
             ? 0.5
             : 0.3,
     )
+
+    // Le son suit exactement la même graduation, et il ne double jamais celui
+    // de la carte : le temps « card » délègue au tirage, qui a déjà son propre
+    // son par rareté. Deux sons superposés pour un seul événement s'entendent
+    // comme un bug, pas comme une emphase.
+    if (beat.kind === 'boss') sfx.bossKill()
+    else if (beat.kind === 'level') sfx.levelUp()
+    else if (beat.kind !== 'card') sfx.sessionEnd()
   }, [step, beat, shake])
 
   const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))

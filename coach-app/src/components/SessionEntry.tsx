@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
-import { Burst, useReducedMotion, useTrauma } from '../juice'
+import { Burst, sfx, useReducedMotion, useTrauma } from '../juice'
 import './SessionEntry.css'
 
 /** La première séquence du §7 : entrer dans la session.
@@ -41,9 +41,20 @@ export function SessionEntry({
 
   // La secousse part au moment où l'emblème se pose, pas au montage : c'est
   // l'impact qui secoue, et il arrive 260 ms après le début de la course.
+  //
+  // Le son part au même instant que la secousse et jamais avant. Un son en
+  // avance sur l'image se remarque immédiatement comme un défaut, alors qu'un
+  // décalage de quelques millisecondes en retard passe inaperçu — l'oreille
+  // est bien plus stricte que l'œil sur ce sens-là.
   useEffect(() => {
-    if (reduced) return
-    const t = setTimeout(() => shake(0.55), 260)
+    if (reduced) {
+      sfx.sessionStart()
+      return
+    }
+    const t = setTimeout(() => {
+      shake(0.55)
+      sfx.sessionStart()
+    }, 260)
     return () => clearTimeout(t)
   }, [shake, reduced])
 

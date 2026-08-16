@@ -2,14 +2,11 @@ import type { HomeState } from '../types'
 import { useBriefing } from '../hooks/useBriefing'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { GardePanel } from '../components/GardePanel'
-import { MomentumEmber } from '../components/MomentumEmber'
 import { NightHud } from '../components/NightHud'
-import { PhantomRace } from '../components/PhantomRace'
 import { RelaxGate } from '../components/RelaxGate'
 import { RoutinePanel } from '../components/RoutinePanel'
 import { SanctionList } from '../components/SanctionList'
 import { SeasonBanner } from '../components/SeasonBanner'
-import { SkillTree } from '../components/SkillTree'
 import './Home.css'
 
 /** L'écran du soir. Une seule décision, quelle que soit la largeur.
@@ -21,7 +18,7 @@ import './Home.css'
  *
  * D'où trois zones, qui ne changent **rien** à la hiérarchie :
  *
- * - **Gauche** : qui tu es. Saison, rang, momentum, arbre. Consultatif.
+ * - **Gauche** : qui tu es. Saison, rang, XP. Consultatif.
  * - **Centre** : ce que tu fais maintenant. Largeur inchangée, donc dominance
  *   inchangée — c'est le point important, une colonne qui s'élargirait avec
  *   l'écran diluerait le seul élément qui doit rester écrasant.
@@ -32,14 +29,23 @@ import './Home.css'
  * conditionnel. Une mise en page qui monterait deux arbres selon la largeur
  * finirait par en avoir un des deux cassé sans que personne ne le voie.
  *
- * **Une exception, et elle compte.** Sur téléphone, la braise et l'arbre
- * placés dans le rail gauche repoussaient le bouton « Démarrer » sous la ligne
- * de flottaison : on ouvrait l'app le soir et il fallait faire défiler pour
- * trouver la seule chose à faire. Le §11.1 ne tolère pas ça. Ils sont donc
- * groupés dans `.deck__consult`, qui passe **après** la décision en dessous du
- * seuil et reste dans le rail au-dessus.
+ * **Ce que cet écran ne montre plus.** La braise de momentum et l'arbre de
+ * compétences vivaient ici *et* dans l'onglet Personnage — le même panneau,
+ * deux fois. Un doublon ne coûte pas seulement de la place : il enseigne que
+ * l'accueil est l'endroit où tout se consulte, ce qui est exactement ce que le
+ * §11.1 interdit. Ils ne vivent plus qu'à un seul endroit, celui où l'on a le
+ * droit de flâner.
  *
- * **La vitrine fermée du §14 vide les deux rails.** Braise, arbre, fantôme,
+ * Le fantôme suit la même logique mais garde une ligne ici : *où j'en suis
+ * face à mon adversaire* est une information de ce soir, alors que la courbe
+ * sur vingt-huit jours est une information de saison. La phrase reste,
+ * le graphe part sur la fiche.
+ *
+ * Il reste donc, à gauche, un bandeau et deux lignes — et sur téléphone le
+ * bouton « Démarrer » repasse au-dessus de la ligne de flottaison, ce qui est
+ * la mesure qui décide de tout le reste.
+ *
+ * **La vitrine fermée du §14 vide les deux rails.** Fantôme, modificateur,
  * quêtes : tout ce qui se *consulte* disparaît après un jour raté, et il ne
  * reste que ce sur quoi on *agit* — la décision, la soirée, les routines et
  * les gardes. Ces deux derniers restent parce qu'ils ne sont pas des trophées :
@@ -51,21 +57,18 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
   // pas la, l'ecran est deja complet et deja actionnable.
   const briefing = useBriefing(state.proposal, state.day + state.minutes_today)
   const decision = briefing ?? state.proposal
-  const grown = state.skills?.filter((b) => b.minutes > 0) ?? []
   const locked = state.sanctions.showcase_locked
 
   return (
     <div className="deck">
       {/* ---- Rail gauche : qui tu es ----------------------------------- */}
       <aside className="deck__rail deck__rail--left">
-        <SeasonBanner season={state.season} progression={state.progression} streak={state.streak} />
-
-        {state.rank.next_unlock && (
-          <p className="muted rank-next">
-            {state.rank.weeks_kept} semaine{state.rank.weeks_kept > 1 ? 's' : ''} d'engagements
-            tenus. {state.rank.next_unlock}
-          </p>
-        )}
+        <SeasonBanner
+          season={state.season}
+          progression={state.progression}
+          streak={state.streak}
+          unlock={state.rank.next_unlock}
+        />
 
         {/* Consultatif : dans le rail a gauche sur grand ecran, mais rejete
             APRES la decision sur telephone — voir la note de mise en page.
@@ -79,14 +82,11 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
               </p>
             )}
 
-            {state.phantom && <PhantomRace phantom={state.phantom} />}
-
-            {state.momentum && <MomentumEmber momentum={state.momentum} />}
-
-            {grown.length > 0 && (
-              <section className="panel">
-                <SkillTree branches={grown} tiers={[10, 25, 50, 100, 200, 400]} compact />
-              </section>
+            {state.phantom?.available && (
+              <p className="ghostline">
+                <span className="label">Fantôme</span>
+                {state.phantom.line}
+              </p>
             )}
           </div>
         )}

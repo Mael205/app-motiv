@@ -1,9 +1,13 @@
+/* Tout le badge se dimensionne sur `--badge`, la hauteur de l'écu. La largeur
+   suit le rapport du viewBox (190/100), donc les ailes ne sont jamais rognées. */
 .rankbadge {
+  --badge: 96px;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  width: calc(var(--badge) * 1.9);
 }
 
 .rankbadge__crest {
@@ -11,11 +15,14 @@
   display: grid;
   place-items: center;
   width: 100%;
+  height: var(--badge);
 }
 
 .rankbadge__crest svg {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
 }
 
@@ -35,20 +42,41 @@
   stroke-width: 1;
 }
 
+/* Les plumes étaient si pâles qu'elles se lisaient comme une bavure autour de
+   l'écu. Un remplissage un peu plus dense et un trait un peu plus net suffisent
+   à ce qu'on reconnaisse une aile — sans quoi l'animation n'a rien à animer. */
 .rankbadge__feather {
-  fill: color-mix(in srgb, var(--accent) 26%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
-  stroke-width: 1.1;
+  fill: color-mix(in srgb, var(--accent) 34%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 88%, transparent);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
 }
 
-/* Deux animations pour tout le badge — une par aile, sur le groupe entier.
-   Un léger battement combiné à l'opacité : c'est visible, et le compositeur
-   n'a que deux nœuds à gérer au lieu de douze. */
+/* Le battement.
+ *
+ * L'ancienne version tournait bel et bien — `getAnimations()` la donnait
+ * `running` — mais elle parcourait 3,5° et 1,9 px sur un badge de 96 px : sous
+ * le seuil de perception. Une animation qu'on ne voit pas coûte le même prix
+ * qu'une animation qu'on voit ; elle ne rapporte simplement rien.
+ *
+ * Deux corrections, et la seconde compte plus que la première :
+ *
+ * 1. **L'amplitude passe à 9°**, plus un soulèvement et une ouverture de la
+ *    plume (`scaleY`). Une aile change de forme quand elle bat ; une aile qui
+ *    ne change que d'angle est un logo qui vibre.
+ * 2. **Le rythme devient asymétrique.** L'ancien `ease-in-out` sur un
+ *    aller-retour donnait une pulsation régulière, qui se lit comme un
+ *    clignotement d'alerte. Ici la remontée est brève et la retombée longue —
+ *    un battement puis un plané, ce qui est le geste réel et ce qui permet à
+ *    l'amplitude d'être grande sans devenir agitée.
+ *
+ * Toujours deux nœuds animés, pas douze : le compositeur ne voit que les deux
+ * groupes.
+ */
 .rankbadge__wing {
   transform-box: fill-box;
-  transform-origin: center;
   will-change: transform, opacity;
-  animation: wing-flap 3.4s ease-in-out infinite;
+  animation: wing-flap 2.8s cubic-bezier(0.33, 0, 0.2, 1) infinite;
 }
 
 .rankbadge__wing--left {
@@ -57,34 +85,53 @@
 
 .rankbadge__wing--right {
   transform-origin: left center;
-  animation-delay: -0.15s;
-}
-
-@keyframes wing-flap {
-  0%,
-  100% {
-    opacity: 0.62;
-    transform: rotate(0deg) translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: rotate(-3.5deg) translateY(-2px);
-  }
-}
-
-.rankbadge__wing--right {
+  /* Un décalage franc : deux ailes parfaitement synchrones lisent comme un
+     seul objet qui tremble, un léger retard lit comme deux ailes. */
+  animation-delay: -0.22s;
   animation-name: wing-flap-right;
 }
 
-@keyframes wing-flap-right {
-  0%,
-  100% {
-    opacity: 0.62;
-    transform: rotate(0deg) translateY(0);
+/* Le cycle : 18 % de battement, 40 % de retombée, le reste en plané.
+ *
+ * Un cycle de 4,6 s laissait l'aile immobile plus de trois secondes sur quatre :
+ * on regardait le badge et il ne se passait rien, ce qui est indiscernable
+ * d'une animation cassée. 2,8 s garde l'asymétrie — battre vite, redescendre
+ * lentement — tout en restant en mouvement la moitié du temps. */
+@keyframes wing-flap {
+  0% {
+    opacity: 0.6;
+    transform: rotate(0deg) translateY(0) scaleY(1);
   }
-  50% {
+  18% {
     opacity: 1;
-    transform: rotate(3.5deg) translateY(-2px);
+    transform: rotate(-9deg) translateY(-3.5px) scaleY(1.07);
+  }
+  58% {
+    opacity: 0.76;
+    transform: rotate(1.8deg) translateY(0.6px) scaleY(0.985);
+  }
+  100% {
+    opacity: 0.6;
+    transform: rotate(0deg) translateY(0) scaleY(1);
+  }
+}
+
+@keyframes wing-flap-right {
+  0% {
+    opacity: 0.6;
+    transform: rotate(0deg) translateY(0) scaleY(1);
+  }
+  18% {
+    opacity: 1;
+    transform: rotate(9deg) translateY(-3.5px) scaleY(1.07);
+  }
+  58% {
+    opacity: 0.76;
+    transform: rotate(-1.8deg) translateY(0.6px) scaleY(0.985);
+  }
+  100% {
+    opacity: 0.6;
+    transform: rotate(0deg) translateY(0) scaleY(1);
   }
 }
 

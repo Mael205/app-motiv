@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
 import { MomentumEmber } from '../components/MomentumEmber'
+import { PhantomRace } from '../components/PhantomRace'
 import { SkillTree } from '../components/SkillTree'
 import { LootReveal } from '../components/LootReveal'
-import type { LootCardDrawn, ProgressionPanel } from '../types'
+import type { LootCardDrawn, Phantom, ProgressionPanel } from '../types'
 import './Character.css'
 
 const SLOT_LABELS: Record<string, string> = {
@@ -31,7 +32,13 @@ const SLOT_LABELS: Record<string, string> = {
  * le `locked` reçu ici ne sert qu'à ne pas demander pour rien, et la garde
  * réelle est côté API.
  */
-export function Character({ locked = false }: { locked?: boolean }) {
+export function Character({
+  locked = false,
+  phantom = null,
+}: {
+  locked?: boolean
+  phantom?: Phantom | null
+}) {
   const [panel, setPanel] = useState<ProgressionPanel | null>(null)
   const [error, setError] = useState('')
   const [queue, setQueue] = useState<LootCardDrawn[]>([])
@@ -63,6 +70,10 @@ export function Character({ locked = false }: { locked?: boolean }) {
     <div className="char">
       <div className="char__col">
         <MomentumEmber momentum={panel.momentum} />
+
+        {/* La course sur vingt-huit jours : une information de saison, donc de
+            fiche. L'accueil n'en garde que la phrase du soir. */}
+        {phantom?.available && <PhantomRace phantom={phantom} />}
 
         <section className="panel">
           <SkillTree branches={panel.skills.branches} tiers={panel.skills.tiers} />

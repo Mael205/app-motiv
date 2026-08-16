@@ -1,6 +1,6 @@
 .banner {
   position: relative;
-  padding: 20px 20px 18px;
+  padding: 16px 18px 14px;
   overflow: hidden;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012)), var(--panel);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
@@ -37,14 +37,25 @@
 }
 
 .banner__name {
-  font-size: 34px;
+  font-size: 30px;
+  line-height: 1.05;
   color: var(--accent);
   text-shadow: 0 0 32px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
+/* Une seule ligne, toujours. « Saison 2 · jour 10 sur 28 · 18 jours avant la
+   fin » se cassait en trois sur téléphone et poussait tout l'écran vers le bas
+   pour dire ce que « J10/28 · 18 j restants » dit d'un coup d'œil. */
+.banner__when {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ornament {
   display: block;
-  margin: 12px 0 4px;
+  margin: 8px 0 2px;
   color: color-mix(in srgb, var(--accent) 34%, transparent);
   mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
 }
@@ -67,6 +78,14 @@
 
 .banner__xp-head .num {
   font-size: 15px;
+}
+
+/* « 230 / 1100 » est un seul nombre : le casser en deux lignes le rend
+   illisible et fait grandir le bandeau d'une ligne pour rien. C'est le libellé
+   qui cède, jamais la valeur. */
+.banner__xp-num {
+  flex: none;
+  white-space: nowrap;
 }
 
 .banner__counters {
@@ -105,13 +124,12 @@
   color: rgba(237, 230, 245, 0.16);
 }
 
-.banner__baseline {
+.banner__unlock {
   position: relative;
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
-  font-size: 13.5px;
-  font-style: italic;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -125,24 +143,45 @@
   container-type: inline-size;
 }
 
-@container (max-width: 340px) {
-  .banner__name { font-size: 27px; }
+/* Deux contenants étroits, deux réponses opposées — et c'est mesuré, pas
+ * supposé. Le bandeau fait **300 px** dans le rail de bureau et **328 à 358 px**
+ * dans la colonne du téléphone. Un seul palier les confondait, et corriger l'un
+ * cassait l'autre.
+ *
+ * Les seuils portent sur la **boîte de contenu**, pas sur la boîte de bordure :
+ * c'est ce qu'une container query mesure, et l'oublier fait écrire des paliers
+ * qui ne se déclenchent jamais où on croit. Rembourrage déduit : 262 px dans le
+ * rail, 294 à 320 px sur téléphone.
+ *
+ * Ce qui les distingue n'est pas la largeur mais **ce qui est rare** :
+ *
+ * - Dans le rail de bureau, la hauteur est gratuite — la colonne descend sur
+ *   900 px et personne ne la lit jusqu'en bas. L'écu s'empile donc au-dessus
+ *   des statistiques : en ligne, à 300 px, l'XP se tronquait et les boucliers
+ *   sortaient du cadre.
+ * - Sur téléphone, la hauteur est la ressource critique : chaque pixel pris ici
+ *   est un pixel retiré au bouton « Démarrer », qui passait sous la barre
+ *   d'onglets. On garde donc la ligne, et c'est l'écu qui rétrécit.
+ */
 
-  /* Le libelle et le compteur se disputaient la ligne et se cassaient chacun
-     en deux. Ils s'empilent : deux lignes voulues valent mieux que quatre
-     lignes subies. */
+/* Rail de bureau (262 px de contenu) : on empile, la hauteur ne coûte rien. */
+@container (max-width: 280px) {
+  .banner__name { font-size: 26px; }
+
   .banner__xp-head {
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
   }
 
-  /* L'embleme de rang et les compteurs cessent de se disputer la largeur :
-     ils s'empilent au lieu de se tronquer. */
   .banner__body {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .banner .rankbadge {
+    --badge: 78px;
   }
 
   .banner__counters {
@@ -151,4 +190,60 @@
   }
 
   .counter .num { font-size: 19px; }
+}
+
+/* Colonne de téléphone (294–320 px) : on garde la ligne, l'écu rétrécit. */
+@container (min-width: 281px) and (max-width: 340px) {
+  .banner__name { font-size: 25px; }
+
+  .banner__body {
+    gap: 12px;
+  }
+
+  .banner .rankbadge {
+    --badge: 62px;
+  }
+
+  .banner .rankbadge__code {
+    font-size: 27px;
+  }
+
+  .banner__xp-head {
+    gap: 8px;
+  }
+
+  .banner__xp-head .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .banner__counters {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+
+  .counter .num { font-size: 18px; }
+}
+
+/* --- Écran court : l'ornement et le pied cèdent la place ----------------
+   Sur un téléphone de 740 px de haut, chaque bloc décoratif du bandeau se paie
+   en pixels retirés à la décision. L'ornement et la ligne de déblocage sont les
+   deux seuls éléments du bandeau dont l'absence ne retire aucune information
+   qu'on ne retrouve ailleurs — l'un est purement graphique, l'autre est répété
+   sur la fiche de personnage. */
+@media (max-height: 780px) and (max-width: 1159px) {
+  .banner {
+    padding: 13px 16px 12px;
+  }
+
+  .banner .ornament,
+  .banner__unlock {
+    display: none;
+  }
+
+  .banner__body {
+    margin-top: 4px;
+  }
 }
