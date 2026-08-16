@@ -36,34 +36,38 @@ certifie rien** (SPEC §11.10). L'extension ne déclare jamais une journée tenu
 
    Copie-le : seule son empreinte est stockée, il ne sera plus jamais affiché.
 
-2. **Chrome ou Edge** : `chrome://extensions` → **Mode développeur** →
-   **Charger l'extension non empaquetée** → choisis le dossier `coach-ext/`.
+2. **Firefox** — c'est la cible par défaut, `manifest.json` est déjà le sien.
 
-   **Firefox** : renomme d'abord les manifestes, Firefox ne sachant lire que
-   `manifest.json` :
+   Va sur `about:debugging` → **Ce Firefox** → **Charger un module temporaire**,
+   et choisis le fichier `coach-ext/manifest.json`.
+
+   **Chrome ou Edge** : il faut d'abord échanger les manifestes, Firefox et
+   Chrome n'acceptant pas la même forme de script de fond :
 
    ```bash
    cd coach-ext
-   mv manifest.json manifest.chrome.json && mv manifest.firefox.json manifest.json
+   mv manifest.json manifest.firefox.json && mv manifest.chrome.json manifest.json
    ```
 
-   Puis `about:debugging` → **Ce Firefox** → **Charger un module temporaire** →
-   choisis `manifest.json`.
+   Puis `chrome://extensions` → **Mode développeur** → **Charger l'extension non
+   empaquetée** → choisis le dossier `coach-ext/`.
 
-   La différence tient à une seule ligne : Firefox ne supporte pas
-   `background.service_worker` en MV3 et attend un script de fond classique.
-   Le code, lui, est commun — il passe par `globalThis.browser ?? globalThis.chrome`
-   plutôt que de dépendre du comportement de `chrome.*` sous Firefox, qui a
-   changé selon les versions.
+3. Clique sur l'icône de l'extension. Colle l'adresse de l'API
+   (`http://127.0.0.1:8000`) et le jeton de `token.local.txt`.
 
-   Attention : un module temporaire Firefox **disparaît à la fermeture du
-   navigateur**. Il faut le recharger à chaque démarrage, ou signer l'extension.
+4. Dans le champ **Catégories**, remplace le contenu par celui de
+   `rules.local.json` — ce fichier est ignoré par git et contient les listes
+   complètes, y compris celles qui ne regardent personne d'autre. Puis
+   **Enregistrer**, et supprime `token.local.txt`.
 
-3. Clique sur l'icône de l'extension, colle l'adresse de l'API et le jeton,
-   puis **Enregistrer**.
-
-4. Le premier envoi arrive au bout de 5 minutes. La date du dernier envoi
+5. Le premier envoi arrive au bout de 5 minutes. La date du dernier envoi
    s'affiche dans le même panneau.
+
+> **Si rien n'arrive au bout de 10 minutes sous Firefox**, va dans `about:addons`
+> → l'extension → **Permissions**, et vérifie que l'accès à `127.0.0.1:8000` est
+> accordé. Firefox traite les permissions d'hôte du manifeste V3 comme
+> facultatives : elles peuvent demander une validation explicite, là où Chrome
+> les accorde d'office.
 
 ## Régler les catégories
 

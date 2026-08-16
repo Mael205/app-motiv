@@ -42,6 +42,7 @@ from pathlib import Path
 
 CONFIG_PATH = Path(__file__).with_name("config.local.toml")
 CATEGORIES_PATH = Path(__file__).with_name("categories.toml")
+CATEGORIES_LOCAL_PATH = Path(__file__).with_name("categories.local.toml")
 ACTIVITYWATCH = "http://localhost:5600"
 DEFAULT_INTERVAL_SECONDS = 600
 AUTRE = "autre"
@@ -52,6 +53,27 @@ def load_toml(path: Path) -> dict:
         return {}
     with path.open("rb") as handle:
         return tomllib.load(handle)
+
+
+def load_categories() -> dict[str, list[str]]:
+    """Table de catégorisation : le fichier suivi, complété par la surcouche locale.
+
+    ``categories.toml`` est versionné et sert de base partageable.
+    ``categories.local.toml`` est ignoré par git : c'est là que vont les listes
+    qui ne regardent personne d'autre — le dépôt est public, et une liste de
+    domaines en dit long sur celui qui l'écrit.
+
+    Les listes se **complètent** au lieu de s'écraser : ajouter un domaine en
+    local ne fait pas perdre ceux de la base.
+    """
+    base = load_toml(CATEGORIES_PATH).get("categories", {})
+    surcouche = load_toml(CATEGORIES_LOCAL_PATH).get("categories", {})
+
+    fusion = {categorie: list(fragments) for categorie, fragments in base.items()}
+    for categorie, fragments in surcouche.items():
+        connus = fusion.setdefault(categorie, [])
+        connus.extend(f for f in fragments if f not in connus)
+    return fusion
 
 
 class Categoriser:
@@ -284,7 +306,7 @@ def main() -> int:
         )
         return 1
 
-    categoriser = Categoriser(load_toml(CATEGORIES_PATH).get("categories", {}))
+    categoriser = Categoriser(load_categories())
     interval = int(config.get("interval_seconds", DEFAULT_INTERVAL_SECONDS))
 
     while True:
