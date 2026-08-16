@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 483 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 522 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-507 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+546 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -91,6 +91,14 @@ plus importants : aucun compteur d'Entretien ne redescend, aucune routine ne
 rapporte d'XP, aucun message de dépassement d'une garde ne contient un mot de
 jugement, et **aucune sonde ne peut déclarer une journée tenue**. Ces règles-là
 se perdent au premier refactoring si personne ne les surveille.
+
+Les tests du §14 sont écrits sur le même principe, et un seul y vérifie un
+barème : les autres exigent qu'une session dégradée éteigne **tout** ce qui est
+réparable, que le palier 3 n'ajoute rien à ce que le palier 2 avait déjà pris,
+qu'aucun mot de reproche n'entre dans un texte affiché, et que relire l'accueil
+cinq fois de suite laisse le boss et les Éclats identiques. C'est la mécanique
+qui dérive le plus facilement — chaque sanction ajoutée paraît justifiée prise
+seule, et l'empilement produit le mode de défaillance n°1 du §0.3.
 
 Les tests du briefing suivent la même idée et un seul d'entre eux vérifie le cas
 nominal : tous les autres coupent le modèle, le font halluciner un projet,
@@ -187,6 +195,19 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   table, et équiper un cosmétique ne peut toucher aucune session. Le §17 pose
   que récompenser la chance plutôt que le travail est le pire mode de
   défaillance ; sa disparition serait invisible, l'app marcherait encore.
+- **Le prix du décrochage (§14)** : mode terne, vitrine fermée, sas révoqué,
+  boss qui récupère 45 min de vie par jour raté, dette de 10 min, slot gagné
+  gelé, titre en sursis, quart de la mise prélevé au streak cassé, et au
+  troisième jour un **écran unique de reprise** — une tâche, dix minutes,
+  aucun chiffre. Deux choix de fond y tiennent le reste :
+  - Les deux écritures — régénération du boss et prélèvement sur la mise — sont
+    **recalculées depuis l'historique** à chaque lecture, jamais incrémentées.
+    Le streak l'est déjà, et un incrément posé par un déclencheur nocturne se
+    doublerait au premier rejeu et disparaîtrait au premier cron manqué. Un
+    test relit l'accueil cinq fois de suite et exige un boss identique.
+  - Le palier 3 **n'ajoute aucune sanction** et n'énumère rien. Punir plus au
+    troisième jour est le meilleur moyen de faire désinstaller ; la liste des
+    lignes affichées est vide, pas adoucie.
 - **Cycle de saison complet (§12.2, §7.4)** : clôture avec score en minutes,
   comparaison au fantôme, titre décerné — *Déserteur de Purgatoire* aussi
   franchement que *Vainqueur*, parce qu'une collection sans trous n'a aucune

@@ -63,8 +63,12 @@ Projets → Nouveau projet → Copier le prompt.
   jamais été compilé — il n'y a pas de SDK Android sur cette machine. À ne faire
   que si la recette MacroDroid et AdGuard ne suffisent pas.
 - **Blocage du scroll passif (§8.5, §9.1).** L'extension mesure mais ne bloque
-  pas. Le blocage dépend de l'état « armé » côté serveur, qui vient avec le sas
-  de détente.
+  pas. L'état « armé » côté serveur est **fait** : `/api/agent/state` rend
+  désormais `block_scroll.armed_from`, calculé à la fin du sas, sinon à l'heure
+  du gardien, et avancé à l'ouverture de la fenêtre du soir au palier 2 du §14.
+  Il ne dit **pas pourquoi** — le motif serait de l'historique, et un jeton de
+  sonde qui fuit n'en donne pas. Reste à écrire ce que l'agent et l'extension
+  en font.
 
 ---
 
@@ -94,6 +98,23 @@ fragilité.
 
 **Tranché le 16 août 2026 : la forme est validée, reste à choisir le palier
 exact et s'il faut un plafond.**
+
+**Précision du 16 août 2026, parce que la note se lisait mal.** « Ne pas monter
+le plancher » ne voulait jamais dire « ne rien monter ». La lecture juste est
+celle de l'utilisateur : *monter en rang, c'est qu'on attend plus de moi.*
+C'est exactement ce que dit la décision — l'exigence monte, et elle monte sur
+le rang, donc sur la fiabilité prouvée. Ce qui ne monte pas est le **mode
+dégradé**, qui n'est pas la barre mais l'issue de secours : c'est lui qui
+récupère le soir où on rentre à 22h, et c'est ce soir-là que tout se joue.
+
+---
+
+## Fait depuis
+
+- **Le §14 en entier** (16 août 2026). Régénération du boss — le champ existait
+  sans que rien ne l'écrive —, vitrine fermée, gel du slot gagné, titre en
+  sursis, quart de la mise prélevé, écran de reprise du palier 3 et porte de
+  sortie de saison au-delà de cinq jours.
 
 ---
 
