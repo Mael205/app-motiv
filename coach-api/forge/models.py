@@ -207,6 +207,11 @@ class Season(models.Model):
     starts_on = models.DateField()
     ends_on = models.DateField()
     stake_shards = models.PositiveIntegerField(default=0)
+    # Part de la mise déjà partie en cours de saison (§14, palier 2). Stockée
+    # plutôt que recalculée à la lecture parce que c'est le seul prélèvement
+    # irréversible du système : le solde d'Éclats a déjà bougé, et une valeur
+    # qu'on recalculerait à chaque appel finirait par le prélever deux fois.
+    stake_forfeited = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=16, choices=STATUSES, default=RUNNING)
     title_awarded = models.CharField(max_length=120, blank=True)
     # Contre quoi on court cette saison (§12.7). Choisi à l'ouverture, figé
@@ -243,7 +248,11 @@ class SeasonBoss(models.Model):
 
     @property
     def current_hp(self) -> int:
-        return max(0, self.max_hp - self.damage_taken + self.regen)
+        # La régénération ne rend que de la vie réellement retirée. Sans ce
+        # plafond, rater un jour avant d'avoir touché le boss le ferait monter
+        # au-dessus de son maximum : la barre dépasserait 100 % et le ratio de
+        # clôture du §12.4 passerait au-dessus de 1.
+        return max(0, self.max_hp - self.damage_taken + min(self.regen, self.damage_taken))
 
     @property
     def ratio(self) -> float:

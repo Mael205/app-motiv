@@ -11,7 +11,8 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import Count, F, Max, Sum
+from django.db.models import Count, F, Max, Sum, Value
+from django.db.models.functions import Greatest
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -45,6 +46,7 @@ from .rules import modifiers as modifier_rules
 from .rules import ranks as rank_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
+from .rules import sanctions as sanction_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -206,6 +208,152 @@ def boss_payload(season: Season | None) -> dict | None:
         "current_hp": boss.current_hp,
         "ratio": boss.ratio,
         "is_dead": boss.is_dead,
+    }
+
+
+# --------------------------------------------------------------------------
+# Le prix du décrochage (SPEC §14)
+# --------------------------------------------------------------------------
+
+def _sanctions(
+    state: streak_rules.StreakState, *, validated_today: bool
+) -> sanction_rules.Sanctions:
+    return sanction_rules.evaluate(
+        missed_run=state.missed_run,
+        current_streak=state.current,
+        broken_once=state.broken_at is not None,
+        validated_today=validated_today,
+        debt_minutes=state.required_minutes - streak_rules.FLOOR_MINUTES,
+    )
+
+
+def sanctions_for(user, *, today: date) -> sanction_rules.Sanctions:
+    """Les sanctions actives, calculées seules — pour les gardes d'API.
+
+    ``home_state`` ne passe pas par ici : il tient déjà l'historique et l'état
+    de la journée, et relire les deux pour la même réponse ferait diverger deux
+    lectures du même fait.
+    """
+    atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
+    minutes = (
+        Session.objects.filter(user=user, coach_day=today, status=Session.DONE).aggregate(
+            t=Sum("actual_minutes")
+        )["t"]
+        or 0
+    )
+    return _sanctions(
+        streak_state(user, atelier, today=today), validated_today=minutes >= DEGRADED_MINUTES
+    )
+
+
+def sync_boss_regen(season: Season | None, history: list[streak_rules.Day]) -> int:
+    """Le boss récupère une session moyenne de vie par jour raté (§14, palier 1).
+
+    **Recalculé depuis l'historique, jamais incrémenté au fil de l'eau.** Le
+    streak l'est déjà, et deux mécaniques qui lisent la même journée doivent la
+    lire de la même façon : un incrément posé par un déclencheur nocturne se
+    doublerait au premier rejeu et disparaîtrait au premier cron manqué. Ici,
+    rejouer la fonction cent fois donne cent fois le même boss.
+
+    La valeur stockée est la dette brute ; le plafonnement aux dégâts encaissés
+    vit dans ``SeasonBoss.current_hp``. C'est ce qui rend correct le cas où l'on
+    rate un jour avant d'avoir touché le boss : la dette est notée, et elle se
+    prélève dès que le boss a de la vie à rendre.
+
+    Un boss déjà mort ne se relève pas. Sa mort a joué sa séquence et clos la
+    saison (§12.4) ; le ressusciter le lendemain matin défairait un événement
+    déjà vécu, ce que le §14 range parmi les sanctions rétroactives.
+    """
+    if season is None:
+        return 0
+    boss = getattr(season, "boss", None)
+    if boss is None or boss.is_dead:
+        return 0
+
+    rates = sum(
+        1
+        for jour in history
+        if jour.state is streak_rules.DayState.RATEE
+        and season.starts_on <= jour.date <= season.ends_on
+    )
+    du = rates * season_rules.BOSS_REGEN_ON_MISSED_DAY
+    if du != boss.regen:
+        boss.regen = du
+        boss.save(update_fields=["regen"])
+    return min(boss.regen, boss.damage_taken)
+
+
+def sync_stake_forfeit(user, season: Season | None, state: streak_rules.StreakState) -> int:
+    """Chaque streak cassé pendant la saison entame la mise (§14, palier 2).
+
+    C'est le **seul prélèvement irréversible** du produit, et le §12.6 le veut
+    ainsi : un enjeu réel, sans conséquence matérielle. Il est donc écrit, pas
+    dérivé — le solde d'Éclats a déjà bougé, et une valeur recalculée à chaque
+    lecture finirait par prélever deux fois.
+
+    Idempotent par différence : on compare le total dû au total déjà prélevé.
+    La transaction n'entoure que l'écriture — l'accueil appelle cette fonction
+    toutes les dix secondes, et le cas courant est de n'avoir rien à faire.
+    """
+    if season is None or not season.stake_shards:
+        return 0
+
+    cassures = sum(
+        1
+        for evenement in state.events
+        if evenement.kind == "streak_casse"
+        and season.starts_on <= evenement.date <= season.ends_on
+    )
+    du = sanction_rules.stake_forfeit(season.stake_shards, cassures)
+    delta = du - season.stake_forfeited
+    if delta <= 0:
+        return season.stake_forfeited
+
+    with transaction.atomic():
+        Profile.objects.filter(user=user).update(shards=Greatest(F("shards") - delta, Value(0)))
+        season.stake_forfeited = du
+        season.save(update_fields=["stake_forfeited"])
+    return du
+
+
+def sanction_state(
+    state: streak_rules.StreakState,
+    *,
+    validated_today: bool,
+    open_slots: int,
+    boss_regen_minutes: int,
+    shards_forfeited: int,
+) -> dict:
+    """Ce que l'accueil affiche du §14. Le client n'en déduit rien de plus.
+
+    Les libellés sont construits ici et pas côté client, pour la même raison
+    que partout ailleurs : un texte de sanction réécrit dans un composant est
+    un texte que le test du ton ne surveille plus.
+    """
+    sanctions = _sanctions(state, validated_today=validated_today)
+    geles = max(0, open_slots - slot_rules.BASE_SLOTS) if sanctions.slots_frozen else 0
+
+    return {
+        "level": sanctions.level,
+        "active": sanctions.active,
+        "showcase_locked": sanctions.showcase_locked,
+        "relax_revoked": sanctions.relax_revoked,
+        "slots_frozen": sanctions.slots_frozen,
+        "frozen_slots": geles,
+        "early_block": sanctions.early_block,
+        "title_reprieve": sanctions.title_reprieve,
+        "comeback": sanctions.comeback,
+        "season_exit_offered": sanctions.season_exit_offered,
+        "debt_minutes": sanctions.debt_minutes,
+        "day_validated": sanctions.day_validated,
+        "boss_regen_minutes": boss_regen_minutes,
+        "shards_forfeited": shards_forfeited,
+        "lines": sanction_rules.lines(
+            sanctions,
+            boss_regen_minutes=boss_regen_minutes,
+            shards_forfeited=shards_forfeited,
+            frozen_slots=geles,
+        ),
     }
 
 
@@ -466,11 +614,16 @@ def _check_achievements(user, session: Session) -> list[dict]:
 # La proposition unique de l'accueil (SPEC §11.1)
 # --------------------------------------------------------------------------
 
-def propose(user, *, today: date) -> dict | None:
+def propose(user, *, today: date, comeback: bool = False) -> dict | None:
     """Choisit le projet, la durée et la tâche. L'utilisateur n'arbitre pas.
 
     Priorité : le créneau du jour, puis le retard sur l'engagement hebdo, puis
     l'ancienneté du dernier passage.
+
+    ``comeback`` est le palier 3 du §14 : après trois jours d'arrêt, la durée
+    proposée tombe à dix minutes quoi qu'annonce le créneau. Proposer une
+    séance de cinquante minutes à quelqu'un qui n'a rien fait depuis trois
+    jours, c'est proposer de ne pas ouvrir l'app.
     """
     # Le développement du coach reste accessible en un tap, mais n'est jamais
     # ce que l'app propose d'elle-même : proposer de coder le coach le soir,
@@ -531,10 +684,14 @@ def propose(user, *, today: date) -> dict | None:
             "emblem": chosen.emblem,
             "completion": chosen.completion,
         },
-        "minutes": slot.duration_minutes if slot else 25,
+        "minutes": DEGRADED_MINUTES if comeback else (slot.duration_minutes if slot else 25),
         "step": {"id": step.id, "label": step.label, "needs_split": step.needs_split} if step else None,
         "amorce": amorce or "",
-        "reason": _proposal_reason(chosen, slot, done_by_project.get(chosen.id, 0)),
+        "reason": (
+            "Une tâche, dix minutes."
+            if comeback
+            else _proposal_reason(chosen, slot, done_by_project.get(chosen.id, 0))
+        ),
     }
 
 
@@ -557,7 +714,11 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
 
     atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
-    state = streak_state(user, atelier, today=today)
+    # L'historique est lu **une fois** ici : le streak et les sanctions du §14
+    # en descendent tous les deux, et deux lectures séparées finiraient par
+    # afficher un palier qui ne correspond plus au streak affiché à côté.
+    history = resolve_days(user, atelier, until=today - timedelta(days=1))
+    state = streak_rules.evaluate(history)
     season = current_season(user, today=today)
 
     window = evening_window(today, profile.windows_by_weekday(), profile.timezone_name)
@@ -569,6 +730,20 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     total_xp = Session.objects.filter(user=user, status=Session.DONE).aggregate(t=Sum("xp_awarded"))["t"] or 0
     rang = rank_state(user, today=today)
     running = next((s for s in sessions_today if s.status == Session.RUNNING), None)
+
+    # Les deux écritures du §14, posées à la lecture de l'accueil. Comme la
+    # clôture de semaine du §12.6, elles sont idempotentes et n'ont donc pas
+    # besoin qu'un déclencheur nocturne ait tourné pour être justes — c'est ce
+    # qui les rend fiables sur un hébergement qui s'endort.
+    regen = sync_boss_regen(season, history)
+    forfeited = sync_stake_forfeit(user, season, state)
+    sanctions = sanction_state(
+        state,
+        validated_today=minutes_today >= DEGRADED_MINUTES,
+        open_slots=rang["slots"],
+        boss_regen_minutes=regen,
+        shards_forfeited=forfeited,
+    )
 
     blocks = [
         {
@@ -601,6 +776,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             "sanction_level": state.sanction_level,
             "message": streak_rules.message_for(state),
         },
+        "sanctions": sanctions,
         "progression": {**xp_rules.progression(total_xp), "rank": rang["code"]},
         "rank": rang,
         "season": (
@@ -614,7 +790,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
                 "days_total": season_rules.SEASON_DAYS,
                 "days_left": season.days_left(today),
                 "modifier": season.modifier_key,
-                "stake": season.stake_shards,
+                "stake": max(0, season.stake_shards - season.stake_forfeited),
+                "stake_forfeited": season.stake_forfeited,
             }
             if season
             else None
@@ -638,7 +815,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             if running
             else None
         ),
-        "proposal": propose(user, today=today),
+        "proposal": propose(user, today=today, comeback=sanctions["comeback"]),
         "quests": [
             {
                 "kind": q.kind,
@@ -726,11 +903,19 @@ def taken_slots(user) -> list[tuple[int, str]]:
 def free_slot(user, domain: str = slot_rules.CODE, *, today: date | None = None) -> int | None:
     """Le slot qu'un projet de ce domaine peut prendre, ou rien (SPEC §4.3).
 
-    Deux limites s'appliquent : le nombre de slots ouverts — qui dépend du rang,
-    donc des engagements tenus — et deux slots par domaine.
+    Trois limites s'appliquent : le nombre de slots ouverts — qui dépend du
+    rang, donc des engagements tenus —, deux slots par domaine, et le **gel du
+    palier 2** (§14).
+
+    Le gel ne déloge personne : un quatrième projet déjà installé y reste, le
+    §4.3 est formel — « les projets ne sont pas supprimés, le slot est gelé
+    jusqu'à la reprise ». Ce qui est suspendu, c'est le droit d'en ouvrir un de
+    plus pendant qu'on n'arrive plus à tenir ceux qu'on a.
     """
     today = today or timezone.now().date()
     ouverts = rank_state(user, today=today)["slots"]
+    if sanctions_for(user, today=today).slots_frozen:
+        ouverts = min(ouverts, slot_rules.BASE_SLOTS)
     return slot_rules.assign_slot(taken_slots(user), domain, total_slots=ouverts)
 
 
@@ -808,6 +993,7 @@ def agent_state(user, *, now: datetime | None = None) -> dict:
     return {
         "now": now.isoformat(),
         "day": today.isoformat(),
+        "block_scroll": _block_scroll(user, profile, today=today, now=now),
         "running_session": (
             {
                 "id": running.pk,
@@ -830,6 +1016,51 @@ def agent_state(user, *, now: datetime | None = None) -> dict:
             for n in recentes
         ],
     }
+
+
+def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict:
+    """À partir de quand le scroll passif se bloque, et jusqu'à quoi (§8.5, §14).
+
+    **Le serveur dit quand, l'agent décide comment.** C'est l'état « armé » qui
+    manquait : sans lui, ni l'agent ni l'extension n'ont de quoi savoir s'ils
+    doivent bloquer, et le blocage effectif du J5 n'aurait rien à interroger.
+
+    Par défaut il s'arme à la fin du sas de détente s'il a été pris, sinon à
+    l'heure du gardien — les deux moments que le §8.5 nomme. Le **palier 2** du
+    §14 l'avance à l'ouverture de la fenêtre du soir.
+
+    Il se lève à la validation de la journée, jamais à une heure fixe : « le
+    retour est conditionné, pas puni ». Un blocage qui tomberait à minuit quoi
+    qu'il arrive n'aurait rien demandé.
+
+    **Un instant, un booléen, rien d'autre.** Le motif — sas, gardien, palier 2
+    — reste ici : il dirait à qui lit le jeton de sonde qu'on a raté deux jours,
+    et le §8 refuse à l'agent tout ce qui ressemble à de l'historique. L'heure
+    seule suffit à décider quoi bloquer.
+    """
+    window = evening_window(today, profile.windows_by_weekday(), profile.timezone_name)
+    minutes = (
+        Session.objects.filter(user=user, coach_day=today, status=Session.DONE).aggregate(
+            t=Sum("actual_minutes")
+        )["t"]
+        or 0
+    )
+    validee = minutes >= DEGRADED_MINUTES
+
+    atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
+    sanctions = _sanctions(streak_state(user, atelier, today=today), validated_today=validee)
+
+    if sanctions.early_block:
+        depuis = window.start
+    else:
+        sas = RelaxWindow.objects.filter(user=user, coach_day=today).first()
+        depuis = (
+            sas.ends_at
+            if sas
+            else window.end - timedelta(minutes=profile.guardian_minutes_before_end)
+        )
+
+    return {"armed_from": depuis.isoformat(), "armed": not validee and now >= depuis}
 
 
 @transaction.atomic

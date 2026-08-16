@@ -424,8 +424,7 @@ def start_relax(request):
     now = timezone.now()
     today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
 
-    state = services.home_state(request.user)
-    if state["streak"]["sanction_level"] >= 1 and not state["validated_today"]:
+    if services.sanctions_for(request.user, today=today).relax_revoked:
         # Le privilège de scroller avant de bosser se perd quand la soirée
         # précédente est partie en scroll (SPEC §14, palier 1).
         return Response(
@@ -666,14 +665,30 @@ def progression_panel(request):
     sont passées les heures, les reliques expliquent les bonus.
     """
     user = request.user
+    today = _today(request)
+
+    # Vitrine fermée (§14, palier 1). Le refus est explicite et daté de la
+    # prochaine session : un écran vide se lit comme une panne, et une sanction
+    # qu'on prend pour un bug ne sanctionne rien.
+    if services.sanctions_for(user, today=today).showcase_locked:
+        return Response(
+            {
+                "showcase_locked": True,
+                "detail": "Vitrine fermée jusqu'à la prochaine session. "
+                "Dix minutes suffisent à la rouvrir.",
+            },
+            status=status.HTTP_423_LOCKED,
+        )
+
     # La clôture de semaine est idempotente : l'appeler à l'ouverture garantit
     # que les cartes tombent même si le déclencheur nocturne n'a pas tourné.
-    ferme = progression.close_week(user, week=week_start(_today(request)) - timedelta(days=7))
+    ferme = progression.close_week(user, week=week_start(today) - timedelta(days=7))
 
     return Response(
         {
+            "showcase_locked": False,
             "skills": progression.skill_tree(user),
-            "momentum": progression.heat(user, today=_today(request)),
+            "momentum": progression.heat(user, today=today),
             "relics": progression.relic_panel(user),
             "collection": progression.collection(user),
             "pending_cards": ferme["drawn"],
@@ -722,6 +737,9 @@ def season_state(request):
         {
             "pending_close": bool(a_clore),
             "running": bool(courante and not a_clore),
+            # Proposée, jamais appliquée : la clôture anticipée du §14 demande
+            # un geste, sinon c'est l'app qui déclare l'abandon.
+            "exit_offer": season_flow.exit_offer(request.user, today=today),
             "offer": None if courante and not a_clore else season_flow.next_offer(request.user, today=today),
         }
     )
@@ -730,9 +748,24 @@ def season_state(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def close_season(request):
-    """Clôt la saison finie et rend son bilan. Idempotent."""
+    """Clôt la saison finie et rend son bilan. Idempotent.
+
+    ``early`` clôt une saison **en cours** au titre du §14 : au-delà de cinq
+    jours d'arrêt, repartir à neuf vaut mieux que traîner vingt jours de retard
+    impossible à rattraper. Le drapeau est explicite parce que ce chemin perd
+    la mise, et qu'on ne l'emprunte jamais par inadvertance.
+    """
     today = _today(request)
     saison = season_flow.pending_close(request.user, today=today)
+
+    if saison is None and request.data.get("early"):
+        if season_flow.exit_offer(request.user, today=today) is None:
+            return Response(
+                {"detail": "La clôture anticipée n'est pas ouverte."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        saison = services.current_season(request.user, today=today)
+
     if saison is None:
         return Response(
             {"detail": "Aucune saison à clore."}, status=status.HTTP_400_BAD_REQUEST

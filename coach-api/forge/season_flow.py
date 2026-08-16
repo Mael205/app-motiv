@@ -89,11 +89,13 @@ def close_season(user, season: Season, *, today: date, rng: random.Random | None
     season.status = Season.CLOSED
     season.save(update_fields=["final_score", "title_awarded", "status"])
 
-    # La mise, résolue une seule fois. Une saison réussie la double ; une saison
-    # ratée la perd. Rien d'autre dans le système ne retire quoi que ce soit.
+    # La mise, résolue une seule fois — et sur ce qu'il en **reste**. Le palier 2
+    # du §14 en prélève un quart à chaque streak cassé, déjà retiré du solde ;
+    # rejouer la mise entière ici la ferait payer deux fois.
     profil = user.profile
     gagne = ratio >= SEUIL_REUSSITE
-    delta = season.stake_shards if gagne else -season.stake_shards
+    engagee = max(0, season.stake_shards - season.stake_forfeited)
+    delta = engagee if gagne else -engagee
     profil.shards = max(0, profil.shards + delta)
     profil.save(update_fields=["shards"])
 
@@ -139,7 +141,8 @@ def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
             "ratio_killed": round(ratio, 3),
             "is_dead": bool(boss and boss.is_dead),
         },
-        "stake": season.stake_shards,
+        "stake": max(0, season.stake_shards - season.stake_forfeited),
+        "stake_forfeited": season.stake_forfeited,
         "modifier": progression.season_modifier(season),
         "phantom": {
             "line": ecart.line,
@@ -272,6 +275,31 @@ def open_next(
         modifier_key=modifier_key,
         phantom_choice=phantom_choice,
     )
+
+
+def exit_offer(user, *, today: date) -> dict | None:
+    """La porte de sortie du palier 3 (§14) : clore la saison en avance.
+
+    Offerte au-delà de cinq jours d'arrêt, et **jamais prise d'office**. Le §14
+    en donne la raison : la porte est proposée avant qu'elle soit inventée sous
+    forme de désinstallation. La prendre à la place de quelqu'un reviendrait à
+    décider de son abandon.
+
+    Le prix est annoncé — c'est la règle tenue partout ailleurs pour les
+    modificateurs (§12.5) : une saison close en avance reste une saison ratée,
+    donc la mise qu'il en reste ne revient pas.
+    """
+    courante = services.current_season(user, today=today)
+    if courante is None or is_over(courante, today=today):
+        return None
+    if not services.sanctions_for(user, today=today).season_exit_offered:
+        return None
+
+    return {
+        "season": courante.name,
+        "days_left": courante.days_left(today),
+        "stake_at_risk": max(0, courante.stake_shards - courante.stake_forfeited),
+    }
 
 
 def pending_close(user, *, today: date) -> Season | None:

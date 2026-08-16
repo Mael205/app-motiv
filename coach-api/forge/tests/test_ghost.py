@@ -148,7 +148,22 @@ class TestEtatDeLAgent:
         Profile.objects.create(user=user)
 
         etat = services.agent_state(user)
-        assert set(etat) == {"now", "day", "running_session", "notifications"}
+        assert set(etat) == {"now", "day", "running_session", "notifications", "block_scroll"}
+
+    def test_l_armement_du_blocage_ne_dit_pas_pourquoi(self, django_user_model):
+        """L'agent doit savoir **quand** bloquer, jamais qu'on a raté deux jours.
+
+        Le §8.5 lui donne un instant ; le §14 décide de cet instant. Le motif
+        resterait de l'historique, et un jeton de sonde qui fuit n'en donne pas.
+        """
+        from forge import services
+        from forge.models import Profile
+
+        user = django_user_model.objects.create_user(username="arthur", password="coach")
+        Profile.objects.create(user=user)
+
+        etat = services.agent_state(user)
+        assert set(etat["block_scroll"]) == {"armed_from", "armed"}
 
     def test_l_etat_donne_le_nom_du_projet_jamais_une_commande(self, django_user_model):
         """Le serveur ne transmet aucune commande — c'est la règle du §8."""
