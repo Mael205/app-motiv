@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, services
+from . import coaching, progression, services
 from .models import (
     FridgeIdea,
     Garde,
@@ -650,3 +650,52 @@ def interview_import(request, interview_id: int):
         {"id": projet.id, "name": projet.name, "slot": projet.slot, "status": projet.status},
         status=status.HTTP_201_CREATED,
     )
+
+
+# --------------------------------------------------------------------------
+# Le jeu : arbre, loot, reliques, chaleur (SPEC §12)
+# --------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def progression_panel(request):
+    """Tout l'écran « Personnage » en un appel.
+
+    Un seul aller-retour parce que ces quatre panneaux s'affichent ensemble et
+    qu'aucun n'a de sens seul : la chaleur explique l'XP, l'arbre explique où
+    sont passées les heures, les reliques expliquent les bonus.
+    """
+    user = request.user
+    # La clôture de semaine est idempotente : l'appeler à l'ouverture garantit
+    # que les cartes tombent même si le déclencheur nocturne n'a pas tourné.
+    ferme = progression.close_week(user, week=week_start(_today(request)) - timedelta(days=7))
+
+    return Response(
+        {
+            "skills": progression.skill_tree(user),
+            "momentum": progression.heat(user, today=_today(request)),
+            "relics": progression.relic_panel(user),
+            "collection": progression.collection(user),
+            "pending_cards": ferme["drawn"],
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def equip_card(request, key: str):
+    try:
+        return Response({"equipped": progression.equip_card(request.user, key)})
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def toggle_relic(request, key: str):
+    try:
+        return Response(progression.toggle_relic(request.user, key))
+    except ValueError as error:
+        # Le motif du plafond est écrit pour être affiché tel quel : un refus
+        # muet dans une interface de jeu se lit comme un bug (§12.8).
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)

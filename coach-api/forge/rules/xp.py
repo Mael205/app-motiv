@@ -49,11 +49,22 @@ def session_xp(
     started_hour: int,
     streak: int,
     days_worked_this_week: int = 1,
+    momentum_multiplier: float | None = None,
+    early_bonus_ratio: float = 0.0,
 ) -> XpBreakdown:
     """XP d'une session terminée.
 
     ``rank_in_day`` commence à 1. Le mode dégradé garde son bonus de première
     session : le point dur est le démarrage, pas la durée (SPEC §4.1).
+
+    ``momentum_multiplier`` permet de passer la vraie jauge de chaleur du §12.10,
+    qui décroît progressivement et se calcule sur sept jours glissants — le
+    repli sur ``days_worked_this_week`` ne connaît que la semaine en cours et
+    retomberait à zéro tous les lundis.
+
+    ``early_bonus_ratio`` est la prime de la relique « Lampe de l'aube » (§12.8).
+    Elle ne s'applique **qu'au bonus matinal**, jamais au total : une relique
+    reste modérée, et une prime sur le total serait un multiplicateur déguisé.
     """
     b = XpBreakdown()
     b.base = max(0, int(minutes))
@@ -61,10 +72,13 @@ def session_xp(
     if is_first_of_day:
         b.first_of_day = FIRST_SESSION_BONUS
     if started_hour < EARLY_HOUR:
-        b.early = EARLY_BONUS
+        b.early = round(EARLY_BONUS * (1 + max(0.0, early_bonus_ratio)))
 
     b.streak_multiplier = 1 + min(max(streak, 0), STREAK_CAP) * STREAK_STEP
-    b.momentum_multiplier = momentum(days_worked_this_week)
+    b.momentum_multiplier = (
+        momentum_multiplier if momentum_multiplier is not None
+        else momentum(days_worked_this_week)
+    )
     b.degressivity = degressivity_for(rank_in_day)
 
     raw = (b.base + b.first_of_day + b.early)

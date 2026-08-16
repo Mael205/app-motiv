@@ -114,3 +114,41 @@
   font-style: italic;
   color: var(--muted);
 }
+
+/* --- Adaptation a la largeur du CONTENEUR, pas de l'ecran ---------------
+   Le bandeau vit dans la colonne du telephone (580 px) ou dans le rail gauche
+   du HUD (300 px). Une media query ne saurait pas les distinguer : elle
+   regarde la fenetre, or les deux cas arrivent sur le meme grand ecran.
+   Une container query regarde la place reellement disponible, ce qui est la
+   vraie question. */
+.banner {
+  container-type: inline-size;
+}
+
+@container (max-width: 340px) {
+  .banner__name { font-size: 27px; }
+
+  /* Le libelle et le compteur se disputaient la ligne et se cassaient chacun
+     en deux. Ils s'empilent : deux lignes voulues valent mieux que quatre
+     lignes subies. */
+  .banner__xp-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  /* L'embleme de rang et les compteurs cessent de se disputer la largeur :
+     ils s'empilent au lieu de se tronquer. */
+  .banner__body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .banner__counters {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .counter .num { font-size: 19px; }
+}

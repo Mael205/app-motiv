@@ -37,7 +37,8 @@ from .models import (
     Signal,
     Track,
 )
-from . import filescan, gitscan
+from . import filescan, gitscan, progression
+from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
 from .rules import ranks as rank_rules
@@ -270,10 +271,23 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         .count()
     ) or 1
 
+    total_xp_before = (
+        Session.objects.filter(user=session.user, status=Session.DONE)
+        .exclude(pk=session.pk)
+        .aggregate(t=Sum("xp_awarded"))["t"]
+        or 0
+    )
+
     local_hour = session.started_at.astimezone(ZoneInfo(profile.timezone_name)).hour
     is_first = not Session.objects.filter(
         user=session.user, coach_day=session.coach_day, status=Session.DONE
     ).exclude(pk=session.pk).exists()
+
+    # Le jeu du §12 entre ici, et seulement par ces deux valeurs : la chaleur
+    # du §12.10 et les reliques du §12.8. Aucune autre mécanique de progression
+    # ne touche au calcul — le §17 interdit qu'un cosmétique devienne du pouvoir.
+    chaleur = progression.heat(session.user, today=session.coach_day)
+    bonus = progression.relic_bonuses(session.user)
 
     breakdown = xp_rules.session_xp(
         minutes=session.actual_minutes,
@@ -282,6 +296,8 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         started_hour=local_hour,
         streak=state_before.current,
         days_worked_this_week=days_worked,
+        momentum_multiplier=chaleur["multiplier"],
+        early_bonus_ratio=bonus.early_xp_bonus,
     )
     session.xp_awarded = breakdown.total
     session.xp_breakdown = {
@@ -301,7 +317,10 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
             session=session, defaults={"raw_note": note, "next_action": next_action}
         )
 
-    damage = season_rules.damage_of(minutes=session.actual_minutes)
+    damage = round(
+        season_rules.damage_of(minutes=session.actual_minutes)
+        * (1 + bonus.boss_damage_bonus)
+    )
     if session.season and hasattr(session.season, "boss"):
         boss = session.season.boss
         boss.damage_taken += damage
@@ -311,6 +330,18 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     _update_quests(session)
     unlocked = _check_achievements(session.user, session)
 
+    # Les quatre séquences de juice du §7 ont besoin de savoir **ce qui vient
+    # de changer**, pas de l'état courant : c'est le franchissement qui se met
+    # en scène. Tout ce qui suit est donc un delta, calculé une fois ici.
+    niveau_avant = xp_rules.level_for(total_xp_before)
+    total_apres = total_xp_before + breakdown.total
+    niveau_apres = xp_rules.level_for(total_apres)
+
+    cartes = []
+    reliques = progression.grant_relics_for(session.user, [a["key"] for a in unlocked])
+    for _ in range(max(0, niveau_apres - niveau_avant)):
+        cartes.append(progression.draw_card(session.user, reason=loot_rules.MONTEE_DE_NIVEAU))
+
     return {
         "session_id": session.id,
         "minutes": session.actual_minutes,
@@ -318,6 +349,16 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         "breakdown": session.xp_breakdown,
         "boss_damage": damage,
         "achievements": unlocked,
+        # -- de quoi jouer les séquences du §7 sans un second aller-retour
+        "level_before": niveau_avant,
+        "level_after": niveau_apres,
+        "levelled_up": niveau_apres > niveau_avant,
+        "total_xp": total_apres,
+        "progression": xp_rules.progression(total_apres),
+        "momentum": chaleur,
+        "branch_tier": progression.branch_tier_crossed(session.user, session),
+        "cards": cartes,
+        "relics": reliques,
     }
 
 
@@ -496,6 +537,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     return {
         "day": today.isoformat(),
         "now": now.isoformat(),
+        "momentum": progression.heat(user, today=today),
+        "skills": progression.skill_tree(user)["branches"],
         "validated_today": minutes_today >= DEGRADED_MINUTES,
         "required_minutes": state.required_minutes,
         "minutes_today": minutes_today,

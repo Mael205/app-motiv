@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
+import { Ascension } from '../components/Ascension'
+import { Burst, CountUp, useTrauma } from '../juice'
 import type { DebriefSuggestion, RunningSession, SessionResult } from '../types'
 import './SessionScreen.css'
 
@@ -202,22 +204,46 @@ export function SessionScreen({
   )
 }
 
-/** La séquence de fin de session : un des quatre moments qui portent du juice. */
+/** La séquence 2 du §7 : l'impact de fin de session.
+ *
+ * > le bloc se pose sur la jauge du soir avec un impact (léger hit-stop puis
+ * > rebond), la barre d'XP se remplit avec un compteur qui défile et une
+ * > **décélération marquée**, les dégâts au boss s'affichent en chiffres qui
+ * > montent.
+ *
+ * Les canaux sont empilés comme le recommande `game-feel` : secousse, gerbe,
+ * compteur, et un décalage entre l'XP et les dégâts au boss pour qu'on ait le
+ * temps de lire les deux. Le tout dure moins d'une seconde et demie — au-delà,
+ * on attend au lieu de savourer.
+ *
+ * La séquence 3 (niveau, palier, relique, carte) s'enchaîne ensuite, et
+ * seulement s'il y a quelque chose à montrer.
+ */
 function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => void }) {
-  const [shown, setShown] = useState(0)
+  const { shake, style } = useTrauma()
+  const [xpDone, setXpDone] = useState(false)
+  const [ascending, setAscending] = useState(false)
 
+  const hasAscension =
+    result.levelled_up ||
+    !!result.branch_tier ||
+    !!result.relics?.length ||
+    !!result.cards?.length
+
+  // L'impact part au montage, calibré sur la taille de la session : une session
+  // dégradée de dix minutes ne secoue pas comme une longue de cinquante.
   useEffect(() => {
-    if (shown >= result.xp) return
-    const step = Math.max(1, Math.round(result.xp / 30))
-    const id = setTimeout(() => setShown((v) => Math.min(result.xp, v + step)), 24)
-    return () => clearTimeout(id)
-  }, [shown, result.xp])
+    shake(Math.min(0.7, 0.22 + result.minutes / 120))
+  }, [shake, result.minutes])
 
   const b = result.breakdown
+
+  if (ascending) return <Ascension result={result} onDone={onDone} />
 
   return (
     <motion.div
       className="session__stage"
+      style={style}
       initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 240, damping: 20 }}
@@ -230,7 +256,8 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         animate={{ scale: [0.7, 1.12, 1] }}
         transition={{ duration: 0.5, times: [0, 0.6, 1], ease: 'easeOut' }}
       >
-        <span className="num result__xp-value">{shown}</span>
+        <Burst count={22} spread={200} />
+        <CountUp to={result.xp} duration={1100} className="result__xp-value" onDone={() => setXpDone(true)} />
         <span className="label">xp</span>
       </motion.div>
 
@@ -271,7 +298,11 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         )}
         <li className="result__damage">
           <span>Dégâts au boss</span>
-          <span className="num">−{result.boss_damage}</span>
+          {xpDone ? (
+            <CountUp to={result.boss_damage} duration={600} prefix="−" />
+          ) : (
+            <span className="num">−0</span>
+          )}
         </li>
       </ul>
 
@@ -295,8 +326,8 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         </motion.div>
       ))}
 
-      <button className="cta" onClick={onDone}>
-        Retour
+      <button className="cta" onClick={() => (hasAscension ? setAscending(true) : onDone())}>
+        {hasAscension ? 'Voir les récompenses' : 'Retour'}
       </button>
     </motion.div>
   )

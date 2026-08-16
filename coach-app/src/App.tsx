@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
 import type { HomeState } from './types'
 import { Home } from './screens/Home'
+import { Character } from './screens/Character'
 import { Journal } from './screens/Journal'
 import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
@@ -65,6 +66,7 @@ export default function App() {
       <main className="shell">
         {tab === 'soir' && <Home state={state} onStarted={load} />}
         {tab === 'projets' && <Projects onChanged={load} />}
+        {tab === 'perso' && <Character />}
         {tab === 'journal' && <Journal />}
       </main>
       <TabBar active={tab} onChange={setTab} />

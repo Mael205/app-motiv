@@ -274,6 +274,8 @@ export interface HomeState {
   evening: Evening
   running_session: RunningSession | null
   proposal: Proposal | null
+  momentum: Momentum
+  skills: SkillBranch[]
   quests: Quest[]
   entretien: EntretienPanel
   gardes: GardesPanel
@@ -296,4 +298,122 @@ export interface SessionResult {
   }
   boss_damage: number
   achievements: { key: string; label: string; description: string }[]
+
+  /* Le §7 met en scene ce qui vient de CHANGER, pas l'etat courant : c'est le
+     franchissement qui se fete. Le serveur rend donc des deltas, calcules une
+     seule fois a la cloture, pour que la sequence n'ait pas a redemander
+     l'etat et a deviner ce qui est nouveau. */
+  level_before: number
+  level_after: number
+  levelled_up: boolean
+  total_xp: number
+  rank?: string
+  progression: { level: number; into_level: number; needed: number; ratio: number }
+  momentum: Momentum
+  branch_tier: BranchTier | null
+  cards: LootCardDrawn[]
+  relics: RelicGranted[]
+}
+
+export interface Momentum {
+  level: number
+  percent: number
+  multiplier: number
+  label: string
+  detail: string
+  days_worked: number
+  cooling: boolean
+  days: boolean[]
+}
+
+export interface SkillBranch {
+  key: string
+  label: string
+  color: string
+  minutes: number
+  hours: number
+  tier: number
+  title: string
+  emblem: string
+  next_hours: number | null
+  progress: number
+  maxed: boolean
+}
+
+export interface BranchTier {
+  branch: string
+  label: string
+  color: string
+  tier: number
+  title: string
+  emblem: string
+  hours: number
+}
+
+export interface LootCardDrawn {
+  key: string
+  label: string
+  rarity: 'commun' | 'rare' | 'epique' | 'legendaire'
+  rarity_label: string
+  color: string
+  kind: string
+  payload: string
+  duplicate: boolean
+  shards: number
+  reason: string
+  reason_label: string
+}
+
+export interface RelicGranted {
+  key: string
+  label: string
+  lore: string
+  emblem: string
+  effect: string
+  value: number
+}
+
+export interface OwnedCard extends Omit<LootCardDrawn, 'duplicate' | 'shards' | 'reason' | 'reason_label'> {
+  owned: boolean
+  copies: number
+  equipped: boolean
+}
+
+export interface RelicEntry {
+  key: string
+  label: string
+  lore: string
+  emblem: string
+  effect: string
+  value: number
+  owned: boolean
+  equipped: boolean
+  achievement: string
+}
+
+export interface ProgressionPanel {
+  skills: { branches: SkillBranch[]; shape: TreeShape; tiers: number[] }
+  momentum: Momentum
+  relics: {
+    max: number
+    equipped_count: number
+    relics: RelicEntry[]
+    bonuses: Record<string, number>
+  }
+  collection: {
+    slots: Record<string, OwnedCard[]>
+    owned: number
+    total: number
+    shards: number
+    equipped: Record<string, string>
+  }
+  pending_cards: LootCardDrawn[]
+}
+
+export interface TreeShape {
+  total_minutes: number
+  branches_actives: number
+  dominante: string | null
+  a_l_arret: string[]
+  concentration: number
 }

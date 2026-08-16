@@ -1,0 +1,37 @@
+/* La couronne de rayons. Tourne lentement et sans fin : le mouvement doit
+   etre percu sans etre suivi. Une rotation rapide attire l'oeil SUR les rayons
+   alors qu'ils sont la pour le conduire vers le centre. */
+.rays {
+  position: absolute;
+  inset: -60%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: rays-turn 26s linear infinite;
+  opacity: 0.4;
+  z-index: 0;
+  /* Le flou est ce qui fait la difference entre une lueur et des rayons de
+     velo. Sans lui, chaque rayon garde une arete nette qui attire l'oeil sur
+     le trait au lieu de le conduire vers le centre. */
+  filter: blur(1.5px);
+  mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.45) 42%, transparent 62%);
+}
+
+.rays__ray {
+  position: absolute;
+  bottom: 50%;
+  transform-origin: bottom center;
+  border-radius: 2px;
+}
+
+@keyframes rays-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rays {
+    animation: none;
+  }
+}

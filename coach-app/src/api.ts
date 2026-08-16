@@ -3,6 +3,7 @@ import type {
   DebriefSuggestion,
   EntretienPanel,
   Interview,
+  ProgressionPanel,
   GardesPanel,
   HomeState,
   JournalEntry,
@@ -92,6 +93,14 @@ export const api = {
   projects: () => request<ProjectDetail[]>('/projects'),
 
   briefing: () => request<Briefing>('/briefing'),
+
+  progression: () => request<ProgressionPanel>('/progression'),
+
+  equipCard: (key: string) =>
+    request<{ equipped: Record<string, string> }>(`/loot/${key}/equip`, { method: 'POST' }),
+
+  toggleRelic: (key: string) =>
+    request<ProgressionPanel['relics']>(`/relics/${key}/toggle`, { method: 'POST' }),
 
   startInterview: () => request<Interview>('/interviews', { method: 'POST' }),
 

@@ -1,0 +1,164 @@
+/* La braise du §12.10. Tout est indexe sur --heat (0 a 1) : intensite, halo,
+   saturation. Un seul canal reglerait une valeur ; plusieurs canaux dans le
+   meme sens lisent comme une seule chose vivante. */
+.ember {
+  position: relative;
+  padding: 14px 16px 12px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)), var(--panel);
+  border: 1px solid var(--line);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  overflow: hidden;
+}
+
+/* Le halo de fond monte avec la chaleur : le panneau entier chauffe, pas
+   seulement l'icone. */
+.ember::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(70% 90% at 18% 60%,
+      color-mix(in srgb, #ff7a2f calc(var(--heat) * 26%), transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.ember__head {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ember__mult {
+  font-size: 15px;
+  color: color-mix(in srgb, #ff9a3f calc(40% + var(--heat) * 60%), var(--muted));
+}
+
+.ember__body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* --- La braise elle-meme --------------------------------------------- */
+
+.ember__core {
+  position: relative;
+  width: 40px;
+  height: 46px;
+  flex: none;
+  display: grid;
+  place-items: end center;
+}
+
+.ember__glow {
+  position: absolute;
+  bottom: 2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      color-mix(in srgb, #ffb24a calc(30% + var(--heat) * 70%), transparent),
+      transparent 68%);
+  filter: blur(3px);
+  opacity: calc(0.35 + var(--heat) * 0.65);
+  animation: ember-beat var(--beat) ease-in-out infinite;
+}
+
+/* Deux flammes dephasees : une seule forme qui ondule lit comme un GIF, deux
+   formes decalees lisent comme une combustion. */
+.ember__flame {
+  position: absolute;
+  bottom: 4px;
+  width: 16px;
+  height: calc(14px + var(--heat) * 26px);
+  background: linear-gradient(to top,
+      #ffd08a,
+      color-mix(in srgb, #ff7a2f calc(40% + var(--heat) * 60%), transparent) 55%,
+      transparent);
+  border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%;
+  transform-origin: bottom center;
+  animation: ember-lick var(--beat) ease-in-out infinite;
+  opacity: calc(0.45 + var(--heat) * 0.55);
+}
+
+.ember__flame--b {
+  width: 9px;
+  height: calc(9px + var(--heat) * 18px);
+  animation-delay: calc(var(--beat) / -2.5);
+  opacity: calc(0.3 + var(--heat) * 0.5);
+}
+
+@keyframes ember-beat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+@keyframes ember-lick {
+  0%, 100% { transform: scaleY(1) skewX(0deg); }
+  30% { transform: scaleY(1.12) skewX(-4deg); }
+  65% { transform: scaleY(0.94) skewX(3deg); }
+}
+
+/* Une braise qui refroidit perd sa saturation avant de perdre sa taille : on
+   voit le tiedissement avant de voir la baisse. */
+.ember--cooling .ember__flame { filter: saturate(0.6); }
+
+/* --- Lecture ---------------------------------------------------------- */
+
+.ember__read { min-width: 0; }
+
+.ember__label {
+  font-size: 21px;
+  color: color-mix(in srgb, #ffb24a calc(30% + var(--heat) * 70%), var(--text));
+  line-height: 1;
+}
+
+.ember__detail {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.ember__track {
+  position: relative;
+  height: 3px;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.ember__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff7a2f, #ffd08a);
+  box-shadow: 0 0 12px #ff7a2f;
+  transition: width 700ms var(--ease-out);
+}
+
+/* --- Les sept jours --------------------------------------------------- */
+
+.ember__days {
+  position: relative;
+  display: flex;
+  gap: 5px;
+  margin-top: 9px;
+  list-style: none;
+}
+
+.ember__day {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 2px;
+}
+
+.ember__day--on {
+  background: color-mix(in srgb, #ff9a3f 75%, transparent);
+  box-shadow: 0 0 8px -1px #ff7a2f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ember__glow,
+  .ember__flame { animation: none; }
+}

@@ -1,0 +1,125 @@
+/* L'arbre. Chaque branche porte sa couleur via --branch : la couleur dit le
+   domaine, la forme de l'embleme dit le palier. Deux informations, aucune
+   legende a lire. */
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tree__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.tree__total {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.tree__list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+.tree__branch {
+  position: relative;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--branch) 55%, transparent);
+}
+
+/* Une branche a l'arret reste lisible : c'est l'information la plus utile de
+   l'ecran, elle ne doit pas etre effacee — juste calme. */
+.tree__branch--idle {
+  border-left-color: var(--line-strong);
+  opacity: 0.62;
+}
+
+.tree__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tree__emblem {
+  font-size: 15px;
+  color: var(--branch);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--branch) 60%, transparent);
+}
+
+.tree__branch--idle .tree__emblem {
+  color: var(--dim);
+  text-shadow: none;
+}
+
+.tree__name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tree__hours {
+  font-size: 13px;
+  color: var(--branch);
+}
+
+.tree__branch--idle .tree__hours { color: var(--dim); }
+
+.tree__title {
+  margin-top: 1px;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--branch) 80%, white 20%);
+}
+
+/* --- Les paliers ------------------------------------------------------ */
+
+.tree__tiers {
+  display: flex;
+  gap: 3px;
+  margin-top: 7px;
+  list-style: none;
+}
+
+.tree__tier {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.tree__tier--on {
+  background: var(--branch);
+  box-shadow: 0 0 10px -2px var(--branch);
+}
+
+.tree__tier--next {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Le palier en cours se remplit : on voit la progression a l'interieur du
+   segment, pas seulement le nombre de segments allumes. */
+.tree__tier-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--branch) 70%, transparent);
+  transition: width 600ms var(--ease-out);
+}
+
+.tree__next {
+  margin-top: 5px;
+  font-size: 11.5px;
+}
+
+/* En mode compact (rail lateral), on retire le commentaire de palier : le rail
+   sert a jeter un oeil, pas a lire. */
+.tree--compact .tree__next,
+.tree--compact .tree__title { display: none; }
+
+.tree--compact .tree__list { gap: 9px; }

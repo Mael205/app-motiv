@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 374 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 429 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-398 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+453 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -165,8 +165,43 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   sont implémentés.
 - Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
+- **Le jeu (§12)** : arbre de compétences par branche — quarante heures
+  dispersées sur trois projets de moteur de jeu restent quarante heures de
+  moteur de jeu —, cartes de loot à quatre raretés avec pitié progressive,
+  reliques gagnées par haut fait et plafonnées à trois, et une jauge de
+  momentum qui **tiédit sans s'éteindre** : deux jours manqués pour effacer un
+  jour fait, jamais l'inverse.
+- **La frontière du loot est tenue par des tests**, pas par une intention :
+  aucune carte n'a d'effet, les cartes et les reliques ne partagent aucune
+  table, et équiper un cosmétique ne peut toucher aucune session. Le §17 pose
+  que récompenser la chance plutôt que le travail est le pire mode de
+  défaillance ; sa disparition serait invisible, l'app marcherait encore.
+- **Le juice du §7**, canalisé sur ses quatre moments : secousse par trauma
+  décroissant, compteurs à décélération marquée, gerbes en canvas, couronne de
+  rayons, et une séquence d'ascension qui enchaîne niveau, palier de branche,
+  relique et carte — chaque temps court et passable d'un clic.
+  `prefers-reduced-motion` désactive l'animation sans jamais supprimer
+  l'information.
 - Interface : jauge du soir, fiche de personnage, barre de boss, écran de session
-  avec sa séquence de fin.
+  avec sa séquence de fin, et un **HUD à trois colonnes** au-delà de 1160 px —
+  la décision garde sa largeur de téléphone, donc sa dominance.
+
+## Regarder l'interface
+
+Deux scripts Playwright dans [coach-app/tools/](coach-app/tools/) capturent
+l'app à trois largeurs et rejouent les séquences de juice sur `/juice.html`,
+une page servie uniquement en développement.
+
+Ils ne sont pas du confort. Trois défauts réels ont été trouvés à l'œil et
+seulement à l'œil : une collision de classes `.hud` entre la grille de mise en
+page et un composant existant, une couronne de rayons dont le dégradé était
+inversé, et — le plus grave — la décision du soir repoussée sous la ligne de
+flottaison sur téléphone par deux panneaux consultatifs. Aucun n'aurait été vu
+par `tsc` ni par un test.
+
+L'utilisateur `demo` (`manage.py demodata`) sert à ça : une interface de jeu
+jugée sur des compteurs à zéro se conçoit mal, parce que les problèmes de
+densité n'y apparaissent jamais.
 
 ## Conventions
 

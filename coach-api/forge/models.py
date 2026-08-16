@@ -17,6 +17,8 @@ from django.db import models
 from django.utils import timezone
 
 from forge.rules import gardes as rules_gardes
+from forge.rules import loot as rules_loot
+from forge.rules import relics as rules_relics
 from forge.rules import routines as rules_routines
 from forge.rules import signals as rules_signals
 from forge.rules import slots as rules_slots
@@ -36,6 +38,9 @@ class Profile(models.Model):
     )
     buddy_disable_requested_at = models.DateTimeField(null=True, blank=True)
     shards = models.IntegerField(default=0)
+    # Cosmétique équipé, un emplacement par type de carte (§12.6). Vide = défaut
+    # du thème. Aucun de ces champs n'entre dans un calcul de règle.
+    cosmetics = models.JSONField(default=dict, blank=True)
     coach_quota_enabled = models.BooleanField(
         default=False,
         help_text="Contrainte sur le temps passé à développer le coach. Désactivée tant que le projet n'est pas fini.",
@@ -704,3 +709,83 @@ class ProjectInterview(models.Model):
     @property
     def questions_posees(self) -> int:
         return sum(1 for m in self.messages if m.get("role") == "assistant")
+
+
+class LootCard(models.Model):
+    """Une carte obtenue (SPEC §12.6).
+
+    Une ligne par clé de carte et par utilisateur : les doublons ne créent pas
+    de nouvelles lignes, ils incrémentent ``copies`` et se convertissent en
+    Éclats. Sans ça, l'inventaire d'une année serait une liste de trois cents
+    entrées où l'on ne verrait plus ce qu'on possède.
+
+    ``equipped`` est géré par emplacement, pas par carte : deux thèmes ne
+    peuvent pas être équipés en même temps, et c'est ``services`` qui l'applique.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cards")
+    key = models.CharField(max_length=32)
+    rarity = models.CharField(max_length=16)
+    kind = models.CharField(max_length=16)
+    copies = models.PositiveIntegerField(default=1)
+    equipped = models.BooleanField(default=False)
+    obtained_at = models.DateTimeField(default=timezone.now)
+    reason = models.CharField(max_length=16, blank=True, help_text="niveau, semaine, saison")
+
+    class Meta:
+        ordering = ("-obtained_at",)
+        unique_together = ("user", "key")
+
+    def __str__(self) -> str:
+        return f"{self.key} ({self.rarity})"
+
+    @property
+    def card(self):
+        return rules_loot.PAR_CLE.get(self.key)
+
+
+class OwnedRelic(models.Model):
+    """Une relique débloquée par un haut fait (SPEC §12.8).
+
+    Séparée de ``LootCard`` **exprès**, et pas par commodité de schéma : une
+    relique donne un bonus, une carte n'en donne jamais. Les mélanger dans une
+    même table rendrait possible, un jour, d'accorder un bonus à un tirage — ce
+    que le §17 interdit. Deux tables, deux origines, aucune passerelle.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="relics")
+    key = models.CharField(max_length=32)
+    equipped = models.BooleanField(default=False)
+    obtained_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-obtained_at",)
+        unique_together = ("user", "key")
+
+    def __str__(self) -> str:
+        return self.key
+
+    @property
+    def relic(self):
+        return rules_relics.PAR_CLE.get(self.key)
+
+
+class LootDraw(models.Model):
+    """Le journal des tirages, qui porte aussi les compteurs de pitié.
+
+    Le compteur ne vit pas sur le profil : il se **recalcule** depuis ce
+    journal. Un compteur stocké et un journal peuvent diverger, et le jour où
+    ils divergent c'est la pitié qui se dérègle — donc la sensation que le
+    système triche, qui est exactement ce que la pitié devait éviter.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="draws")
+    key = models.CharField(max_length=32)
+    rarity = models.CharField(max_length=16)
+    duplicate = models.BooleanField(default=False)
+    shards = models.PositiveIntegerField(default=0)
+    reason = models.CharField(max_length=16, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)

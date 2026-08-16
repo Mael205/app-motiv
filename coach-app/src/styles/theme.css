@@ -226,6 +226,8 @@ button {
 
 /* --- Mise en page ------------------------------------------------------ */
 
+/* Le telephone d'abord : une colonne, la decision au centre, rien sur les
+   cotes parce qu'il n'y a pas de cotes. */
 .shell {
   max-width: 580px;
   margin: 0 auto;
@@ -237,8 +239,79 @@ button {
 
 @media (min-width: 900px) {
   .shell {
-    max-width: 660px;
-    padding-top: 40px;
+    max-width: 680px;
+    padding-top: 32px;
+  }
+}
+
+/* Au-dela, la colonne unique laissait deux tiers de l'ecran vides — un
+   telephone agrandi, pas une interface de bureau. Le HUD s'ouvre donc en trois
+   zones, comme une fiche de personnage de jeu : l'identite a gauche, la
+   decision au centre, la saison et les compteurs a droite.
+
+   Le centre garde exactement sa largeur telephone. Ce n'est pas une economie :
+   le §11.1 veut que la decision domine, et une colonne qui s'elargirait avec
+   l'ecran diluerait le seul element qui doit rester ecrasant. */
+@media (min-width: 1160px) {
+  .shell {
+    max-width: 1300px;
+    padding: 84px 28px 40px;
+  }
+
+  .deck {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 620px) minmax(260px, 330px);
+    justify-content: center;
+    align-items: start;
+    gap: 22px;
+  }
+
+  .deck__rail {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: sticky;
+    top: 84px;
+  }
+
+  .deck__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .deck__consult {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+
+/* En dessous du seuil, les rails redeviennent du flux normal et se rangent
+   sous la decision : sur telephone, ce qui compte doit rester en haut. */
+@media (max-width: 1159px) {
+  .deck {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .deck__rail {
+    display: contents;
+  }
+
+  /* Le groupe consultatif passe apres la decision. Sans cet ordre, la braise
+     et l'arbre repoussaient le bouton « Demarrer » hors de l'ecran, et le
+     §11.1 veut que la seule action a faire soit la premiere chose visible. */
+  .deck__consult {
+    order: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .deck__rail--right > * {
+    order: 6;
   }
 }
 

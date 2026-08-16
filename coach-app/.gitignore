@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Skills installes par `npx skills add` : ce sont des dependances d'outillage
+# d'agent, pas du code du projet. Elles se reinstallent depuis skills-lock.json.
+.agents/
+.claude/

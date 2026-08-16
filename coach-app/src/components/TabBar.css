@@ -53,3 +53,35 @@
 .tabbar__item {
   position: relative;
 }
+
+
+/* Au-dela du seuil du HUD, la barre passe en haut. Une barre basse sur un
+   ecran large est un reflexe de telephone : le pouce n'existe pas ici, et
+   elle recouvrait le bas du contenu au lieu de le border. */
+@media (min-width: 1160px) {
+  .tabbar {
+    top: 0;
+    bottom: auto;
+    padding: 0 24px;
+    justify-content: flex-start;
+    gap: 2px;
+    border-top: none;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #16101d, rgba(18, 13, 24, 0.92));
+    backdrop-filter: blur(8px);
+  }
+
+  .tabbar__item {
+    flex: none;
+    flex-direction: row;
+    gap: 8px;
+    max-width: none;
+    padding: 14px 18px;
+    font-size: 13px;
+  }
+
+  .tabbar__item--active::after {
+    bottom: 0;
+    width: calc(100% - 36px);
+  }
+}

@@ -1,0 +1,160 @@
+/* Le tirage. --rarity porte la couleur : lueur, bordure, rayons et gerbe en
+   descendent tous, pour que la rarete se lise sans lire le mot. */
+.loot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.loot__reason {
+  color: color-mix(in srgb, var(--rarity) 75%, var(--muted));
+}
+
+.loot__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 300px;
+  perspective: 1100px;
+}
+
+.loot__card {
+  position: relative;
+  width: 210px;
+  height: 290px;
+  transform-style: preserve-3d;
+  z-index: 2;
+}
+
+.loot__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 16px;
+  backface-visibility: hidden;
+  border: 1px solid color-mix(in srgb, var(--rarity) 45%, transparent);
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+}
+
+/* --- Le dos ----------------------------------------------------------- */
+
+.loot__back {
+  transform: rotateY(180deg);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg, var(--panel-high), var(--panel));
+  color: color-mix(in srgb, var(--rarity) 70%, transparent);
+}
+
+.loot__sigil {
+  font-size: 46px;
+  animation: loot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loot-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* --- La face ---------------------------------------------------------- */
+
+.loot__front {
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--rarity) 26%, transparent), transparent 65%),
+    linear-gradient(165deg, var(--panel-high), var(--panel));
+  text-align: center;
+}
+
+/* La lueur exterieure n'apparait qu'une fois la carte ouverte : avant, elle
+   vendrait la meche. */
+.loot__card--open .loot__front {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rarity) 55%, transparent),
+    0 0 60px -10px color-mix(in srgb, var(--rarity) 85%, transparent);
+}
+
+/* Une epique et une legendaire portent une lueur nettement plus large. La
+   rarete doit se voir a deux metres, avant meme de lire le mot — c'est la
+   graduation par importance que recommande `game-feel`. */
+.loot__card--epique.loot__card--open .loot__front {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rarity) 70%, transparent),
+    0 0 90px -6px color-mix(in srgb, var(--rarity) 95%, transparent);
+}
+
+.loot__card--legendaire.loot__card--open .loot__front {
+  box-shadow:
+    0 0 0 2px var(--rarity),
+    0 0 40px -4px color-mix(in srgb, var(--rarity) 90%, transparent),
+    0 0 160px 6px color-mix(in srgb, var(--rarity) 55%, transparent);
+}
+
+/* Un liseré qui balaie la carte, uniquement sur la legendaire. */
+.loot__card--legendaire.loot__card--open .loot__front::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 45%,
+      color-mix(in srgb, var(--rarity) 38%, transparent) 50%, transparent 55%);
+  animation: loot-sweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes loot-sweep {
+  0%, 100% { transform: translateX(-120%); }
+  50% { transform: translateX(120%); }
+}
+
+.loot__rarity {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rarity);
+}
+
+.loot__glyph {
+  font-size: 58px;
+  line-height: 1;
+  color: var(--rarity);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--rarity) 70%, transparent);
+}
+
+.loot__name {
+  font-size: 25px;
+  line-height: 1.05;
+}
+
+.loot__kind { font-size: 11.5px; }
+
+.loot__dup {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* Une legendaire respire, meme a l'arret. Reserve a elle seule : si tout
+   scintille, plus rien ne scintille. */
+.loot__card--legendaire.loot__card--open .loot__front {
+  animation: loot-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes loot-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.14); }
+}
+
+.loot__next { min-width: 180px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loot__sigil,
+  .loot__card--legendaire.loot__card--open .loot__front,
+  .loot__card--legendaire.loot__card--open .loot__front::after { animation: none; }
+  .loot__card--legendaire.loot__card--open .loot__front::after { opacity: 0; }
+}
