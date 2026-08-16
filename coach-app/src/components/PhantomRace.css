@@ -1,0 +1,137 @@
+/* La course contre le fantome. Deux traits, un curseur, une phrase.
+   Aucun rouge quand on est derriere : le §0.2 interdit de transformer un fait
+   en reproche, et le rose du theme signale un bouclier consomme — l'emprunter
+   ici brouillerait les deux signaux. */
+.race {
+  position: relative;
+  padding: 14px 16px 12px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)), var(--panel);
+  border: 1px solid var(--line);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.race__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.race__ref {
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race__line {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+/* Devant : l'accent de saison. Derriere : le texte normal. La difference est
+   une mise en valeur, jamais une alarme. */
+.race--ahead .race__line { color: var(--accent); }
+
+/* --- Le trace --------------------------------------------------------- */
+
+.race__chart {
+  position: relative;
+  height: 74px;
+  margin-top: 10px;
+}
+
+.race__chart svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.race__path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.race__path--phantom {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.race__path--mine {
+  stroke: var(--accent);
+  stroke-width: 2.25;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 65%, transparent));
+}
+
+/* Le curseur du jour, meme vocabulaire que la jauge du soir : un trait fin et
+   lumineux qui dit « on en est la ». */
+.race__now {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 8px var(--accent);
+  pointer-events: none;
+}
+
+.race__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.race__key { display: inline-flex; align-items: center; gap: 6px; }
+
+.race__key::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.race__key--mine { color: var(--accent); }
+.race__key--mine::before { background: var(--accent); }
+
+.race__key--phantom { color: var(--dim); }
+.race__key--phantom::before {
+  background: repeating-linear-gradient(90deg, var(--dim) 0 3px, transparent 3px 6px);
+}
+
+.race__day { font-size: 11px; color: var(--muted); }
+
+/* --- Le modificateur de saison ---------------------------------------- */
+
+/* Affiche en permanence (§12.5) : un modificateur choisi il y a trois semaines
+   et oublie produit des chiffres inexplicables, et un chiffre inexplicable
+   detruit la confiance plus vite qu'une regle dure. */
+.modifier {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-left: 2px solid color-mix(in srgb, var(--turquoise) 60%, transparent);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modifier__name {
+  flex: none;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--turquoise);
+}
+
+.modifier__effet { color: var(--muted); }

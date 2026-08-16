@@ -36,6 +36,7 @@ class XpBreakdown:
     early: int = 0
     streak_multiplier: float = 1.0
     momentum_multiplier: float = 1.0
+    modifier_multiplier: float = 1.0
     degressivity: float = 1.0
     total: int = 0
     notes: list[str] = field(default_factory=list)
@@ -51,6 +52,8 @@ def session_xp(
     days_worked_this_week: int = 1,
     momentum_multiplier: float | None = None,
     early_bonus_ratio: float = 0.0,
+    modifier_multiplier: float = 1.0,
+    full_xp_sessions: int = 3,
 ) -> XpBreakdown:
     """XP d'une session terminée.
 
@@ -65,6 +68,11 @@ def session_xp(
     ``early_bonus_ratio`` est la prime de la relique « Lampe de l'aube » (§12.8).
     Elle ne s'applique **qu'au bonus matinal**, jamais au total : une relique
     reste modérée, et une prime sur le total serait un multiplicateur déguisé.
+
+    ``modifier_multiplier`` et ``full_xp_sessions`` viennent du modificateur de
+    saison (§12.5). Ils valent 1.0 et 3 par défaut, donc une saison sans
+    modificateur calcule exactement comme avant — c'est ce qui permet d'ajouter
+    la mécanique sans changer les parties déjà jouées.
     """
     b = XpBreakdown()
     b.base = max(0, int(minutes))
@@ -79,10 +87,17 @@ def session_xp(
         momentum_multiplier if momentum_multiplier is not None
         else momentum(days_worked_this_week)
     )
-    b.degressivity = degressivity_for(rank_in_day)
+    b.degressivity = degressivity_for(rank_in_day, full_xp_sessions)
+    b.modifier_multiplier = max(0.0, modifier_multiplier)
 
     raw = (b.base + b.first_of_day + b.early)
-    b.total = round(raw * b.streak_multiplier * b.momentum_multiplier * b.degressivity)
+    b.total = round(
+        raw
+        * b.streak_multiplier
+        * b.momentum_multiplier
+        * b.modifier_multiplier
+        * b.degressivity
+    )
 
     if b.degressivity == 0.0:
         b.notes.append(
@@ -94,11 +109,22 @@ def session_xp(
     return b
 
 
-def degressivity_for(rank_in_day: int) -> float:
+def degressivity_for(rank_in_day: int, full_sessions: int = 3) -> float:
+    """Le plafond de régime (§0.2). ``full_sessions`` vient du modificateur.
+
+    Le modificateur « Fragmentation » ouvre une quatrième session à plein tarif
+    (§12.5). Le plafond ne disparaît pas pour autant : il se décale d'un cran,
+    et la session suivante tombe à moitié comme avant. Un modificateur qui
+    supprimerait le plafond supprimerait la réponse au diagnostic du §0.2.
+    """
     if rank_in_day < 1:
         raise ValueError("rank_in_day commence à 1")
-    if rank_in_day <= len(DEGRESSIVITY):
-        return DEGRESSIVITY[rank_in_day - 1]
+
+    pleines = max(1, full_sessions)
+    if rank_in_day <= pleines:
+        return 1.0
+    if rank_in_day == pleines + 1:
+        return 0.5
     return 0.0
 
 

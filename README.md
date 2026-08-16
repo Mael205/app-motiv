@@ -76,11 +76,11 @@ s'il arrive et passe la porte de qualité.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 429 tests, l'API
+cd coach-api && .venv/Scripts/python -m pytest      # 454 tests, l'API
 .venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
 ```
 
-453 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+478 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -171,6 +171,17 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   reliques gagnées par haut fait et plafonnées à trois, et une jauge de
   momentum qui **tiédit sans s'éteindre** : deux jours manqués pour effacer un
   jour fait, jamais l'inverse.
+- **Modificateurs de saison appliqués (§12.5)** : « Aube » paie le matin,
+  « Marathon » paie les longues et ferme le mode dégradé, « Fragmentation »
+  ouvre une quatrième session à plein tarif sans supprimer le plafond, « Siège »
+  gonfle le boss et double la mise. Une clé inconnue reste neutre, et le neutre
+  calcule exactement comme avant — ajouter la mécanique ne change pas les
+  parties déjà jouées.
+- **Fantôme de saison (§12.7)** : deux courbes cumulées côte à côte, la tienne
+  s'arrêtant aujourd'hui et celle du fantôme allant jusqu'au bout — on voit où
+  l'adversaire *sera*. Comparé en minutes travaillées et non en XP : l'XP porte
+  des multiplicateurs qui diffèrent d'une saison à l'autre, et comparer des XP
+  reviendrait à comparer des règles plutôt que du travail.
 - **La frontière du loot est tenue par des tests**, pas par une intention :
   aucune carte n'a d'effet, les cartes et les reliques ne partagent aucune
   table, et équiper un cosmétique ne peut toucher aucune session. Le §17 pose

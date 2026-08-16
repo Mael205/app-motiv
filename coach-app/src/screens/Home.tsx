@@ -4,6 +4,7 @@ import { DecisionBlock } from '../components/DecisionBlock'
 import { GardePanel } from '../components/GardePanel'
 import { MomentumEmber } from '../components/MomentumEmber'
 import { NightHud } from '../components/NightHud'
+import { PhantomRace } from '../components/PhantomRace'
 import { RelaxGate } from '../components/RelaxGate'
 import { RoutinePanel } from '../components/RoutinePanel'
 import { SeasonBanner } from '../components/SeasonBanner'
@@ -60,6 +61,15 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
         {/* Consultatif : dans le rail a gauche sur grand ecran, mais rejete
             APRES la decision sur telephone — voir la note de mise en page. */}
         <div className="deck__consult">
+          {state.modifier?.active && (
+            <p className="modifier">
+              <span className="modifier__name">{state.modifier.name}</span>
+              <span className="modifier__effet">{state.modifier.effet}</span>
+            </p>
+          )}
+
+          {state.phantom && <PhantomRace phantom={state.phantom} />}
+
           {state.momentum && <MomentumEmber momentum={state.momentum} />}
 
           {grown.length > 0 && (

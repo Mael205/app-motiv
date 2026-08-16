@@ -276,6 +276,8 @@ export interface HomeState {
   proposal: Proposal | null
   momentum: Momentum
   skills: SkillBranch[]
+  phantom: Phantom | null
+  modifier: SeasonModifier | null
   quests: Quest[]
   entretien: EntretienPanel
   gardes: GardesPanel
@@ -313,6 +315,29 @@ export interface SessionResult {
   branch_tier: BranchTier | null
   cards: LootCardDrawn[]
   relics: RelicGranted[]
+}
+
+export interface Phantom {
+  line: string
+  available: boolean
+  ahead: boolean
+  delta: number
+  mine: number
+  theirs: number
+  reference: string
+  choice: 'meilleure' | 'derniere' | 'moyenne'
+  choice_label: string
+  series: { day: number; mine: number | null; phantom: number | null }[]
+  day_index: number
+  days_total: number
+}
+
+export interface SeasonModifier {
+  key: string
+  name: string
+  effet: string
+  line: string
+  active: boolean
 }
 
 export interface Momentum {

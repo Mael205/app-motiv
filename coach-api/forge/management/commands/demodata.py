@@ -69,6 +69,7 @@ class Command(BaseCommand):
             # donc démonter dans l'ordre, explicitement.
             Session.objects.filter(user=existant).delete()
             Project.objects.filter(user=existant).delete()
+            Routine.objects.filter(user=existant).delete()
             Track.objects.filter(user=existant).delete()
             existant.delete()
             self.stdout.write("ancien état demo supprimé")
@@ -81,6 +82,14 @@ class Command(BaseCommand):
 
         atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
         corps, _ = Track.objects.get_or_create(user=user, kind=Track.CORPS)
+
+        # Une saison close avant la courante : sans elle le fantome du §12.7
+        # n'a aucun adversaire, et on ne verrait jamais le trace de la course.
+        passee = services.open_season(user, starts_on=today - timedelta(days=45), stake=100)
+        passee.status = passee.CLOSED
+        passee.ends_on = today - timedelta(days=18)
+        passee.save(update_fields=["status", "ends_on"])
+
         services.open_season(user, starts_on=today - timedelta(days=9), stake=120)
         saison = services.current_season(user, today=today)
 

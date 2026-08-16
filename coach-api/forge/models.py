@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from forge.rules import gardes as rules_gardes
 from forge.rules import loot as rules_loot
+from forge.rules import phantom as rules_phantom
 from forge.rules import relics as rules_relics
 from forge.rules import routines as rules_routines
 from forge.rules import signals as rules_signals
@@ -208,6 +209,15 @@ class Season(models.Model):
     stake_shards = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=16, choices=STATUSES, default=RUNNING)
     title_awarded = models.CharField(max_length=120, blank=True)
+    # Contre quoi on court cette saison (§12.7). Choisi à l'ouverture, figé
+    # ensuite : pouvoir changer d'adversaire en cours de route reviendrait à
+    # renégocier l'objectif, ce que le fantôme existe précisément pour empêcher.
+    phantom_choice = models.CharField(
+        max_length=16,
+        choices=[(c, rules_phantom.CHOIX_LABELS[c]) for c in rules_phantom.CHOIX],
+        default=rules_phantom.MEILLEURE,
+    )
+    final_score = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = ("user", "index")

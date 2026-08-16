@@ -34,7 +34,9 @@ from .models import (
     Session,
 )
 from .rules import loot as loot_rules
+from .rules import modifiers as modifier_rules
 from .rules import momentum as momentum_rules
+from .rules import phantom as phantom_rules
 from .rules import relics as relic_rules
 from .rules import skills as skill_rules
 from .rules.calendar import week_start
@@ -420,3 +422,97 @@ def close_week(user, *, week: date, rng: random.Random | None = None) -> dict:
 def _all_kept(user, week: date) -> bool:
     engagements = Commitment.objects.filter(project__user=user, week_start=week)
     return bool(engagements) and all(c.kept for c in engagements)
+
+
+# --------------------------------------------------------------------------
+# Le fantôme de saison (§12.7)
+# --------------------------------------------------------------------------
+
+def _season_curve(user, season) -> phantom_rules.Curve:
+    """La courbe cumulée d'une saison, en minutes travaillées par jour.
+
+    En minutes et non en XP : l'XP porte des multiplicateurs de streak, de
+    momentum et de modificateur qui diffèrent d'une saison à l'autre. Comparer
+    des XP reviendrait à comparer des règles plutôt que du travail, et le
+    fantôme doit rester un adversaire, pas un barème.
+    """
+    jours = (season.ends_on - season.starts_on).days + 1
+    par_jour = {
+        ligne["coach_day"]: ligne["total"] or 0
+        for ligne in Session.objects.filter(
+            user=user,
+            status=Session.DONE,
+            coach_day__gte=season.starts_on,
+            coach_day__lte=season.ends_on,
+        )
+        .values("coach_day")
+        .annotate(total=Sum("actual_minutes"))
+    }
+
+    return phantom_rules.Curve(
+        label=season.name,
+        points=phantom_rules.cumulative(
+            [par_jour.get(season.starts_on + timedelta(days=i), 0) for i in range(jours)]
+        ),
+    )
+
+
+def phantom_panel(user, *, today: date) -> dict | None:
+    """La comparaison au fantôme, prête à afficher. ``None`` hors saison."""
+    from .models import Season
+
+    courante = Season.objects.filter(
+        user=user, status=Season.RUNNING, starts_on__lte=today, ends_on__gte=today
+    ).first()
+    if courante is None:
+        return None
+
+    passees = [
+        _season_curve(user, s)
+        for s in Season.objects.filter(user=user, index__lt=courante.index).order_by("index")
+    ]
+    mienne = _season_curve(user, courante)
+    fantome = phantom_rules.pick(passees, courante.phantom_choice)
+
+    jour = courante.day_index(today)
+    ecart = phantom_rules.compare(mienne, fantome, day_index=jour)
+    jours = (courante.ends_on - courante.starts_on).days + 1
+
+    # La courbe personnelle s'arrête **aujourd'hui**. Sans cette coupe elle
+    # continuait à plat jusqu'au dernier jour de la saison, ce qui se lit
+    # « je n'ai rien fait ces dix-huit jours-là » alors que ces jours ne sont
+    # pas encore arrivés. Le fantôme, lui, va jusqu'au bout : c'est ce qui fait
+    # lire le graphique comme une course.
+    tracee = phantom_rules.Curve(mienne.label, mienne.points[: jour + 1])
+
+    return {
+        "line": ecart.line,
+        "available": ecart.available,
+        "ahead": ecart.ahead,
+        "delta": ecart.delta,
+        "mine": ecart.mine,
+        "theirs": ecart.theirs,
+        "reference": ecart.reference,
+        "choice": courante.phantom_choice,
+        "choice_label": phantom_rules.CHOIX_LABELS.get(courante.phantom_choice, ""),
+        "series": phantom_rules.series(tracee, fantome, days=jours),
+        "day_index": jour,
+        "days_total": jours,
+    }
+
+
+def season_modifier(season) -> dict:
+    """Le modificateur en clair, affiché en permanence pendant la saison.
+
+    En permanence et pas seulement à l'ouverture : un modificateur choisi il y a
+    trois semaines et oublié produit des chiffres inexplicables, et un chiffre
+    inexplicable détruit la confiance plus vite qu'une règle dure.
+    """
+    effets = modifier_rules.resolve(getattr(season, "modifier_key", ""))
+    return {
+        "key": effets.key,
+        "name": effets.name,
+        "effet": effets.effet,
+        "line": modifier_rules.describe(effets),
+        "active": effets.active,
+    }

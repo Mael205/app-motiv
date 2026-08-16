@@ -41,6 +41,7 @@ from . import filescan, gitscan, progression
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
+from .rules import modifiers as modifier_rules
 from .rules import ranks as rank_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
@@ -162,10 +163,16 @@ def open_season(user, *, starts_on: date, stake: int = 0) -> Season:
         modifier_key=plan.modifier_key,
         starts_on=plan.starts_on,
         ends_on=plan.ends_on,
-        stake_shards=stake,
+        # « Siège » double la mise et gonfle le boss (§12.5). Appliqué ici, à
+        # l'ouverture, et jamais recalculé ensuite : une saison dont l'enjeu
+        # bougerait en cours de route ne serait plus un engagement.
+        stake_shards=stake * modifier_rules.resolve(plan.modifier_key).stake_multiplier,
     )
     SeasonBoss.objects.create(
-        season=season, key=plan.boss_key, name=plan.boss_name, max_hp=plan.boss_hp
+        season=season,
+        key=plan.boss_key,
+        name=plan.boss_name,
+        max_hp=round(plan.boss_hp * modifier_rules.resolve(plan.modifier_key).boss_hp_multiplier),
     )
     return season
 
@@ -288,6 +295,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     # ne touche au calcul — le §17 interdit qu'un cosmétique devienne du pouvoir.
     chaleur = progression.heat(session.user, today=session.coach_day)
     bonus = progression.relic_bonuses(session.user)
+    effets = modifier_rules.resolve(session.season.modifier_key if session.season else "")
 
     breakdown = xp_rules.session_xp(
         minutes=session.actual_minutes,
@@ -298,6 +306,10 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         days_worked_this_week=days_worked,
         momentum_multiplier=chaleur["multiplier"],
         early_bonus_ratio=bonus.early_xp_bonus,
+        modifier_multiplier=modifier_rules.session_multiplier(
+            effets, minutes=session.actual_minutes, started_hour=local_hour
+        ),
+        full_xp_sessions=effets.full_xp_sessions,
     )
     session.xp_awarded = breakdown.total
     session.xp_breakdown = {
@@ -306,6 +318,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         "early": breakdown.early,
         "streak_multiplier": breakdown.streak_multiplier,
         "momentum_multiplier": breakdown.momentum_multiplier,
+        "modifier_multiplier": breakdown.modifier_multiplier,
         "degressivity": breakdown.degressivity,
         "total": breakdown.total,
         "notes": breakdown.notes,
@@ -317,9 +330,11 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
             session=session, defaults={"raw_note": note, "next_action": next_action}
         )
 
+    piste_corps = session.project.track.kind == Track.CORPS
     damage = round(
         season_rules.damage_of(minutes=session.actual_minutes)
         * (1 + bonus.boss_damage_bonus)
+        * (effets.body_damage_multiplier if piste_corps else 1.0)
     )
     if session.season and hasattr(session.season, "boss"):
         boss = session.season.boss
@@ -539,6 +554,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         "now": now.isoformat(),
         "momentum": progression.heat(user, today=today),
         "skills": progression.skill_tree(user)["branches"],
+        "phantom": progression.phantom_panel(user, today=today),
+        "modifier": progression.season_modifier(season) if season else None,
         "validated_today": minutes_today >= DEGRADED_MINUTES,
         "required_minutes": state.required_minutes,
         "minutes_today": minutes_today,
