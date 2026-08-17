@@ -1,4 +1,9 @@
-/** Sonde web du coach (SPEC §9.1).
+/** Sonde web du coach, et blocage du défilement (SPEC §9.1, §8.5).
+ *
+ * Deux rôles qui ne se parlent pas : mesurer, et bloquer. La mesure part vers
+ * `/api/signals`, le blocage vient de `/api/agent/state`. C'est le serveur qui
+ * décide qu'il est armé — l'extension n'a ni l'heure du gardien, ni l'état du
+ * sas, ni les sanctions du §14, et n'en a pas besoin.
  *
  * Elle compte le temps passé par catégorie sur l'onglet **actif d'une fenêtre
  * ayant le focus**, et s'arrête quand la machine est inactive. Un onglet ouvert
@@ -10,6 +15,7 @@
  */
 
 import { AUTRE, DEFAULT_RULES, categoryOf, toEntries } from './categories.js'
+import { redirection, surfaceMasquee } from './blocking.js'
 
 /** Adaptateur Chrome / Firefox.
  *
@@ -91,6 +97,80 @@ async function flush() {
     // Serveur éteint : le tampon reste, rien n'est perdu.
   }
 }
+
+/* ------------------------------------------------------------------------
+ * Le blocage (SPEC §8.5, §9.1)
+ * ---------------------------------------------------------------------- */
+
+/** Durée de validité de l'état armé.
+ *
+ * L'heure d'armement ne bouge pas d'une minute à l'autre, mais le
+ * **désarmement** doit être rapide : quelqu'un qui vient de faire ses 25
+ * minutes et retourne sur YouTube ne doit pas retomber sur un feed masqué. Une
+ * demi-minute est le compromis — assez court pour que ça ne se remarque pas,
+ * assez long pour ne pas interroger le serveur à chaque clic dans une page.
+ */
+const ETAT_TTL_MS = 30_000
+
+let etat = { arme: false, vu: 0 }
+
+async function etatDuServeur() {
+  if (Date.now() - etat.vu < ETAT_TTL_MS) return etat.arme
+
+  const { apiUrl, token } = await settings()
+  if (!token) return false
+
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, '')}/api/agent/state`, {
+      headers: { 'X-Probe-Token': token },
+    })
+    if (!response.ok) return etat.arme      // on garde le dernier état connu
+    const data = await response.json()
+    etat = { arme: Boolean(data.block_scroll && data.block_scroll.armed), vu: Date.now() }
+    await api.storage.local.set({ armed: etat.arme })
+  } catch {
+    // Serveur éteint : on ne bloque pas plus fort parce qu'on ne sait plus. Un
+    // blocage qui survit à la panne du système qui l'a décidé est un blocage
+    // que plus personne ne peut lever.
+    etat = { arme: false, vu: Date.now() }
+    await api.storage.local.set({ armed: false })
+  }
+  return etat.arme
+}
+
+/** L'état effectif, pause locale comprise.
+ *
+ * La pause est **locale au navigateur** : le serveur reste armé, et c'est
+ * voulu. Lever le blocage n'est pas déclarer la soirée finie — le gardien, la
+ * jauge et les sanctions du §14 ne changent pas d'avis parce qu'on a fermé un
+ * masque de feed.
+ */
+async function bloqueMaintenant() {
+  const { pauseUntil } = await api.storage.local.get('pauseUntil')
+  if (pauseUntil && Date.now() < pauseUntil) return false
+  return etatDuServeur()
+}
+
+api.runtime.onMessage.addListener((message, _sender, repondre) => {
+  if (!message) return false
+
+  if (message.type === 'coach-etat') {
+    // Le panneau demande l'état pour l'afficher : il ne parle d'aucune page.
+    bloqueMaintenant().then((arme) => repondre({ arme }))
+    return true
+  }
+
+  if (message.type !== 'coach-page') return false
+
+  bloqueMaintenant().then((arme) =>
+    repondre({
+      arme,
+      redirection: arme ? redirection(message.url) : null,
+      surface: arme ? surfaceMasquee(message.url) : '',
+    }),
+  )
+  return true                              // réponse asynchrone
+})
 
 api.tabs.onActivated.addListener(refresh)
 api.tabs.onUpdated.addListener((_id, change) => change.url && refresh())

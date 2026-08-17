@@ -1,0 +1,40 @@
+/* Le masquage du feed d'accueil (SPEC §9.1).
+ *
+ * La feuille est toujours injectée, et ne fait rien tant que le script n'a pas
+ * posé l'attribut : c'est le seul moyen d'éviter le clignotement du feed qui
+ * s'affiche une demi-seconde avant d'être caché. Une règle qui arrive après
+ * coup montre exactement ce qu'elle prétend cacher.
+ *
+ * Le masquage vise les conteneurs, pas les vidéos une à une : YouTube renomme
+ * ses classes, mais `ytd-browse[page-subtype=home]` est resté stable et décrit
+ * la seule chose qu'on veut atteindre — la page d'accueil, et elle seule.
+ */
+
+html[data-coach-block='accueil'] ytd-browse[page-subtype='home'] #contents,
+html[data-coach-block='accueil'] ytd-rich-grid-renderer,
+html[data-coach-block='accueil'] ytd-reel-shelf-renderer,
+html[data-coach-block='accueil'] ytd-rich-section-renderer {
+  display: none !important;
+}
+
+/* Le rail de gauche garde ses Shorts en évidence : les enlever évite d'y
+   retourner d'un clic depuis la page où l'on vient d'être renvoyé. */
+html[data-coach-block] ytd-guide-entry-renderer a[title='Shorts'],
+html[data-coach-block] ytd-mini-guide-entry-renderer[aria-label='Shorts'],
+html[data-coach-block] ytd-reel-shelf-renderer {
+  display: none !important;
+}
+
+/* Ce qui remplace le feed. Factuel, sans reproche : le §17 interdit le
+   jugement, et une page qui fait la morale est une page qu'on contourne. */
+html[data-coach-block='accueil'] ytd-browse[page-subtype='home']::before {
+  content: 'Le feed est fermé. La recherche et les vidéos longues restent ouvertes.';
+  display: block;
+  margin: 96px auto 0;
+  max-width: 30rem;
+  padding: 0 24px;
+  font: 400 15px/1.7 system-ui, sans-serif;
+  color: #9a8cae;
+  text-align: center;
+  white-space: pre-line;
+}

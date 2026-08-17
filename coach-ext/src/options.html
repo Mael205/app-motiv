@@ -14,10 +14,23 @@
            border: 0; font-weight: 600; cursor: pointer; }
   .state { margin-top: 12px; font-size: 12px; color: #6b5f7d; }
   .err { color: #de5f7e; }
+  .bloc { margin: 0 0 18px; padding: 12px; background: #120d18;
+          border-left: 2px solid #4fc4b4; }
+  .bloc h2 { font-size: 13px; margin: 0 0 4px; }
+  .bloc p { margin: 0; font-size: 12px; }
+  .bloc button { margin-top: 10px; padding: 7px 12px; background: transparent;
+                 color: #9a8cae; border: 1px solid rgba(237,230,245,.24); font-weight: 400; }
+  .arme { border-left-color: #e8a33d; }
 </style>
 
 <h1>Sonde web</h1>
 <p>Seules des catégories et des durées sont envoyées. Aucune adresse ne quitte ce navigateur.</p>
+
+<div class="bloc" id="bloc">
+  <h2 id="blocTitre">Blocage</h2>
+  <p id="blocEtat"></p>
+  <button id="lever" hidden>Lever le blocage</button>
+</div>
 
 <label for="apiUrl">Adresse de l'API</label>
 <input id="apiUrl" placeholder="http://127.0.0.1:8000" />

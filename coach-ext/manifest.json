@@ -13,6 +13,21 @@
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*"
   ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/block.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
   "background": {
     "scripts": [
       "src/background.js"

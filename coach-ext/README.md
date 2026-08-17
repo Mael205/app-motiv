@@ -1,4 +1,4 @@
-# coach-ext — la sonde web
+# coach-ext — la sonde web et le blocage YouTube
 
 ActivityWatch ne voit souvent que « chrome.exe ». Cette extension voit le
 domaine, et c'est elle qui permet de distinguer réellement une catégorie d'une
@@ -23,6 +23,31 @@ Toutes les 5 minutes, elle envoie des couples `(catégorie, minutes)`.
 
 Et comme partout ailleurs : **une détection marque, une absence de détection ne
 certifie rien** (SPEC §11.10). L'extension ne déclare jamais une journée tenue.
+
+## Ce qu'elle bloque, quand elle est armée
+
+L'extension demande son état à `/api/agent/state` — c'est le serveur qui décide,
+à la fin du sas de détente, à l'heure du gardien, ou plus tôt si une sanction du
+§14 avance le palier. L'extension n'a aucune de ces règles et n'en a pas besoin.
+
+Armée, elle fait deux choses sur YouTube, et rien ailleurs :
+
+- **`/shorts/<id>` renvoie vers `/watch?v=<id>`.** La vidéo reste accessible ;
+  c'est le défilement qui disparaît. Le lien vers Shorts est aussi retiré du
+  rail de gauche, sinon on y retourne d'un clic depuis la page d'arrivée.
+- **Le feed d'accueil est masqué**, remplacé par une ligne factuelle.
+
+Ce qui n'est **jamais** touché : la recherche, les vidéos longues, les
+abonnements, et tout le reste du web. Le §17 interdit de bloquer ce qui n'est
+pas du scroll passif — un blocage qui empêcherait de chercher une réponse
+technique à 21h punirait le travail, et serait désinstallé dans la semaine.
+
+**La porte de sortie**, exigée par le §8.5 : le panneau de l'extension a un
+bouton « Lever le blocage ». Deux clics, avec soixante secondes entre les deux,
+et le blocage se lève pour deux heures — assez pour une soirée, et demain repart
+armé. La friction suffit, l'emprisonnement non. La levée est locale au
+navigateur : le serveur, lui, reste armé, et le gardien ne change pas d'avis
+parce qu'on a fermé un masque de feed.
 
 ## Installation
 
@@ -88,6 +113,9 @@ laisse-la vide et garde cette garde en déclaration manuelle.
 - **Non empaquetée.** Chrome affichera un avertissement au démarrage tant que
   l'extension est chargée en mode développeur. Sous Firefox, elle est retirée
   à chaque fermeture du navigateur.
-- Le blocage des Shorts et du feed d'accueil (§9.1) n'est **pas** dans cette
-  version : il dépend de l'état « armé » côté serveur, et un blocage permanent
-  serait contraire au §17. Il viendra avec le sas de détente.
+- **Le blocage ne couvre que YouTube.** TikTok, X, Instagram et Reddit sont des
+  domaines pleins : le §8.5 les confie au fichier hosts, donc à l'agent. Une
+  extension ne les fermerait que dans le navigateur où elle est installée.
+- Si le serveur est injoignable, **rien n'est bloqué**. Un blocage qui survit à
+  la panne du système qui l'a décidé est un blocage que plus personne ne peut
+  lever.
