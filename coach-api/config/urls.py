@@ -11,6 +11,7 @@ urlpatterns = [
     # si la messagerie l'a mutilé.
     path("l/<str:token>", views.action_link_page),
     path("api/links", api.issue_link),
+    path("api/detections", api.detections_view),
     path("api/weekly", api.weekly_reports),
     path("api/weekly/disable", api.weekly_disable),
     path("api/links/<str:token>", api.action_link),

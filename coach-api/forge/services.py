@@ -391,6 +391,13 @@ def start_session(
     rank = Session.objects.filter(user=user, coach_day=today, status=Session.DONE).count() + 1
     mode = Session.DEGRADED if planned_minutes <= DEGRADED_MINUTES else Session.NORMAL
 
+    # L'étape courante commence maintenant, si elle n'avait pas déjà commencé.
+    # C'est le seul moment où le système sait qu'on travaille dessus, et le
+    # §13.5 en a besoin pour repérer une étape figée depuis trois semaines.
+    etape = project.current_step
+    if etape and etape.doing_since is None:
+        RoadmapStep.objects.filter(pk=etape.pk).update(doing_since=now)
+
     return Session.objects.create(
         user=user,
         project=project,

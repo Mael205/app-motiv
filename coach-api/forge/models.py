@@ -158,6 +158,11 @@ class RoadmapStep(models.Model):
     state = models.CharField(max_length=8, choices=STATES, default=TODO)
     estimated_sessions = models.PositiveSmallIntegerField(default=1)
     done_at = models.DateTimeField(null=True, blank=True)
+    # Quand on a commencé à travailler dessus. Posé à la première session sur le
+    # projet pendant que l'étape est courante, jamais par un geste explicite —
+    # le §13.5 veut détecter une étape figée depuis trois semaines, et une date
+    # que l'utilisateur devrait déclarer ne serait jamais déclarée.
+    doing_since = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("order", "id")

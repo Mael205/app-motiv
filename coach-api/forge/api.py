@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, links, progression, season_flow, services, weekly
+from . import coaching, detections, links, progression, season_flow, services, weekly
 from .models import (
     ActionLink,
     FridgeIdea,
@@ -414,6 +414,28 @@ def fridge(request):
         [
             {"id": i.id, "text": i.text, "created_at": i.created_at.isoformat()}
             for i in FridgeIdea.objects.filter(user=request.user, promoted_at__isnull=True)
+        ]
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def detections_view(request):
+    """Les constats du §13.5, déjà faits, dans l'ordre où ils comptent.
+
+    Ils ne décident rien : chacun porte une proposition, et la proposition
+    attend un geste. Le §17 interdit qu'un système retire un projet ou baisse un
+    engagement de lui-même.
+    """
+    return Response(
+        [
+            {
+                "kind": d.kind,
+                "constat": d.constat,
+                "proposition": d.proposition,
+                "donnees": d.donnees,
+            }
+            for d in detections.toutes(request.user, today=_today(request))
         ]
     )
 
