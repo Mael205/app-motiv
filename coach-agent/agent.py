@@ -20,6 +20,10 @@ Deux sources, toutes deux en lecture seule :
 La catégorisation se fait **ici**, avec `categories.toml`, avant tout envoi.
 Le serveur reçoit « reseaux : 14 minutes » et n'apprend jamais lequel.
 
+L'agent **relaie** aussi l'état armé du blocage au service élevé (voir
+`blocage.py`), sans jamais toucher lui-même au fichier hosts : il n'a pas les
+droits, et le §8 veut qu'il ne les ait pas.
+
 Usage :
 
     python agent.py --once            # un cycle, pour vérifier que ça marche
@@ -36,6 +40,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import adguard
+import blocage
 import profiles as profiles_module
 import toast
 from collections import defaultdict
@@ -397,6 +402,9 @@ def cycle(
         else:
             suivre_session(config, etat, suivi, liste_blanche)
             afficher_notifications(etat, suivi)
+            ordre = blocage.synchroniser(etat)
+            if verbose and ordre:
+                print(f"Blocage : {ordre}.")
 
     poll_adguard(config, categoriser, since=since, verbose=verbose)
 

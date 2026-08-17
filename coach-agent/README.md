@@ -23,6 +23,8 @@ sur cette machine, dans un fichier que tu es seul à éditer. Le serveur reçoit
   appareils du réseau, téléphone compris.
 - Catégorise localement, agrège, poste sur `/api/signals`.
 - Les gardes dont la catégorie a été détectée sont **marquées automatiquement**.
+- **Relaie l'état armé du blocage** au service élevé, sans jamais toucher
+  elle-même au fichier hosts — voir plus bas.
 
 ## Ce qu'elle ne fait pas, et ne fera pas
 
@@ -110,6 +112,67 @@ le temps entre les deux n'a pas été travaillé.
 **Sans mesure d'activité, rien n'est clôturé.** C'est la même asymétrie qu'au
 §11.10 : fermer une session sur une absence de données effacerait du travail
 réel, et cette faute-là est invisible.
+
+## Blocage des domaines pleins
+
+L'extension ferme YouTube — elle sait distinguer un Short d'une vidéo longue.
+Ici on ferme des **domaines entiers** : TikTok, X, Instagram, Reddit. Le fichier
+hosts couvre tous les navigateurs, tous les profils, la navigation privée, et
+les applications de bureau qui parlent aux mêmes serveurs.
+
+Écrire dans hosts demande les droits administrateur, et **l'agent ne doit pas
+les avoir** (SPEC §8). D'où deux processus :
+
+| Qui | Droits | Ce qu'il peut faire |
+|---|---|---|
+| `agent.py` | utilisateur normal | envoyer `block` ou `unblock` sur un tube local |
+| `blocage.py --service` | administrateur | ces deux ordres, et rien d'autre |
+
+Le service ne reçoit **jamais de liste de domaines** : il la lit lui-même dans
+`categories.toml`, sur cette machine. Un tube compromis ne peut donc pas faire
+fermer un domaine arbitraire — il ne peut que rejouer l'un des deux mots.
+
+Vérifie d'abord ce qui serait fermé :
+
+```bash
+python blocage.py --liste
+```
+
+Les chemins sont écartés : `youtube.com/shorts` n'apparaît pas, parce qu'un
+fichier hosts ne sait pas fermer un chemin et que l'y mettre sans son chemin
+fermerait YouTube en entier — ce que le §9.1 interdit.
+
+### Installer le service
+
+À faire une fois, dans un terminal **administrateur** :
+
+```powershell
+$py = "C:\Dev\app-motiv\coach-api\.venv\Scripts\pythonw.exe"
+$sc = "C:\Dev\app-motiv\coach-agent\blocage.py"
+schtasks /create /tn "Coach — blocage" /tr "`"$py`" `"$sc`" --service" `
+         /sc onstart /ru SYSTEM /rl HIGHEST /f
+schtasks /run /tn "Coach — blocage"
+```
+
+Une tâche planifiée plutôt qu'un vrai service Windows : même élévation, même
+démarrage automatique, et pas de couche `pywin32` à installer pour la seule
+raison d'apparaître dans `services.msc`.
+
+### Lever le blocage
+
+```bash
+python blocage.py --lever
+```
+
+Soixante secondes d'attente, puis deux heures de répit. C'est le §8.5 :
+« Toujours désactivable en 2 clics avec temporisation de 60 secondes — la
+friction suffit, l'emprisonnement non. » L'attente est le mécanisme, pas un
+délai technique : elle laisse passer l'impulsion. Fais-en un raccourci sur le
+bureau, et les deux clics y sont.
+
+La levée est locale à la machine. Le serveur, lui, reste armé : le gardien, la
+jauge et les sanctions du §14 ne changent pas d'avis parce qu'un fichier hosts a
+été vidé.
 
 ## AdGuard Home — couvrir le téléphone sans app Android
 
