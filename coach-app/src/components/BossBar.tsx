@@ -45,7 +45,7 @@ export function BossBar({
         <motion.div
           className="boss__fill"
           initial={false}
-          animate={{ width: `${percent}%` }}
+          animate={{ scaleX: percent / 100 }}
           transition={{ type: 'spring', stiffness: 120, damping: 24 }}
         />
         <div className="boss__segments" aria-hidden>

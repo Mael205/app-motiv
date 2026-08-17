@@ -68,10 +68,36 @@
   width: 100%;
   min-height: 2px;
   background: var(--line-strong);
+  /* Elles poussent depuis le bas, en cascade de gauche à droite : c'est la
+     lecture d'un histogramme, et la voir se construire fait remarquer la
+     colonne la plus haute avant même de chercher la charnière.
+     `scaleY` et non `height` — une hauteur animée recalcule la mise en page à
+     chaque image, sur quarante-huit colonnes. */
+  transform-origin: bottom center;
+  animation: fuite-pousse 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--rang, 0) * 18ms);
 }
 
+@keyframes fuite-pousse {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* La charnière se déclare après les autres : quand toutes les barres sont en
+   place, elle prend sa couleur. Sans ce décalage, on la verrait avant d'avoir
+   vu ce à quoi elle se compare. */
 .fuite__barre--pivot {
-  background: var(--accent);
+  animation:
+    fuite-pousse 0.5s cubic-bezier(0.22, 1, 0.36, 1) both,
+    fuite-charniere 0.4s var(--ease-out) 0.55s both;
+}
+
+@keyframes fuite-charniere {
+  from { background: var(--line-strong); box-shadow: none; }
+  to {
+    background: var(--accent);
+    box-shadow: 0 0 18px -4px var(--accent);
+  }
 }
 
 .fuite__heure {
@@ -106,4 +132,41 @@
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--dim);
+}
+
+
+/* Le détail se déplie depuis l'en-tête, il n'apparaît pas ailleurs.
+   `clip-path` plutôt qu'une hauteur : le contenu garde sa place dans le flux
+   dès la première image, donc rien ne saute sous lui pendant l'ouverture. */
+.fuite__detail {
+  animation: fuite-deplie 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fuite-deplie {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    transform: translate3d(0, -6px, 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+/* La flèche d'état de l'en-tête : elle dit dans quel sens ça va s'ouvrir. */
+.fuite__resume {
+  transition: color 160ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fuite__entete:hover .fuite__resume { color: var(--accent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fuite__detail,
+  .fuite__barre,
+  .fuite__barre--pivot { animation: none; }
+  .fuite__barre--pivot { background: var(--accent); }
 }

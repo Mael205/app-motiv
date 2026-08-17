@@ -83,7 +83,11 @@
 
 .xpbar__fill {
   position: absolute;
-  inset: 0 auto 0 0;
+  /* `scaleX` et non `width` : une largeur animée recalcule la mise en page à
+     chaque image. Le dégradé est vertical, donc l'étirement horizontal ne le
+     déforme pas — c'est ce qui rend la conversion gratuite ici. */
+  inset: 0;
+  transform-origin: left center;
   background: linear-gradient(180deg,
       color-mix(in srgb, var(--accent) 100%, white 30%),
       var(--accent) 55%,

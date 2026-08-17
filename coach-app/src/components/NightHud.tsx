@@ -48,7 +48,7 @@ export const NightHud = memo(function NightHud({
             <motion.div
               className="minibar__fill"
               initial={false}
-              animate={{ width: `${floorRatio * 100}%` }}
+              animate={{ scaleX: floorRatio }}
               transition={{ type: 'spring', stiffness: 120, damping: 22 }}
             />
           </div>
@@ -71,7 +71,7 @@ export const NightHud = memo(function NightHud({
               <motion.div
                 className="minibar__fill"
                 initial={false}
-                animate={{ width: `${boss.ratio * 100}%` }}
+                animate={{ scaleX: boss.ratio }}
                 transition={{ type: 'spring', stiffness: 120, damping: 24 }}
               />
               <div className="minibar__segments" aria-hidden>

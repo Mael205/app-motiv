@@ -204,9 +204,68 @@ export const sfx = {
     souffle({ duree: 1.6, gain: 0.06, coupure: 400, vers: 3000 })
   },
 
-  /** Le retournement d'une carte : un souffle court, commun à toutes les raretés. */
+  /** Le palier d'une branche de compétences (§12.9).
+   *
+   * Il partageait le son de fin de session — un accord qui **descend**, ce qui
+   * est juste pour poser un travail et faux pour franchir un palier. Ce qui
+   * monte se lit comme un gain ; ce qui descend se lit comme une clôture, et
+   * l'oreille ne se trompe jamais là-dessus.
+   *
+   * Le timbre est celui d'une enclume : une attaque métallique très courte, deux
+   * notes qui montent d'une quinte, et une queue brillante. Une branche est un
+   * métier qu'on pousse d'un cran — c'est le seul son du produit qui a du
+   * marteau dedans.
+   */
+  branchTier() {
+    souffle({ duree: 0.09, gain: 0.13, coupure: 5200, q: 2.4 })
+    note({ freq: MI4, duree: 0.28, gain: 0.16, type: 'square', attaque: 0.004 })
+    note({ freq: LA4, duree: 0.5, gain: 0.13, type: 'triangle', retard: 0.085, vers: LA4 * 1.005 })
+    note({ freq: MI5, duree: 0.9, gain: 0.05, type: 'sine', retard: 0.1, attaque: 0.06 })
+  },
+
+  /** Une relique (§12.8). Elle ne se gagne pas, elle se **trouve**.
+   *
+   * D'où un son qui ne ressemble à aucune récompense : pas d'attaque, pas
+   * d'arpège, pas de brillance. Une quinte grave qui s'ouvre lentement, et une
+   * harmonique qui monte par-dessous comme quelque chose qui se réveille. C'est
+   * le seul son sans percussion du lot, et c'est ce qui le rend reconnaissable
+   * les yeux fermés.
+   */
+  relic() {
+    note({ freq: LA3 / 2, duree: 1.6, gain: 0.17, type: 'sine', attaque: 0.35 })
+    note({ freq: MI4 / 2, duree: 1.5, gain: 0.12, type: 'sine', attaque: 0.45, retard: 0.12 })
+    note({ freq: LA4, duree: 1.3, gain: 0.05, type: 'triangle', attaque: 0.7, retard: 0.2, vers: DO5 })
+    souffle({ duree: 1.2, gain: 0.035, coupure: 240, vers: 1400, q: 0.5, retard: 0.1 })
+  },
+
+  /** Le retournement d'une **rare** : le souffle sec d'une carte qu'on tourne. */
   cardFlip() {
     souffle({ duree: 0.17, gain: 0.09, coupure: 3200, vers: 800, q: 1.1 })
+  },
+
+  /** Une **commune** se pose, elle ne s'ouvre pas : un contact mat, très court. */
+  cardSlide() {
+    souffle({ duree: 0.07, gain: 0.07, coupure: 900, q: 1.6 })
+  },
+
+  /** Une **épique** se fend : une déchirure, deux fois plus longue que le flip. */
+  cardSplit() {
+    souffle({ duree: 0.34, gain: 0.12, coupure: 700, vers: 4800, q: 0.8 })
+    note({ freq: 140, duree: 0.3, gain: 0.1, type: 'sawtooth', vers: 320 })
+  },
+
+  /** Une **légendaire** se brise : trois éclats qui partent, et un sub qui tombe. */
+  cardShatter() {
+    ;[0, 0.045, 0.11].forEach((retard, i) => {
+      souffle({
+        duree: 0.22 - i * 0.05,
+        gain: 0.13 - i * 0.03,
+        coupure: 6400 - i * 1500,
+        q: 3.2,
+        retard,
+      })
+    })
+    note({ freq: 120, duree: 0.8, gain: 0.22, type: 'sine', vers: 42 })
   },
 
   /** La charge d'une légendaire : un grondement montant, pendant le suspense. */

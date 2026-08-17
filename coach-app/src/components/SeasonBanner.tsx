@@ -106,7 +106,7 @@ export const SeasonBanner = memo(function SeasonBanner({
             <motion.div
               className="xpbar__fill"
               initial={false}
-              animate={{ width: `${progression.ratio * 100}%` }}
+              animate={{ scaleX: progression.ratio }}
               transition={{ type: 'spring', stiffness: 90, damping: 20 }}
             />
             <div className="xpbar__shine" />

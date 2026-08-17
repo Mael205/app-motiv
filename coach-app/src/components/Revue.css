@@ -145,3 +145,62 @@
   color: var(--dim);
   font-size: 12.5px;
 }
+
+
+/* Une réponse enregistrée se **pose** : elle remplace le champ de saisie, et le
+   liseré turquoise se dessine de haut en bas comme un trait qu'on tire. Sans
+   ce geste, la réponse apparaît et on doute d'avoir cliqué. */
+.revue__reponse {
+  animation: revue-posee 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes revue-posee {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0);
+    border-left-color: transparent;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    border-left-color: var(--turquoise);
+  }
+}
+
+/* Les questions arrivent en cascade, comme les constats : elles se lisent dans
+   l'ordre, et l'ordre est celui du plus daté au plus général. */
+.revue__q {
+  animation: revue-question 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.revue__q:nth-child(3) { animation-delay: 0.05s; }
+.revue__q:nth-child(4) { animation-delay: 0.1s; }
+.revue__q:nth-child(5) { animation-delay: 0.15s; }
+.revue__q:nth-child(n + 6) { animation-delay: 0.2s; }
+
+@keyframes revue-question {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Le bloc « la seule chose à changer » se distingue jusque dans son arrivée :
+   il entre après les deux autres et retient une fraction de seconde de plus. */
+.revue__bloc--seul {
+  animation: revue-question 0.5s cubic-bezier(0.16, 1.2, 0.3, 1) 0.12s both;
+}
+
+.revue__saisie textarea {
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.revue__saisie textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .revue__reponse,
+  .revue__q,
+  .revue__bloc--seul { animation: none; }
+}

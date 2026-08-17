@@ -27,7 +27,7 @@ export function Roadmap({
         <motion.div
           className="rm__rail-done"
           initial={false}
-          animate={{ height: `${progress * 100}%` }}
+          animate={{ scaleY: progress }}
           transition={{ type: 'spring', stiffness: 90, damping: 22 }}
         />
       </div>

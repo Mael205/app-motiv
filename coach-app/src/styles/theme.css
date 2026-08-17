@@ -353,3 +353,72 @@ body.terne .cta {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Micro-interactions : ce qui répond au doigt ------------------------ */
+
+/* Toute chose tapable s'enfonce, et s'enfonce **tout de suite**. Le §7 interdit
+   l'animation sur le chemin critique : la règle ne dit pas « pas de retour »,
+   elle dit « pas d'attente ». Un enfoncement à 0 ms ne retarde rien et rend
+   l'interface tangible.
+   `touch-action: manipulation` supprime les 300 ms d'attente du double-tap
+   mobile — c'est le plus gros gain de réactivité perçue du fichier. */
+button,
+[role='button'],
+a.ghost {
+  touch-action: manipulation;
+}
+
+.ghost {
+  transition: color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+    transform 120ms var(--ease-out);
+}
+
+.ghost:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0ms;
+}
+
+/* Le survol n'existe que là où il y a un vrai pointeur : sans ce garde, un
+   téléphone rejoue l'état de survol au doigt levé et le bouton reste allumé. */
+@media (hover: hover) and (pointer: fine) {
+  .ghost:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--line-strong);
+  }
+}
+
+/* Le focus clavier se voit, toujours. Un anneau qui suit la forme biseautée
+   plutôt qu'un rectangle du navigateur. */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 80%, transparent);
+  outline-offset: 2px;
+}
+
+/* Les panneaux consultatifs entrent en cascade quand l'onglet s'ouvre : ils
+   arrivent tous ensemble sinon, et un mur qui apparaît d'un coup ne se lit pas.
+   Six pixels et 260 ms — assez pour donner un ordre de lecture, trop peu pour
+   qu'on attende. */
+@keyframes panneau-entree {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.constats,
+.revue,
+.fuite,
+.buddy {
+  animation: panneau-entree 0.26s var(--ease-out) both;
+}
+
+.revue { animation-delay: 0.05s; }
+.fuite { animation-delay: 0.1s; }
+.buddy { animation-delay: 0.15s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .constats,
+  .revue,
+  .fuite,
+  .buddy { animation: none; }
+
+  .ghost:active:not(:disabled) { transform: none; }
+}

@@ -71,7 +71,7 @@ export const SkillTree = memo(function SkillTree({
                   {/* Le palier en cours porte sa progression : le segment se
                       remplit au lieu de s'allumer d'un coup. */}
                   {i === b.tier && (
-                    <span className="tree__tier-fill" style={{ width: `${b.progress * 100}%` }} />
+                    <span className="tree__tier-fill" style={{ transform: `scaleX(${b.progress})` }} />
                   )}
                 </li>
               ))}

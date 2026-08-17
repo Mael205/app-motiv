@@ -133,6 +133,11 @@
   height: 100%;
   background: linear-gradient(90deg, #ff7a2f, #ffd08a);
   box-shadow: 0 0 12px #ff7a2f;
+  /* Le seul endroit du produit qui anime encore une largeur, et c'est
+     délibéré : le dégradé de la braise est horizontal, donc un `scaleX` le
+     comprimerait au lieu de le dévoiler — la braise changerait de couleur en
+     chauffant. Une barre, sept cents millisecondes, une fois par soir : le
+     recalcul de mise en page est ici moins cher que le mensonge visuel. */
   transition: width 700ms var(--ease-out);
 }
 

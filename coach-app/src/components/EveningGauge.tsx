@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { motion } from 'motion/react'
+import { useReducedMotion } from '../juice'
 import { useNow } from '../hooks/useNow'
 import type { Evening } from '../types'
 import './EveningGauge.css'
@@ -12,6 +13,7 @@ import './EveningGauge.css'
  */
 export const EveningGauge = memo(function EveningGauge({ evening }: { evening: Evening }) {
   const now = useNow()
+  const reduced = useReducedMotion()
   const start = new Date(evening.start)
   const end = new Date(evening.end)
   const total = end.getTime() - start.getTime()
@@ -51,13 +53,27 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
           </div>
         ))}
 
-        {evening.blocks.map((block, i) => (
+        {evening.blocks.map((block, i) => {
+          // Le dernier bloc est celui qui vient de tomber : il **se pose**,
+          // avec l'écrasement au contact que demande la séquence 2 du §7. Les
+          // précédents montent simplement — rejouer l'impact sur toute la
+          // soirée à chaque affichage transformerait un événement en décor.
+          const frais = !reduced && i === evening.blocks.length - 1 && !block.running
+          return (
           <motion.div
             key={`${block.project}-${i}`}
             className={`gauge__block${block.running ? ' gauge__block--running' : ''}`}
-            initial={{ scaleY: 0.2, opacity: 0 }}
-            animate={{ scaleY: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 22, delay: 0.05 * i }}
+            initial={frais ? { scaleY: 1.45, y: -12, opacity: 0 } : { scaleY: 0.2, opacity: 0 }}
+            animate={
+              frais
+                ? { scaleY: [1.45, 0.78, 1.08, 1], y: [-12, 0, 0, 0], opacity: 1 }
+                : { scaleY: 1, opacity: 1 }
+            }
+            transition={
+              frais
+                ? { duration: 0.5, times: [0, 0.42, 0.68, 1], ease: [0.22, 1, 0.36, 1] }
+                : { type: 'spring', stiffness: 420, damping: 22, delay: 0.05 * i }
+            }
             style={{
               left: `${block.start_ratio * 100}%`,
               width: `${Math.max(1.2, (block.end_ratio - block.start_ratio) * 100)}%`,
@@ -65,7 +81,8 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
             }}
             title={`${block.project} — ${block.minutes} min`}
           />
-        ))}
+          )
+        })}
 
         <div className="gauge__rail" style={{ transform: `translateX(${elapsed * 100}%)` }}>
           <div className="gauge__cursor">

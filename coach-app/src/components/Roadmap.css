@@ -19,6 +19,10 @@
 
 .rm__rail-done {
   width: 100%;
+  /* `scaleY` et non `height` : le rail se trace de haut en bas, comme la
+     lecture, et sans recalculer la mise en page à chaque image. */
+  height: 100%;
+  transform-origin: top center;
   background: linear-gradient(180deg, var(--project), color-mix(in srgb, var(--project) 40%, transparent));
   box-shadow: 0 0 10px -1px var(--project);
 }

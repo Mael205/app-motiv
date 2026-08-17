@@ -110,3 +110,41 @@
   color: var(--text);
   border-color: var(--line-strong);
 }
+
+
+/* Le corps d'un bilan se déroule sous sa ligne, jamais ailleurs : il sort de
+   l'endroit qu'on vient de toucher. */
+.buddy__corps {
+  animation: buddy-deroule 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes buddy-deroule {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+.buddy__ligne {
+  transition: background-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+.buddy__ligne:active {
+  transform: scale(0.995);
+  transition-duration: 0ms;
+}
+
+/* L'état « lu » arrive en turquoise : c'est la seule bonne nouvelle du panneau,
+   elle a le droit d'être la seule chose colorée. */
+.buddy__etat--lu {
+  animation: buddy-lu 0.6s var(--ease-out) both;
+}
+
+@keyframes buddy-lu {
+  from { opacity: 0; transform: translate3d(6px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buddy__corps,
+  .buddy__etat--lu { animation: none; }
+  .buddy__ligne:active { transform: none; }
+}

@@ -43,8 +43,12 @@ export function Fuite() {
           <p className="fuite__cout">{rapport.cout_semaine.phrase}, cette semaine.</p>
 
           <div className="fuite__histo" role="img" aria-label="Scroll par tranche de 30 minutes">
-            {rapport.tranches.map((tranche) => (
-              <div key={tranche.debut} className="fuite__colonne">
+            {rapport.tranches.map((tranche, rang) => (
+              <div
+                key={tranche.debut}
+                className="fuite__colonne"
+                style={{ ['--rang' as string]: rang }}
+              >
                 <div
                   className={`fuite__barre${
                     rapport.charniere?.libelle === tranche.libelle ? ' fuite__barre--pivot' : ''

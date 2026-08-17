@@ -52,3 +52,43 @@
   line-height: 1.5;
   color: var(--muted);
 }
+
+
+/* Les constats entrent l'un après l'autre, du plus urgent au moins urgent —
+   c'est déjà leur ordre. Quatre-vingts millisecondes d'écart : assez pour que
+   l'œil descende la liste, assez peu pour qu'elle soit complète avant qu'on ait
+   fini de lire le premier. Au-delà de cinq, plus de retard : une liste longue
+   qui se remplit lentement se lit comme un chargement. */
+.constat {
+  animation: constat-entree 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.constat:nth-child(2) { animation-delay: 0.06s; }
+.constat:nth-child(3) { animation-delay: 0.12s; }
+.constat:nth-child(4) { animation-delay: 0.18s; }
+.constat:nth-child(n + 5) { animation-delay: 0.24s; }
+
+@keyframes constat-entree {
+  from { opacity: 0; transform: translate3d(-8px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Le liseré doré des constats qui annoncent un arrêt à venir s'allume après
+   coup, une fois la ligne lue. Il attire l'œil sur la bonne ligne sans
+   l'attirer avant qu'il y ait quelque chose à lire. */
+.constat--tot {
+  animation:
+    constat-entree 0.34s cubic-bezier(0.22, 1, 0.36, 1) both,
+    constat-alerte 0.5s var(--ease-out) 0.3s both;
+}
+
+@keyframes constat-alerte {
+  from { border-left-color: var(--line-strong); }
+  to { border-left-color: var(--gold); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constat,
+  .constat--tot { animation: none; }
+  .constat--tot { border-left-color: var(--gold); }
+}

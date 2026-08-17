@@ -63,9 +63,11 @@
 
 .decision__progress-fill {
   height: 100%;
+  width: 100%;
+  transform-origin: left center;
   background: var(--project);
   box-shadow: 0 0 10px var(--project);
-  transition: width 500ms var(--ease-out);
+  transition: transform 500ms var(--ease-out);
 }
 
 .decision__task {

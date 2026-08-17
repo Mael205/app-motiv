@@ -159,6 +159,80 @@
   .loot__card--legendaire.loot__card--open .loot__front::after { opacity: 0; }
 }
 
+/* --- Le couvercle : le geste des raretés qui ne tournent pas ------------ */
+
+/* Épique et légendaire n'ont pas de rotation : leur dos est un couvercle posé
+   au-dessus de la face, et c'est lui qui s'ouvre. Deux volets qui s'écartent
+   d'un côté, cinq éclats qui partent de l'autre.
+
+   `pointer-events: none` parce qu'un couvercle en train de partir ne doit
+   jamais intercepter le clic sur « Continuer » qui suit. */
+.loot__cover {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  /* Dans un contexte `preserve-3d`, c'est la position Z qui trie, pas le
+     z-index : sans ce millimètre, le couvercle et la face se disputent le
+     même plan et clignotent selon le navigateur. */
+  transform: translateZ(1px);
+}
+
+.loot__volet,
+.loot__eclat {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg, var(--panel-high), var(--panel));
+  border: 1px solid color-mix(in srgb, var(--rarity) 45%, transparent);
+  color: color-mix(in srgb, var(--rarity) 70%, transparent);
+}
+
+/* Les deux volets sont deux moitiés du même dos : la découpe passe au milieu,
+   et chacun pivote autour de son bord extérieur — comme une porte, pas comme
+   une carte qu'on déplace. */
+.loot__volet--g {
+  clip-path: polygon(16px 0, 50% 0, 50% 100%, 0 100%, 0 16px);
+  transform-origin: left center;
+}
+
+.loot__volet--d {
+  clip-path: polygon(50% 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 50% 100%);
+  transform-origin: right center;
+}
+
+/* Chaque éclat porte sa propre découpe, posée en style inline : cinq formes
+   inégales, parce qu'une vraie casse ne fait pas cinq parts égales. */
+.loot__eclat {
+  transform-origin: center;
+}
+
+/* Le flash de la casse. Blanc teinté de la rareté, 120 ms, et il couvre
+   exactement l'instant où le dos disparaît : on voit une casse, pas une
+   substitution. */
+.loot__flash {
+  position: absolute;
+  z-index: 4;
+  width: 260px;
+  height: 340px;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--rarity) 65%, white) 0%,
+    color-mix(in srgb, var(--rarity) 40%, transparent) 45%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loot__cover,
+  .loot__flash { display: none; }
+}
+
 /* --- La chorégraphie par rareté ---------------------------------------- */
 
 /* L'anneau du retournement : il matérialise l'instant où la carte cède. Absent
@@ -212,11 +286,28 @@
   animation-duration: 1s;
 }
 
-/* Sur une commune, le dos ne pulse pas du tout : il n'y a pas d'attente à
-   meubler, la carte est déjà retournée avant qu'on ait le temps de regarder. */
+/* Sur une commune, il n'y a pas de dos du tout : la carte se pose face
+   visible. Rien à meubler, donc rien à faire pulser. */
 .loot--commun .loot__sigil {
   animation: none;
   opacity: 0.6;
+}
+
+/* Une commune qui se pose garde quand même un poids : l'ombre portée s'écrase
+   au contact, puis reprend. Trois cents millisecondes, une seule fois — c'est
+   ce qui distingue « posée » de « apparue ». */
+.loot--commun .loot__card {
+  animation: loot-contact 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes loot-contact {
+  0% { filter: drop-shadow(0 26px 18px rgba(0, 0, 0, 0.5)); }
+  55% { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.65)); }
+  100% { filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.45)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loot--commun .loot__card { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

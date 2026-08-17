@@ -87,13 +87,19 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
             : 0.3,
     )
 
-    // Le son suit exactement la même graduation, et il ne double jamais celui
-    // de la carte : le temps « card » délègue au tirage, qui a déjà son propre
-    // son par rareté. Deux sons superposés pour un seul événement s'entendent
-    // comme un bug, pas comme une emphase.
+    // Le son suit la même graduation, et **chaque temps a le sien**. Le palier
+    // de branche et la relique partageaient celui de fin de session — un accord
+    // qui descend, juste pour poser un travail, faux pour franchir un palier.
+    // Ce qui monte se lit comme un gain, ce qui descend comme une clôture, et
+    // l'oreille ne se trompe jamais là-dessus.
+    //
+    // Le temps « card » ne joue rien ici : le tirage a déjà son son de geste et
+    // son son de rareté. Deux sons superposés pour un seul événement
+    // s'entendent comme un bug, pas comme une emphase.
     if (beat.kind === 'boss') sfx.bossKill()
     else if (beat.kind === 'level') sfx.levelUp()
-    else if (beat.kind !== 'card') sfx.sessionEnd()
+    else if (beat.kind === 'branch') sfx.branchTier()
+    else if (beat.kind === 'relic') sfx.relic()
   }, [step, beat, shake])
 
   const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))
@@ -114,14 +120,32 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
       {/* L'eclair d'ouverture : 90 ms, une seule fois, sur le premier temps. */}
       {!reduced && step === 0 && <span className="asc__flash" aria-hidden />}
 
+      {/* L'onde de choc part du centre à chaque temps fort. Elle ne remplace
+          pas la secousse : la secousse dit la force, l'onde dit d'où elle
+          vient. Les deux ensemble donnent un point d'impact. */}
+      {!reduced && (beat.kind === 'boss' || beat.kind === 'level') && (
+        <motion.span
+          key={`onde-${step}`}
+          className={`asc__onde${beat.kind === 'boss' ? ' asc__onde--boss' : ''}`}
+          aria-hidden
+          initial={{ scale: 0.15, opacity: 0.8 }}
+          animate={{ scale: 3.4, opacity: 0 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        />
+      )}
+
       <motion.div className="asc__stage" style={style}>
         <AnimatePresence mode="wait">
           {beat.kind === 'boss' && (
             <motion.div key="boss" className="asc__beat asc__beat--boss" {...enterSlam(reduced)}>
               <Rays count={20} color="var(--rose)" />
-              <p className="label asc__over asc__over--boss">Boss abattu</p>
-              <h2 className="asc__boss display">{beat.name}</h2>
-              <p className="asc__sub muted">
+              <p className="label asc__over asc__over--boss" style={cascade(reduced, 0)}>
+                Boss abattu
+              </p>
+              <h2 className="asc__boss display" style={cascade(reduced, 1)}>
+                {beat.name}
+              </h2>
+              <p className="asc__sub muted" style={cascade(reduced, 2)}>
                 {beat.season} · il restait <span className="num">{beat.daysLeft}</span> jour
                 {beat.daysLeft > 1 ? 's' : ''}. La saison se clôt en avance.
               </p>
@@ -136,9 +160,9 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
               <div className="asc__badge">
                 <RankBadge rank={result.rank ?? 'F'} level={beat.level} size={132} />
               </div>
-              <p className="label asc__over">Niveau atteint</p>
-              <h2 className="asc__big display">{beat.level}</h2>
-              <p className="asc__sub muted">
+              <p className="label asc__over" style={cascade(reduced, 0)}>Niveau atteint</p>
+              <h2 className="asc__big display" style={cascade(reduced, 1)}>{beat.level}</h2>
+              <p className="asc__sub muted" style={cascade(reduced, 2)}>
                 +<span className="num">{result.xp}</span> XP cette session
               </p>
               <Burst count={40} spread={330} />
@@ -156,9 +180,9 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
               <span className="asc__emblem" aria-hidden>
                 {beat.emblem}
               </span>
-              <p className="label asc__over">{beat.label}</p>
-              <h2 className="asc__title display">{beat.title}</h2>
-              <p className="asc__sub muted">
+              <p className="label asc__over" style={cascade(reduced, 0)}>{beat.label}</p>
+              <h2 className="asc__title display" style={cascade(reduced, 1)}>{beat.title}</h2>
+              <p className="asc__sub muted" style={cascade(reduced, 2)}>
                 <span className="num">{beat.hours}</span> heures cumulées sur cette branche
               </p>
               <Burst count={26} color={beat.color} spread={240} />
@@ -171,10 +195,12 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
               <span className="asc__emblem asc__emblem--relic" aria-hidden>
                 {beat.emblem}
               </span>
-              <p className="label asc__over">Relique</p>
-              <h2 className="asc__title display">{beat.label}</h2>
-              <p className="asc__lore">{beat.lore}</p>
-              <p className="asc__sub muted">À équiper dans ta fiche de personnage.</p>
+              <p className="label asc__over" style={cascade(reduced, 0)}>Relique</p>
+              <h2 className="asc__title display" style={cascade(reduced, 1)}>{beat.label}</h2>
+              <p className="asc__lore" style={cascade(reduced, 2)}>{beat.lore}</p>
+              <p className="asc__sub muted" style={cascade(reduced, 3)}>
+                À équiper dans ta fiche de personnage.
+              </p>
             </motion.div>
           )}
 
@@ -204,6 +230,24 @@ function enterSlam(reduced: boolean) {
     animate: { scale: 1, opacity: 1, filter: 'blur(0px)' },
     exit: { scale: 0.82, opacity: 0, transition: { duration: 0.18 } },
     transition: { duration: 0.52, ease: [0.16, 1.2, 0.3, 1] as const },
+  }
+}
+
+/** La cascade des lignes de texte à l'intérieur d'un temps.
+ *
+ * Quarante millisecondes d'écart, quatre lignes au maximum : le total reste
+ * sous les 300 ms que la règle fixe pour un stagger. L'ordre suit la lecture —
+ * l'étiquette, le titre, le détail —, ce qui donne à l'œil un chemin au lieu
+ * d'un bloc qui apparaît d'un coup.
+ *
+ * En `style` plutôt qu'en composant `motion` : ces lignes vivent déjà dans un
+ * parent animé, et empiler deux moteurs d'animation sur un même nœud est le
+ * meilleur moyen d'écraser un transform avec l'autre.
+ */
+function cascade(reduced: boolean, index: number): React.CSSProperties {
+  if (reduced) return {}
+  return {
+    animation: `asc-ligne 0.42s cubic-bezier(0.22, 1, 0.36, 1) ${0.14 + index * 0.04}s both`,
   }
 }
 

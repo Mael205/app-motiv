@@ -161,3 +161,64 @@
     0 0 50px color-mix(in srgb, var(--rose) 85%, transparent),
     0 0 130px color-mix(in srgb, var(--rose) 40%, transparent);
 }
+
+/* --- Ce que le §7 appelle « juice canalisé », en trois ajouts ----------- */
+
+/* L'onde de choc des temps forts. Elle part du centre exact de la scène et
+   meurt en 900 ms. La secousse dit la force, l'onde dit d'où elle vient : sans
+   elle, un écran qui tremble n'a pas de point d'impact. */
+.asc__onde {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 40px -6px var(--accent);
+  pointer-events: none;
+}
+
+.asc__onde--boss {
+  border-color: color-mix(in srgb, var(--rose) 75%, transparent);
+  box-shadow: 0 0 50px -4px var(--rose);
+}
+
+/* La cascade des lignes : chacune monte de huit pixels et s'éclaircit. Huit,
+   pas vingt — au-delà, la ligne « voyage » et l'œil la suit au lieu de lire. */
+@keyframes asc-ligne {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* L'emblème d'un palier de branche tourne une fois sur lui-même en arrivant.
+   Un seul tour, jamais en boucle : ce qui tourne en permanence devient un
+   spinner de chargement, et un spinner n'est pas une récompense. */
+.asc__emblem {
+  animation: asc-emblem 0.7s cubic-bezier(0.16, 1.2, 0.3, 1) both;
+}
+
+@keyframes asc-emblem {
+  from { opacity: 0; transform: rotate(-160deg) scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Une relique, elle, ne tourne pas : elle se révèle. Le geste dit la
+   différence entre quelque chose qu'on gagne et quelque chose qu'on trouve. */
+.asc__emblem--relic {
+  animation: asc-relique 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes asc-relique {
+  0% { opacity: 0; transform: scale(0.7); filter: blur(10px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asc__onde { display: none; }
+  .asc__emblem,
+  .asc__emblem--relic { animation: none; }
+}

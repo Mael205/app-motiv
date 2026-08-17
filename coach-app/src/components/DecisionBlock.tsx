@@ -82,7 +82,7 @@ export const DecisionBlock = memo(function DecisionBlock({
       <div className="decision__progress" title={`${Math.round(proposal.project.completion * 100)}% de la roadmap`}>
         <div
           className="decision__progress-fill"
-          style={{ width: `${proposal.project.completion * 100}%` }}
+          style={{ transform: `scaleX(${proposal.project.completion})` }}
         />
       </div>
 
