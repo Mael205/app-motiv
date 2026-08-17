@@ -53,6 +53,7 @@ Projets → Nouveau projet → Copier le prompt.
 | Installer la tâche de blocage en administrateur | Élévation : ni l'agent ni moi ne l'avons, et c'est la règle du §8 | 2 minutes, commande dans `coach-agent/README.md` |
 | DNS du téléphone → l'IP du PC | Réglages Wi-Fi d'Android, et à faire sur ton réseau définitif | 1 minute |
 | Installer AdGuard en service | Fait, mais à refaire si tu changes de machine | — |
+| Donner l'adresse publique du serveur et le webhook de l'ami | Ni l'un ni l'autre ne s'inventent : sans eux le bilan du §4.7 ne part pas, ou part sans son bouton « vu » | 2 minutes |
 
 ---
 
@@ -63,27 +64,51 @@ Projets → Nouveau projet → Copier le prompt.
 - **Sonde Android native (§9.2).** Le lecteur `UsageStats` est écrit mais n'a
   jamais été compilé — il n'y a pas de SDK Android sur cette machine. À ne faire
   que si la recette MacroDroid et AdGuard ne suffisent pas.
-- **Un canal entrant, à la place de Telegram (§11.7, §4.7, §5.3).** Le bot a été
-  remplacé par le Web Push et un webhook Discord, et c'est un bon échange pour
-  tout ce qui **sort**. Mais un webhook ne reçoit rien, et trois choses écrites
-  dans la spec en dépendent : l'accusé de lecture du bilan de l'ami — le seul
-  mécanisme externe du produit, aujourd'hui non implémentable —, les 4 à 5
-  questions de la revue du dimanche, et la capture d'une idée au frigo sans
-  ouvrir l'app.
-
-  Trois pièces suffisent, toutes dans la PWA existante, aucun bot ni compte à
-  créer : les **boutons d'action** d'une notification Web Push (démarrer 10 min,
-  reporter 15 min) ; un **lien signé** vers une page à écran unique — répondre,
-  dicter, marquer « vu » — que l'ami ouvre sans rien installer ; et la **cible
-  de partage Android** de la PWA, qui envoie au frigo un texte partagé depuis
-  n'importe quelle app. Commencer par le lien signé : il débloque les trois
-  usages à lui seul.
+- **Le reste du canal entrant (§11.7).** Le lien signé est fait, et il porte
+  déjà les trois usages. Restent deux commodités qui ne débloquent rien mais
+  enlèvent des frottements : les **boutons d'action** d'une notification Web
+  Push (démarrer 10 min, reporter 15 min), et la **cible de partage Android**
+  de la PWA, qui enverrait au frigo un texte partagé depuis n'importe quelle
+  app sans passer par le lien.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
+
+- **Les écrans de ce qui vient d'être construit.** Trois endpoints existent sans
+  rien à l'écran : `/api/detections` (les sept constats du §13.5),
+  `/api/weekly` (les bilans envoyés, l'état du destinataire, le compteur de
+  non-lus) et `/api/links` (émettre un lien de frigo à épingler). Le serveur
+  décide, l'app ne le montre pas encore.
+
+- **Ce qui reste des §5 et §13.** La revue hebdomadaire dialoguée (§5.3), le
+  bilan quotidien poussé le matin (§13.1), le rapport de fuite de temps (§13.2),
+  le bilan de saison comparé (§13.4) et l'analyste de nuit (§5.5). Les sept
+  détections leur servent de matière première : c'est ce qui permet d'arriver
+  « avec les constats déjà faits », et c'est fait.
 
 ---
 
 ## Fait depuis
+
+- **Les sept détections continues** (17 août 2026). Projet mort, étape figée,
+  engagement irréaliste, concentration, fin de soirée qui glisse, migration du
+  scroll, sur-régime. Logique pure, donc les cas rares se testent en trois
+  lignes. Chacune porte une proposition chiffrée, aucune ne décide quoi que ce
+  soit — le §17 interdit qu'un système retire seul.
+
+- **Le lien signé et le bilan à l'ami** (17 août 2026). Le canal entrant du
+  §11.7 : une page sans compte ni script, un lien qui fait une seule chose et ne
+  lit rien. Le bilan du §4.7 part le dimanche à 20h avec son bouton « vu », le
+  désarmement coûte 24 heures et l'annulation est immédiate, et trois bilans
+  sans lecture sont signalés.
+
+  Ce qui n'y figure jamais : qualité de session, temps d'écran, fuites, gardes.
+  Un filet relit le texte complet avant l'envoi et écarte la phrase du modèle si
+  elle a dérivé. C'est la ligne à ne pas franchir — du bruit envoyé à un tiers
+  devient un jugement social, et une bonne raison de couper le bilan.
+
+  **Il manque l'adresse publique** : sans `Profile.public_base_url`, le bilan
+  part sans son lien de lecture. Un lien vers `127.0.0.1` ne mène nulle part
+  chez l'ami, donc mieux vaut pas de lien du tout.
 
 - **Le blocage du scroll passif** (17 août 2026). L'état armé existait côté
   serveur depuis le §14 sans que personne ne le lise ; les deux surfaces le
