@@ -73,23 +73,33 @@ Projets → Nouveau projet → Copier le prompt.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
 
-- **Ce qui reste des §5 et §13.** La revue hebdomadaire dialoguée (§5.3), le
-  rapport de fuite de temps (§13.2), le bilan de saison comparé (§13.4) et
-  l'analyste de nuit (§5.5). Les sept détections leur servent de matière
-  première : c'est ce qui permet d'arriver « avec les constats déjà faits », et
-  c'est fait.
-
-  La revue du dimanche est la prochaine dans l'ordre : elle a maintenant ses
-  constats, son canal de réponse (le lien signé) et son texte de sortie (le
-  bilan à l'ami). Il ne manque que le dialogue.
+- **Ce qui reste des §5 et §13.** Le rapport de fuite de temps (§13.2), le bilan
+  de saison comparé (§13.4) et l'analyste de nuit (§5.5). Le §13.2 est le plus
+  gros des trois : histogramme par tranche de 30 min sur quatre semaines
+  glissantes, déclencheurs de décrochage, comparaison PC/téléphone, et le coût
+  affiché en unités du système — « 1h40 de Shorts = 4 sessions = 12 % de la vie
+  du boss ».
 
 - **L'écran du bilan quotidien.** `/api/daily` rend la barre, la répartition et
   la phrase ; la notification part la nuit. Il n'y a pas encore de tuile qui le
   montre au réveil.
 
+- **Les questions de la revue par lien signé.** Le type `reponse` existe et la
+  page sait l'afficher ; personne n'émet encore ces liens le dimanche soir.
+  C'est ce qui permettrait de répondre depuis la notification, sans ouvrir
+  l'app.
+
 ---
 
 ## Fait depuis
+
+- **La revue du dimanche** (17 août 2026). Quatre ou cinq questions portant
+  chacune sur un fait daté — un créneau manqué se retient, une semaine en
+  général ne se retient pas. Elle a lieu **sans réponses** si le dialogue est
+  esquivé, en notant que les causes sont alors des hypothèses. Sortie en trois
+  blocs, dont une seule chose à changer, et un contrat calé sur ce qui a été
+  tenu plutôt que sur ce qui avait été annoncé — appliqué sur un geste, jamais
+  tout seul.
 
 - **Le bilan quotidien, et les écrans des constats** (17 août 2026). Le §13.1
   part après la bascule de 4h : une phrase, des chiffres, aucun adjectif, et le
