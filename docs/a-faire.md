@@ -62,6 +62,24 @@ Projets → Nouveau projet → Copier le prompt.
 - **Sonde Android native (§9.2).** Le lecteur `UsageStats` est écrit mais n'a
   jamais été compilé — il n'y a pas de SDK Android sur cette machine. À ne faire
   que si la recette MacroDroid et AdGuard ne suffisent pas.
+- **Un canal entrant, à la place de Telegram (§11.7, §4.7, §5.3).** Le bot a été
+  remplacé par le Web Push et un webhook Discord, et c'est un bon échange pour
+  tout ce qui **sort**. Mais un webhook ne reçoit rien, et trois choses écrites
+  dans la spec en dépendent : l'accusé de lecture du bilan de l'ami — le seul
+  mécanisme externe du produit, aujourd'hui non implémentable —, les 4 à 5
+  questions de la revue du dimanche, et la capture d'une idée au frigo sans
+  ouvrir l'app.
+
+  Trois pièces suffisent, toutes dans la PWA existante, aucun bot ni compte à
+  créer : les **boutons d'action** d'une notification Web Push (démarrer 10 min,
+  reporter 15 min) ; un **lien signé** vers une page à écran unique — répondre,
+  dicter, marquer « vu » — que l'ami ouvre sans rien installer ; et la **cible
+  de partage Android** de la PWA, qui envoie au frigo un texte partagé depuis
+  n'importe quelle app. Commencer par le lien signé : il débloque les trois
+  usages à lui seul.
+
+  Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
+
 - **Blocage du scroll passif (§8.5, §9.1).** L'extension mesure mais ne bloque
   pas. L'état « armé » côté serveur est **fait** : `/api/agent/state` rend
   désormais `block_scroll.armed_from`, calculé à la fin du sas, sinon à l'heure
@@ -73,6 +91,15 @@ Projets → Nouveau projet → Copier le prompt.
 ---
 
 ## Fait depuis
+
+- **Le gardien découpe sa tâche** (17 août 2026). Il reprenait le libellé de
+  l'étape et écrivait « 10 min » devant, alors qu'une étape vaut une à trois
+  séances de vingt-cinq minutes : la promesse était fausse, et elle était lue le
+  soir où l'on cherche une raison de ne pas commencer. Le modèle en extrait
+  maintenant le premier geste réel, avec l'amorce et les blocages du dernier
+  debrief en contexte. Le projet reste choisi par le code, la porte refuse le
+  flou et la morale, et le repli déterministe part à l'identique dès que le
+  modèle manque ou dérape.
 
 - **Le §14 en entier** (16 août 2026). Régénération du boss — le champ existait
   sans que rien ne l'écrive —, vitrine fermée, gel du slot gagné, titre en
