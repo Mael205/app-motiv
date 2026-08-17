@@ -90,11 +90,22 @@ export function SessionEntry({
       )}
 
       <motion.div className="entry__core" style={style}>
+        {/* Le sceau arrive en tournant et **rebondit deux fois** avant de se
+            poser. Deux rebonds, pas un : un seul dépassement se lit comme une
+            arrivée, deux se lisent comme de l'entrain — c'est toute la
+            différence entre « c'est parti » et « voilà ».
+            Le flou de la première version est retiré : reflouter un bloc plein
+            écran à chaque image coûtait les deux premières dixièmes de seconde,
+            précisément là où la séquence doit être nette. */}
         <motion.div
           className="entry__stamp"
-          initial={reduced ? false : { scale: 3.4, rotate: -22, opacity: 0, filter: 'blur(16px)' }}
-          animate={{ scale: 1, rotate: 0, opacity: 1, filter: 'blur(0px)' }}
-          transition={{ duration: 0.42, ease: [0.16, 1.2, 0.3, 1] }}
+          initial={reduced ? false : { scale: 2.4, rotate: -26, opacity: 0 }}
+          animate={{
+            scale: [2.4, 0.9, 1.06, 1],
+            rotate: [-26, 4, -2, 0],
+            opacity: [0, 1, 1, 1],
+          }}
+          transition={{ duration: 0.54, times: [0, 0.46, 0.72, 1], ease: [0.22, 1, 0.36, 1] }}
         >
           <span className="entry__emblem" aria-hidden>
             {emblem}
@@ -104,11 +115,14 @@ export function SessionEntry({
           {!reduced && <span className="entry__ring" />}
         </motion.div>
 
+        {/* Le nom du projet arrive en s'écartant légèrement, comme un titre
+            qui se pose : l'interlettrage se resserre en même temps que la ligne
+            monte. Trois cents millisecondes, une seule fois. */}
         <motion.p
           className="entry__project display"
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          initial={reduced ? false : { opacity: 0, y: 14, letterSpacing: '0.28em' }}
+          animate={{ opacity: 1, y: 0, letterSpacing: '0.08em' }}
+          transition={{ delay: 0.28, duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
         >
           {project}
         </motion.p>

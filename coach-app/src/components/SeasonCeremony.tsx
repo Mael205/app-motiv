@@ -64,7 +64,25 @@ export function SeasonCeremony({
   const [card, setCard] = useState(0)
   const beat = beats[step]
 
+  // La montée avant les deux temps qui comptent. Une saison se termine une fois
+  // par mois : lui donner une seconde et demie d'attente n'est pas une lenteur,
+  // c'est la seule chose qui la distingue d'un écran de résultat.
+  const charge = beat === 'score' ? 1400 : beat === 'title' ? 1100 : 0
+  const [chargeEnCours, setChargeEnCours] = useState(false)
+
   useEffect(() => {
+    if (!charge || reduced) {
+      setChargeEnCours(false)
+      return
+    }
+    setChargeEnCours(true)
+    sfx.charge(charge / 1000)
+    const t = setTimeout(() => setChargeEnCours(false), charge)
+    return () => clearTimeout(t)
+  }, [step, charge, reduced])
+
+  useEffect(() => {
+    if (chargeEnCours) return
     if (beat === 'title') {
       shake(0.8)
       // Le seul son long du produit, pour le seul moment qui arrive une fois
@@ -75,9 +93,14 @@ export function SeasonCeremony({
       shake(0.35)
       sfx.sessionEnd()
     }
-  }, [beat, shake])
+  }, [beat, shake, chargeEnCours])
 
-  const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))
+  const next = () => {
+    // Un clic pendant la montée la purge : on saute l'attente, jamais le
+    // résultat.
+    if (chargeEnCours) return setChargeEnCours(false)
+    return step + 1 >= beats.length ? onDone() : setStep(step + 1)
+  }
   const avancable = beat !== 'offer' && beat !== 'cards'
 
   return (
@@ -92,7 +115,24 @@ export function SeasonCeremony({
     >
       <motion.div className="cer__stage" style={avancable ? style : undefined}>
         <AnimatePresence mode="wait">
-          {beat === 'score' && report && (
+          {chargeEnCours && (
+            <motion.div
+              key={`charge-${step}`}
+              className="cer__charge"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.5, transition: { duration: 0.14 } }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              style={{ ['--charge' as string]: `${charge}ms` }}
+            >
+              <span className="cer__charge-halo" aria-hidden />
+              <span className="cer__charge-glyphe display" aria-hidden>
+                {beat === 'score' ? '◇' : '❖'}
+              </span>
+            </motion.div>
+          )}
+
+          {!chargeEnCours && beat === 'score' && report && (
             <motion.div key="score" className="cer__beat" {...slam(reduced)}>
               <p className="label cer__over">{report.season.name} — terminée</p>
               <div className="cer__big display">
@@ -107,7 +147,7 @@ export function SeasonCeremony({
             </motion.div>
           )}
 
-          {beat === 'bilan' && report && (
+          {!chargeEnCours && beat === 'bilan' && report && (
             <motion.div key="bilan" className="cer__beat cer__beat--bilan" {...slam(reduced)}>
               <p className="label cer__over">Comparé à tes autres saisons</p>
 
@@ -134,7 +174,7 @@ export function SeasonCeremony({
             </motion.div>
           )}
 
-          {beat === 'phantom' && report && (
+          {!chargeEnCours && beat === 'phantom' && report && (
             <motion.div key="phantom" className="cer__beat" {...slam(reduced)}>
               <p className="label cer__over">Contre {report.phantom.reference}</p>
               <h2 className={`cer__delta display${report.phantom.ahead ? ' cer__delta--ahead' : ''}`}>
@@ -145,7 +185,7 @@ export function SeasonCeremony({
             </motion.div>
           )}
 
-          {beat === 'title' && report && (
+          {!chargeEnCours && beat === 'title' && report && (
             <motion.div key="title" className="cer__beat" {...slam(reduced)}>
               <Rays count={18} />
               <p className="label cer__over">Titre décerné</p>

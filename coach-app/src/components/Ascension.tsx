@@ -6,6 +6,20 @@ import { RankBadge } from './art/RankBadge'
 import type { SessionResult } from '../types'
 import './Ascension.css'
 
+/** Combien de temps chaque temps se charge avant d'éclater.
+ *
+ * Réglé au même endroit que le reste de la graduation. La carte est à zéro : le
+ * tirage porte déjà sa propre charge, et deux charges enchaînées feraient deux
+ * secondes d'attente pour un seul événement.
+ */
+const CHARGES: Record<string, number> = {
+  boss: 1000,
+  level: 820,
+  branch: 680,
+  relic: 760,
+  card: 0,
+}
+
 type Beat =
   | { kind: 'boss'; name: string; season: string; daysLeft: number }
   | { kind: 'level'; level: number }
@@ -70,10 +84,34 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
   const [step, setStep] = useState(0)
   const beat = beats[step]
 
-  // La secousse part au montage de chaque temps, calibrée sur son importance —
-  // un palier de branche n'est pas un passage de niveau.
+  // Le temps de charge, avant la révélation. C'est ce qui manquait : un palier
+  // arrivait déjà atteint, sans qu'on ait vu la montée. Une évolution se
+  // regarde *pendant* qu'elle se fait — l'emblème pulse de plus en plus vite,
+  // le grondement monte, et c'est seulement après que ça éclate.
+  //
+  // Gradué comme tout le reste : le boss charge une seconde, une relique un peu
+  // moins, une carte pas du tout (elle a déjà la sienne).
+  const charge = beat ? CHARGES[beat.kind] : 0
+  const [chargeEnCours, setChargeEnCours] = useState(false)
+
+  // La charge démarre au montage du temps ; la révélation attend qu'elle
+  // finisse. Un clic pendant la charge la purge au lieu de passer au temps
+  // suivant : on saute l'attente, jamais la récompense.
   useEffect(() => {
-    if (!beat) return
+    if (!beat || reduced || !charge) {
+      setChargeEnCours(false)
+      return
+    }
+    setChargeEnCours(true)
+    sfx.charge(charge / 1000)
+    const t = setTimeout(() => setChargeEnCours(false), charge)
+    return () => clearTimeout(t)
+  }, [step, beat, reduced, charge])
+
+  // La secousse part à la **révélation**, pas au montage : elle marque la fin
+  // de la charge, ce qui est tout l'intérêt d'avoir une charge.
+  useEffect(() => {
+    if (!beat || chargeEnCours) return
     // Dosage sur l'importance (voir docs/direction-visuelle.md). La mort du
     // boss est le seul événement qui dépasse le passage de niveau : elle
     // n'arrive qu'une fois par saison, et parfois pas du tout.
@@ -100,9 +138,12 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
     else if (beat.kind === 'level') sfx.levelUp()
     else if (beat.kind === 'branch') sfx.branchTier()
     else if (beat.kind === 'relic') sfx.relic()
-  }, [step, beat, shake])
+  }, [step, beat, shake, chargeEnCours])
 
-  const next = () => (step + 1 >= beats.length ? onDone() : setStep(step + 1))
+  const next = () => {
+    if (chargeEnCours) return setChargeEnCours(false)
+    return step + 1 >= beats.length ? onDone() : setStep(step + 1)
+  }
 
   if (!beat) return null
 
@@ -136,7 +177,24 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
 
       <motion.div className="asc__stage" style={style}>
         <AnimatePresence mode="wait">
-          {beat.kind === 'boss' && (
+          {chargeEnCours && (
+            <motion.div
+              key={`charge-${step}`}
+              className="asc__charge"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.4, transition: { duration: 0.12 } }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              style={{ ['--charge' as string]: `${charge}ms` }}
+            >
+              <span className="asc__charge-halo" aria-hidden />
+              <span className="asc__charge-glyphe" aria-hidden>
+                {beat.kind === 'boss' ? '☠' : beat.kind === 'level' ? '▲' : beat.kind === 'branch' ? '◆' : '◈'}
+              </span>
+            </motion.div>
+          )}
+
+          {!chargeEnCours && beat.kind === 'boss' && (
             <motion.div key="boss" className="asc__beat asc__beat--boss" {...enterSlam(reduced)}>
               <Rays count={20} color="var(--rose)" />
               <p className="label asc__over asc__over--boss" style={cascade(reduced, 0)}>
@@ -149,12 +207,11 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
                 {beat.season} · il restait <span className="num">{beat.daysLeft}</span> jour
                 {beat.daysLeft > 1 ? 's' : ''}. La saison se clôt en avance.
               </p>
-              <Burst count={54} color="#DE5F7E" spread={380} />
-              <Burst count={30} spread={260} />
+              <Burst count={44} color="#DE5F7E" spread={380} />
             </motion.div>
           )}
 
-          {beat.kind === 'level' && (
+          {!chargeEnCours && beat.kind === 'level' && (
             <motion.div key="level" className="asc__beat" {...enterSlam(reduced)}>
               <Rays count={16} />
               <div className="asc__badge">
@@ -165,11 +222,11 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
               <p className="asc__sub muted" style={cascade(reduced, 2)}>
                 +<span className="num">{result.xp}</span> XP cette session
               </p>
-              <Burst count={40} spread={330} />
+              <Burst count={34} spread={330} />
             </motion.div>
           )}
 
-          {beat.kind === 'branch' && (
+          {!chargeEnCours && beat.kind === 'branch' && (
             <motion.div
               key="branch"
               className="asc__beat"
@@ -189,7 +246,7 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
             </motion.div>
           )}
 
-          {beat.kind === 'relic' && (
+          {!chargeEnCours && beat.kind === 'relic' && (
             <motion.div key={`relic-${step}`} className="asc__beat" {...enterSlam(reduced)}>
               <Rays count={14} />
               <span className="asc__emblem asc__emblem--relic" aria-hidden>
@@ -222,14 +279,24 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
   )
 }
 
-/** L'entrée « slam » : arrive de loin, dépasse, se pose. Réservée aux temps forts. */
+/** L'entrée « slam » : arrive de loin, dépasse, se pose. Réservée aux temps forts.
+ *
+ * **Sans flou, et c'est une correction.** La première version animait un
+ * `filter: blur(14px)` sur un bloc plein écran : le navigateur refloutait toute
+ * la scène à chaque image, ce qui se voyait comme un à-coup sur les deux
+ * premières dixièmes de seconde — précisément là où la séquence doit être la
+ * plus nette. `transform` et `opacity` seuls passent par le compositeur et ne
+ * coûtent rien. L'échelle de départ descend de 2,6 à 1,9 pour la même raison :
+ * un élément agrandi de deux fois et demie fait dessiner deux fois et demie
+ * trop de pixels.
+ */
 function enterSlam(reduced: boolean) {
   if (reduced) return { initial: false as const }
   return {
-    initial: { scale: 2.6, opacity: 0, filter: 'blur(14px)' },
-    animate: { scale: 1, opacity: 1, filter: 'blur(0px)' },
+    initial: { scale: 1.9, opacity: 0 },
+    animate: { scale: 1, opacity: 1 },
     exit: { scale: 0.82, opacity: 0, transition: { duration: 0.18 } },
-    transition: { duration: 0.52, ease: [0.16, 1.2, 0.3, 1] as const },
+    transition: { duration: 0.46, ease: [0.16, 1.2, 0.3, 1] as const },
   }
 }
 

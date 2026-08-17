@@ -222,3 +222,76 @@
   .asc__emblem,
   .asc__emblem--relic { animation: none; }
 }
+
+
+/* --- La charge : ce qu'on regarde pendant que ça monte ------------------ */
+
+/* Le principe est celui d'une évolution : on ne montre pas le résultat, on
+   montre la **montée** vers le résultat. Un glyphe sourd qui pulse de plus en
+   plus vite, un halo qui grandit, et rien d'autre — la nature exacte de ce qui
+   arrive reste cachée jusqu'à l'éclat.
+   La durée totale vient de `--charge`, posée par le composant : les trois
+   pulsations tiennent dedans quelle que soit l'importance du temps. */
+.asc__charge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 200px;
+}
+
+.asc__charge-glyphe {
+  position: relative;
+  z-index: 1;
+  font-size: 76px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--accent) 55%, var(--dim));
+  text-shadow: 0 0 30px color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: asc-charge-pulse var(--charge, 800ms) cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+
+/* Trois battements, chacun plus rapproché et plus fort que le précédent :
+   l'accélération est ce qui fait tenir l'attente. Une pulsation régulière se
+   lit comme un chargement, une pulsation qui s'emballe comme une montée. */
+@keyframes asc-charge-pulse {
+  0% { transform: scale(0.86); opacity: 0.5; }
+  14% { transform: scale(1.06); opacity: 0.95; }
+  28% { transform: scale(0.88); opacity: 0.55; }
+  46% { transform: scale(1.12); opacity: 1; }
+  58% { transform: scale(0.9); opacity: 0.6; }
+  72% { transform: scale(1.2); opacity: 1; }
+  82% { transform: scale(0.94); opacity: 0.75; }
+  100% { transform: scale(1.5); opacity: 1; }
+}
+
+/* Le halo monte tout du long, sans battement : il donne la direction pendant
+   que le glyphe donne le rythme. */
+.asc__charge-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--accent) 40%, transparent) 0%,
+    transparent 68%
+  );
+  animation: asc-charge-halo var(--charge, 800ms) cubic-bezier(0.5, 0, 0.9, 0.6) both;
+}
+
+@keyframes asc-charge-halo {
+  from { transform: scale(0.4); opacity: 0.15; }
+  to { transform: scale(1.45); opacity: 0.9; }
+}
+
+/* Le bloc du temps est promu le temps de son entrée seulement : une promotion
+   permanente sur chaque écran coûte plus de mémoire compositeur qu'elle n'en
+   fait gagner. */
+.asc__beat {
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asc__charge-glyphe,
+  .asc__charge-halo { animation: none; }
+  .asc__beat { will-change: auto; }
+}

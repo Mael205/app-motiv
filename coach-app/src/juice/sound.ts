@@ -171,11 +171,33 @@ const MI5 = 659.25
 const LA5 = 880
 
 export const sfx = {
-  /** Entrée en session : deux notes qui montent, brèves. Un départ, pas une fête. */
+  /** Entrée en session : un élan, pas une fanfare.
+   *
+   * L'ancienne version montait de deux notes en 360 ms et s'entendait comme un
+   * accusé de réception. Celle-ci ajoute deux choses et pas une de plus :
+   *
+   * - **une aspiration** avant l'attaque, filtre qui s'ouvre en 90 ms. C'est
+   *   elle qui donne l'impression d'entrer quelque part au lieu d'appuyer sur
+   *   un bouton ;
+   * - **quatre notes au lieu de deux**, resserrées à 55 ms d'écart, qui montent
+   *   d'une octave complète. La montée fait l'enthousiasme ; le resserrement
+   *   fait qu'elle reste légère.
+   *
+   * Toujours sous 500 ms au total, et sans grave appuyé : ce son se joue tous
+   * les soirs. Ce qui se répète doit rester léger, sinon on finit par couper le
+   * son de l'app — et le §7 perd sa moitié sonore d'un coup.
+   */
   sessionStart() {
-    note({ freq: LA3, duree: 0.22, gain: 0.14, type: 'triangle' })
-    note({ freq: MI4, duree: 0.36, gain: 0.16, type: 'triangle', retard: 0.075 })
-    souffle({ duree: 0.4, gain: 0.05, coupure: 500, vers: 2400 })
+    souffle({ duree: 0.16, gain: 0.055, coupure: 320, vers: 3200, q: 0.5 })
+    accord([LA3, DO4, MI4, LA4], {
+      duree: 0.34,
+      gain: 0.115,
+      type: 'triangle',
+      ecart: 0.055,
+      retard: 0.05,
+    })
+    // Une pointe claire tout en haut, très courte : l'étincelle du départ.
+    note({ freq: MI5, duree: 0.2, gain: 0.05, type: 'sine', retard: 0.22 })
   },
 
   /** Fin de session : accord chaud qui redescend. Le travail est posé. */
@@ -225,17 +247,55 @@ export const sfx = {
 
   /** Une relique (§12.8). Elle ne se gagne pas, elle se **trouve**.
    *
-   * D'où un son qui ne ressemble à aucune récompense : pas d'attaque, pas
-   * d'arpège, pas de brillance. Une quinte grave qui s'ouvre lentement, et une
-   * harmonique qui monte par-dessous comme quelque chose qui se réveille. C'est
-   * le seul son sans percussion du lot, et c'est ce qui le rend reconnaissable
-   * les yeux fermés.
+   * Première version : deux sinus à attaque lente. Sans attaque, un son n'a pas
+   * de point de départ — l'oreille ne sait pas quand il commence, donc il ne
+   * marque rien. C'était mou, et « mou » est exactement ce qu'une relique ne
+   * doit pas être.
+   *
+   * Deuxième version, celle-ci : **une cloche frappée**. Une cloche n'est pas
+   * un accord — ses partiels ne sont pas des multiples entiers de la
+   * fondamentale, et c'est cette inharmonicité qui fait qu'on la reconnaît
+   * entre mille. Les rapports employés ici (2,76 · 5,40 · 8,93) sont ceux d'une
+   * cloche de bronze réelle, et chaque partiel s'éteint d'autant plus vite
+   * qu'il est aigu, comme dans le métal.
+   *
+   * Frappée doucement, mais frappée : il y a un instant zéro. Le sub qui suit
+   * lui donne son poids, et la quinte qui monte à la toute fin dit qu'on a
+   * trouvé quelque chose plutôt que reçu quelque chose.
    */
   relic() {
-    note({ freq: LA3 / 2, duree: 1.6, gain: 0.17, type: 'sine', attaque: 0.35 })
-    note({ freq: MI4 / 2, duree: 1.5, gain: 0.12, type: 'sine', attaque: 0.45, retard: 0.12 })
-    note({ freq: LA4, duree: 1.3, gain: 0.05, type: 'triangle', attaque: 0.7, retard: 0.2, vers: DO5 })
-    souffle({ duree: 1.2, gain: 0.035, coupure: 240, vers: 1400, q: 0.5, retard: 0.1 })
+    const fondamentale = 146.83                    // ré grave, dans la pentatonique
+    const partiels = [
+      { rapport: 1, duree: 2.6, gain: 0.2 },
+      { rapport: 2.76, duree: 1.9, gain: 0.1 },
+      { rapport: 5.4, duree: 1.1, gain: 0.055 },
+      { rapport: 8.93, duree: 0.7, gain: 0.03 },
+    ]
+    partiels.forEach(({ rapport, duree, gain }) => {
+      note({
+        freq: fondamentale * rapport,
+        duree,
+        gain,
+        type: 'sine',
+        // Attaque très courte : c'est le coup de marteau. Sans lui, la cloche
+        // n'est plus une cloche, c'est une nappe.
+        attaque: 0.004,
+      })
+    })
+    // Le coup lui-même : un souffle métallique de 40 ms, l'attaque du bronze.
+    souffle({ duree: 0.05, gain: 0.09, coupure: 3800, q: 1.8 })
+    // Le poids en dessous.
+    note({ freq: fondamentale / 2, duree: 2.2, gain: 0.13, type: 'sine', attaque: 0.02 })
+    // Et la quinte qui monte à la fin : quelque chose se réveille.
+    note({
+      freq: LA3,
+      duree: 1.6,
+      gain: 0.05,
+      type: 'triangle',
+      attaque: 0.5,
+      retard: 0.55,
+      vers: MI4,
+    })
   },
 
   /** Le retournement d'une **rare** : le souffle sec d'une carte qu'on tourne. */
@@ -268,7 +328,33 @@ export const sfx = {
     note({ freq: 120, duree: 0.8, gain: 0.22, type: 'sine', vers: 42 })
   },
 
-  /** La charge d'une légendaire : un grondement montant, pendant le suspense. */
+  /** La montée avant une révélation : le grondement qui rend l'attente lisible.
+   *
+   * Deux couches qui montent ensemble — un sub qui glisse d'une octave et un
+   * souffle dont le filtre s'ouvre. L'attaque occupe les sept dixièmes de la
+   * durée : l'oreille entend une **arrivée**, pas un son posé qui dure.
+   *
+   * Utilisée par l'ascension et par la carte légendaire, à dessein : c'est le
+   * même geste, donc le même son. Deux grondements différents pour la même
+   * fonction se seraient entendus comme un défaut.
+   */
+  charge(duree = 0.85) {
+    note({ freq: 62, duree, gain: 0.13, type: 'sawtooth', vers: 168, attaque: duree * 0.72 })
+    souffle({ duree, gain: 0.055, coupure: 260, vers: 3000, q: 0.4 })
+    // Trois battements qui s'accélèrent, calés sur la pulsation visuelle : ce
+    // sont eux qui font entendre que quelque chose se prépare.
+    ;[0.12, 0.42, 0.68].forEach((part, i) => {
+      note({
+        freq: 180 + i * 40,
+        duree: 0.09,
+        gain: 0.05 + i * 0.02,
+        type: 'triangle',
+        retard: duree * part,
+      })
+    })
+  },
+
+  /** La charge d'une légendaire. Alias historique de `charge`. */
   cardCharge(duree = 0.85) {
     note({ freq: 70, duree, gain: 0.11, type: 'sawtooth', vers: 150, attaque: duree * 0.7 })
     souffle({ duree, gain: 0.05, coupure: 300, vers: 2600, q: 0.4 })
