@@ -50,6 +50,7 @@ Projets → Nouveau projet → Copier le prompt.
 | Quoi | Pourquoi moi non | Combien de temps |
 |---|---|---|
 | Charger l'extension dans Firefox | Manipulation dans l'interface du navigateur | 2 minutes |
+| Installer la tâche de blocage en administrateur | Élévation : ni l'agent ni moi ne l'avons, et c'est la règle du §8 | 2 minutes, commande dans `coach-agent/README.md` |
 | DNS du téléphone → l'IP du PC | Réglages Wi-Fi d'Android, et à faire sur ton réseau définitif | 1 minute |
 | Installer AdGuard en service | Fait, mais à refaire si tu changes de machine | — |
 
@@ -80,17 +81,32 @@ Projets → Nouveau projet → Copier le prompt.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
 
-- **Blocage du scroll passif (§8.5, §9.1).** L'extension mesure mais ne bloque
-  pas. L'état « armé » côté serveur est **fait** : `/api/agent/state` rend
-  désormais `block_scroll.armed_from`, calculé à la fin du sas, sinon à l'heure
-  du gardien, et avancé à l'ouverture de la fenêtre du soir au palier 2 du §14.
-  Il ne dit **pas pourquoi** — le motif serait de l'historique, et un jeton de
-  sonde qui fuit n'en donne pas. Reste à écrire ce que l'agent et l'extension
-  en font.
-
 ---
 
 ## Fait depuis
+
+- **Le blocage du scroll passif** (17 août 2026). L'état armé existait côté
+  serveur depuis le §14 sans que personne ne le lise ; les deux surfaces le
+  lisent maintenant.
+
+  L'extension ferme YouTube — `/shorts/<id>` renvoie vers `/watch?v=<id>`, le
+  feed d'accueil est masqué, le lien Shorts disparaît du rail. La recherche, les
+  vidéos longues et les abonnements ne sont jamais touchés. L'agent ferme les
+  domaines pleins par le fichier hosts, en passant par un service élevé qui
+  n'accepte que `block` et `unblock` et lit la liste lui-même : l'agent, lui,
+  reste en utilisateur normal, comme le §8 l'exige.
+
+  Deux exclusions qui ne doivent pas se perdre : un chemin n'est pas un domaine
+  — `youtube.com/shorts` dans hosts fermerait YouTube en entier —, et la
+  catégorie `adulte` n'est pas bloquée, parce qu'une garde du §11.10 se tient à
+  un budget et jamais à un mur.
+
+  La porte de sortie du §8.5 existe des deux côtés : deux clics, soixante
+  secondes, deux heures de répit. Locale à la machine — le serveur reste armé.
+
+  **Reste à installer la tâche planifiée en administrateur**, une fois, avec la
+  commande du `README` de l'agent. Tant qu'elle ne tourne pas, l'extension
+  bloque seule et l'agent le signale sans se plaindre.
 
 - **Le gardien découpe sa tâche** (17 août 2026). Il reprenait le libellé de
   l'étape et écrivait « 10 min » devant, alors qu'une étape vaut une à trois
