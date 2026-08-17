@@ -32,6 +32,7 @@ class Task(str, Enum):
     """
 
     BRIEFING = "briefing"                 # §5.1 — quoi faire maintenant
+    GARDIEN = "gardien"                   # §5.4 — la tâche de dix minutes du soir
     DEBRIEF = "debrief"                   # §5.2 — structurer des notes brutes
     ENTRETIEN_PROJET = "entretien_projet" # §4.5 — interroger, produire une roadmap
     REVUE_HEBDO = "revue_hebdo"           # §5.3 — analyse dialoguée

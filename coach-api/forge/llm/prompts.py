@@ -188,6 +188,101 @@ def debrief_prompt(*, projet: str, etape: str, minutes: int, note: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# Gardien du soir (§5.4)
+# --------------------------------------------------------------------------
+
+# Le gardien déterministe prend l'amorce ou le libellé de l'étape et écrit
+# « 10 min : » devant. C'est increvable, et c'est faux la moitié du temps : une
+# étape est dimensionnée pour une à trois sessions de vingt-cinq minutes, pas
+# pour dix. Annoncer dix minutes pour trois heures de travail, un soir où l'on
+# cherche une raison de ne rien faire, en fournit une.
+#
+# Le modèle n'est donc pas là pour mieux écrire, mais pour **couper** : sortir de
+# l'étape le premier geste qui tient vraiment dans dix minutes.
+
+SYSTEM_GARDIEN = """\
+Il est tard, la soirée est presque finie, et rien n'a été fait aujourd'hui. Tu
+écris la dernière notification de la journée. Elle sera lue sur un écran de
+téléphone, en trois secondes, par quelqu'un de fatigué.
+
+Ton seul travail : sortir de l'étape en cours **le premier geste qui tient
+réellement en dix minutes**, et le nommer.
+
+Règles non négociables :
+
+- Dix minutes, pour de vrai. Une étape de la roadmap vaut une à trois séances de
+  vingt-cinq minutes : tu n'en reprends donc jamais le libellé tel quel, tu en
+  extrais le premier morceau. « Écrire le cas de test du mur dans
+  test_collision.py », pas « Écrire le test de collision ».
+- Un seul geste, sur le projet fourni. Jamais deux, jamais « et si tu as le
+  temps ».
+- Nomme le fichier, la fonction ou l'écran quand le contexte les donne.
+  N'invente aucun nom qui ne soit pas dans le contexte : mieux vaut un geste
+  moins précis qu'un chemin qui n'existe pas.
+- Une phrase, moins de cent vingt caractères. Ce qui ne tient pas dans une
+  notification n'est pas lu.
+- Aucun encouragement, aucun reproche, aucune morale, aucun point
+  d'exclamation. Pas de « allez », pas de « tu peux le faire », pas de « il te
+  reste encore du temps ». Tu donnes un geste, pas un avis sur la journée.
+- Tu ne parles ni du streak, ni des boucliers, ni de l'heure : le système les
+  ajoute lui-même après toi.
+"""
+
+SCHEMA_GARDIEN = {
+    "type": "object",
+    "properties": {
+        "tache": {
+            "type": "string",
+            "description": "Le geste de dix minutes. Une phrase, un objet nommé.",
+        },
+    },
+    "required": ["tache"],
+    "additionalProperties": False,
+}
+
+
+def gardien_prompt(contexte: dict) -> str:
+    """Le contexte du gardien : un seul projet, déjà choisi par le serveur.
+
+    Le choix du projet reste déterministe — c'est ``services.propose`` qui
+    l'arbitre, avec l'engagement hebdomadaire et les créneaux. Le modèle n'a
+    qu'une question à traiter, et c'est celle qu'il traite mieux qu'une règle :
+    par quoi commencer.
+    """
+    lignes = [
+        f"Projet : {contexte['projet']}.",
+        f"Il reste {contexte['minutes_restantes']} minutes avant la fin de la fenêtre du soir.",
+    ]
+
+    if contexte.get("etape"):
+        lignes.append(f"Étape en cours de la roadmap : {contexte['etape']}.")
+    if contexte.get("amorce"):
+        lignes.append(
+            "Amorce laissée à la fin de la dernière session sur ce projet : "
+            f"{contexte['amorce']}."
+        )
+    if contexte.get("blocages"):
+        lignes.append(
+            "Blocages signalés au dernier debrief : " + " ; ".join(contexte["blocages"]) + "."
+        )
+    if not contexte.get("etape") and not contexte.get("amorce"):
+        lignes.append(
+            "Ni étape ouverte ni amorce : tu n'as rien sur quoi t'appuyer. "
+            "Rends alors un geste de mise en route qui n'invente rien — ouvrir le "
+            "projet et écrire la prochaine étape de la roadmap en est un."
+        )
+
+    if contexte.get("repli"):
+        lignes.append("")
+        lignes.append(
+            "Le système a un repli, calculé sans toi : "
+            f"« {contexte['repli']} ». Il reprend l'étape telle quelle et dure "
+            "probablement plus de dix minutes. Fais mieux, ou rends l'équivalent."
+        )
+    return "\n".join(lignes)
+
+
+# --------------------------------------------------------------------------
 # Entretien de projet (§4.5)
 # --------------------------------------------------------------------------
 

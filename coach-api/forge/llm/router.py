@@ -65,6 +65,13 @@ ROUTES: dict[Task, Route] = {
         max_tokens=10000,
         why="décide de la soirée — le seul moment où un mauvais choix coûte une session",
     ),
+    Task.GARDIEN: Route(
+        model=OPUS,
+        effort="medium",
+        max_tokens=6000,
+        why="dernière chance de la soirée, et une seule phrase à écrire : le "
+        "jugement porte sur le découpage, pas sur la rédaction",
+    ),
     Task.ENTRETIEN_PROJET: Route(
         model=OPUS,
         effort="high",

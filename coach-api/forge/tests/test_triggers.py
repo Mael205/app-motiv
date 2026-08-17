@@ -11,8 +11,11 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from forge import triggers
+from forge.llm import set_provider
+from forge.llm.fake import ScriptedProvider, UnavailableProvider
 from forge.models import (
     DayWindow,
+    JournalEntry,
     NotificationLog,
     Profile,
     Project,
@@ -105,6 +108,90 @@ class TestGardienDuSoir:
         samedi = date(2026, 3, 7)
         DayWindow.objects.filter(profile=profile, weekday=5).update(start_time=time(10))
         assert triggers.check_guardian(profile, paris(21, 30, samedi))
+
+
+class TestGardienDecoupeParLeModele:
+    """§5.4 : l'étape vaut une à trois séances, la notification en promet dix minutes.
+
+    Le modèle est là pour couper. Il n'est là que pour ça, et il ne peut rien
+    casser : chaque échec ci-dessous doit rendre le gardien du repli, à
+    l'identique.
+    """
+
+    def test_le_modele_decoupe_l_etape(self, profile):
+        set_provider(ScriptedProvider([{"tache": "Écrire le cas du mur dans test_collision.py"}]))
+        triggers.check_guardian(profile, paris(21, 30))
+        log = NotificationLog.objects.get(user=profile.user, kind=triggers.GUARDIAN)
+        assert "10 min : Écrire le cas du mur dans test_collision.py" in log.body
+        assert "Boucliers : 2" in log.body, "le système garde la main sur ce qu'il ajoute"
+
+    def test_le_modele_recoit_l_etape_et_le_temps_restant(self, profile):
+        fournisseur = ScriptedProvider([{"tache": "Écrire le cas du mur dans test_collision.py"}])
+        set_provider(fournisseur)
+        triggers.check_guardian(profile, paris(21, 30))
+        prompt = fournisseur.calls[0]["prompt"]
+        assert "Écrire le test de collision" in prompt
+        assert "90 minutes" in prompt
+
+    def test_sans_modele_le_gardien_part_quand_meme(self, profile):
+        set_provider(UnavailableProvider())
+        assert triggers.check_guardian(profile, paris(21, 30))
+        log = NotificationLog.objects.get(user=profile.user, kind=triggers.GUARDIAN)
+        assert "Écrire le test de collision" in log.body
+
+    def test_une_reponse_floue_retombe_sur_le_repli(self, profile):
+        """La porte refuse, et le soir continue comme si rien n'avait été tenté."""
+        set_provider(ScriptedProvider([{"tache": "Avancer sur le prototype"}]))
+        assert triggers.check_guardian(profile, paris(21, 30))
+        log = NotificationLog.objects.get(user=profile.user, kind=triggers.GUARDIAN)
+        assert "Écrire le test de collision" in log.body
+        assert "Avancer" not in log.body
+
+    def test_un_modele_qui_moralise_est_ecarte(self, profile):
+        set_provider(ScriptedProvider([{"tache": "Allez, écris le test de collision maintenant"}]))
+        triggers.check_guardian(profile, paris(21, 30))
+        log = NotificationLog.objects.get(user=profile.user, kind=triggers.GUARDIAN)
+        assert "Allez" not in log.body
+
+    def test_l_amorce_prime_sur_l_etape_dans_le_repli(self, profile, project):
+        """Le §11.3 : l'amorce a été payée pendant que le contexte était chaud."""
+        session = Session.objects.create(
+            user=profile.user,
+            project=project,
+            coach_day=LUNDI - timedelta(days=1),
+            started_at=paris(19, 0),
+            ended_at=paris(19, 25),
+            actual_minutes=25,
+            status=Session.DONE,
+        )
+        JournalEntry.objects.create(
+            session=session, next_action="Brancher le raycast sur le mur de gauche"
+        )
+        set_provider(UnavailableProvider())
+        triggers.check_guardian(profile, paris(21, 30))
+        log = NotificationLog.objects.get(user=profile.user, kind=triggers.GUARDIAN)
+        assert "Brancher le raycast" in log.body
+
+    def test_les_blocages_du_dernier_debrief_sont_donnes_au_modele(self, profile, project):
+        """§5.2 : buter deux fois sur la même chose à 21h30 fait refermer l'app."""
+        session = Session.objects.create(
+            user=profile.user,
+            project=project,
+            coach_day=LUNDI - timedelta(days=1),
+            started_at=paris(19, 0),
+            ended_at=paris(19, 25),
+            actual_minutes=25,
+            status=Session.DONE,
+        )
+        JournalEntry.objects.create(
+            session=session,
+            next_action="Brancher le raycast sur le mur de gauche",
+            blockers=["le collider du mur est en trigger"],
+        )
+        fournisseur = ScriptedProvider([{"tache": "Basculer le collider du mur hors trigger"}])
+        set_provider(fournisseur)
+        triggers.check_guardian(profile, paris(21, 30))
+        assert "collider du mur est en trigger" in fournisseur.calls[0]["prompt"]
 
 
 class TestRappelDeCreneau:

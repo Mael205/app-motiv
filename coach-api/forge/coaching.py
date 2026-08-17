@@ -247,6 +247,83 @@ def briefing(user, *, now: datetime | None = None) -> dict | None:
 
 
 # --------------------------------------------------------------------------
+# Gardien du soir (§5.4)
+# --------------------------------------------------------------------------
+
+def tache_du_gardien(proposition: dict, *, minutes_restantes: int) -> dict:
+    """Le geste de dix minutes annoncé par le gardien du soir.
+
+    Prend la proposition déjà calculée par ``services.propose`` — le choix du
+    projet reste déterministe, et le modèle n'a pas à le rejuger — et cherche à
+    en tirer un morceau qui tienne vraiment en dix minutes.
+
+    C'est le défaut connu du gardien déterministe : il reprend l'amorce ou le
+    libellé de l'étape, qui sont dimensionnés pour une à trois séances de
+    vingt-cinq minutes. Annoncer dix minutes pour un travail qui en demande
+    quatre-vingts est une promesse fausse, et le soir où elle est lue, elle sert
+    de raison de ne pas commencer.
+
+    Rend toujours un dictionnaire : ``texte`` est la tâche à afficher, ``source``
+    dit qui l'a écrite, ``ai_note`` pourquoi le modèle n'a pas servi. L'appelant
+    n'a aucun cas d'échec à traiter — un gardien qui ne part pas est un gardien
+    qui n'existe pas (§5.4). ``texte`` peut être vide quand le projet n'a ni
+    étape ouverte ni amorce et que le modèle manque : il n'y a alors rien à dire
+    de plus précis que le nom du projet, et l'inventer serait pire.
+    """
+    projet = proposition["project"]["name"]
+    etape = proposition["step"]["label"] if proposition.get("step") else ""
+    amorce = proposition.get("amorce") or ""
+    repli = amorce or etape
+
+    # Le §5.2 veut qu'un blocage soit réinjecté au démarrage suivant. Le gardien
+    # est ce démarrage-là les soirs où il n'y en a pas eu d'autre : buter deux
+    # fois sur la même chose à 21h30 est le meilleur moyen de refermer l'app.
+    derniere = (
+        JournalEntry.objects.filter(session__project_id=proposition["project"]["id"])
+        .exclude(blockers=[])
+        .order_by("-created_at")
+        .values_list("blockers", flat=True)
+        .first()
+    )
+    blocages = [b for b in (derniere or []) if isinstance(b, str)]
+
+    secours = {"texte": repli, "source": SOURCE_DETERMINISTE, "ai_note": ""}
+
+    try:
+        reponse = get_provider().structured(
+            task=Task.GARDIEN,
+            system=prompts.SYSTEM_GARDIEN,
+            prompt=prompts.gardien_prompt(
+                {
+                    "projet": projet,
+                    "etape": etape,
+                    "amorce": amorce,
+                    "blocages": blocages,
+                    "minutes_restantes": minutes_restantes,
+                    "repli": repli,
+                }
+            ),
+            schema=prompts.SCHEMA_GARDIEN,
+        )
+    except LLMUnavailable as error:
+        logger.info("gardien sans IA : %s", error)
+        return {**secours, "ai_note": str(error)}
+
+    if reponse.refused:
+        return {**secours, "ai_note": "le modèle a décliné la demande"}
+
+    payload = reponse.content if isinstance(reponse.content, dict) else {}
+
+    try:
+        valide = gate(Task.GARDIEN, payload)
+    except QualityGateFailed as error:
+        logger.warning("gardien refusé par la porte : %s", error.reason)
+        return {**secours, "ai_note": f"réponse du modèle refusée : {error.reason}"}
+
+    return {"texte": valide["tache"], "source": SOURCE_MODELE, "ai_note": ""}
+
+
+# --------------------------------------------------------------------------
 # Debrief (§5.2)
 # --------------------------------------------------------------------------
 

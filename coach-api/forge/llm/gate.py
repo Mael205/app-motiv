@@ -45,6 +45,21 @@ VERBES_FLOUS = (
     "s'occuper",
 )
 
+# Le biais par défaut d'un modèle est d'encourager, et le §17 l'interdit — « pas
+# de bravo, tu es incroyable », et pas un mot de jugement sur ce qui n'a pas été
+# fait. C'est au gardien que ça coûte le plus cher : c'est la notification d'un
+# soir raté, et un reproche y fait fermer l'app pour de bon.
+MOTS_DE_MORALE = (
+    "allez",
+    "courage",
+    "bravo",
+    "tu devrais",
+    "il faut vraiment",
+    "encore temps",
+    "au moins ça",
+    "ne rien faire",
+)
+
 # Marqueurs d'une réponse qui propose plusieurs pistes au lieu d'en choisir une.
 MARQUEURS_DE_LISTE = (
     " ou bien ",
@@ -56,6 +71,12 @@ MARQUEURS_DE_LISTE = (
 
 DUREES_AUTORISEES = (10, 25, 50)
 LONGUEUR_MINIMALE = 15
+
+# Un gardien se lit sur un écran verrouillé. Android coupe autour de cette
+# longueur, et une tâche coupée au milieu ne se démarre pas. C'est aussi le seul
+# indice mécanique qu'on a d'une tâche trop grosse pour dix minutes : ce qui
+# demande trois lignes à décrire n'en est pas une.
+LONGUEUR_MAXIMALE_GARDIEN = 120
 
 # Les bornes du §4.5. En dessous de quatre étapes, un projet n'est pas découpé :
 # il est renommé en quatre morceaux. Au-delà de douze, la roadmap ne se relit
@@ -134,6 +155,63 @@ def check_briefing(payload: dict, *, projets_connus: set[str]) -> dict:
         "pourquoi": _texte(payload, "pourquoi"),
         "definition_de_fini": _texte(payload, "definition_de_fini"),
     }
+
+
+def check_gardien(payload: dict) -> dict:
+    """Valide la tâche de dix minutes du gardien du soir (§5.4).
+
+    Mêmes refus que le briefing sur le flou et les listes — c'est le même
+    diagnostic —, plus deux contraintes propres à la notification : elle doit
+    tenir sur un écran verrouillé, et elle ne doit pas faire la morale. Un
+    gardien qui commente la journée au lieu de donner un geste transforme le
+    dernier rappel du soir en reproche, et le §17 l'interdit.
+
+    Le refus est ici moins coûteux qu'ailleurs : le repli déterministe existe,
+    il est juste moins bien découpé.
+    """
+    tache = _texte(payload, "tache")
+
+    if not tache:
+        raise QualityGateFailed("gardien sans tâche", payload)
+    if len(tache) < LONGUEUR_MINIMALE:
+        raise QualityGateFailed(f"tâche trop courte pour être exécutable : « {tache} »", payload)
+    if len(tache) > LONGUEUR_MAXIMALE_GARDIEN:
+        raise QualityGateFailed(
+            f"tâche de {len(tache)} caractères : trop longue pour une notification, "
+            "et probablement trop grosse pour dix minutes (§5.4)",
+            payload,
+        )
+
+    bas = tache.lower()
+
+    for flou in VERBES_FLOUS:
+        if bas.startswith(flou) or f" {flou} " in bas:
+            raise QualityGateFailed(
+                f"tâche floue : « {flou} » décrit une intention, pas une action (§4.5)",
+                payload,
+            )
+
+    for marqueur in MARQUEURS_DE_LISTE:
+        if marqueur in f" {bas} ":
+            raise QualityGateFailed(
+                "le gardien propose plusieurs pistes au lieu d'en choisir une (§0.9)",
+                payload,
+            )
+
+    if re.search(r"(^|\n)\s*(?:[-*•]|\d+[.)])\s", tache):
+        raise QualityGateFailed("la tâche est une liste, pas une action unique (§0.9)", payload)
+
+    if "!" in tache:
+        raise QualityGateFailed("un gardien n'a pas de point d'exclamation (§17)", payload)
+
+    for mot in MOTS_DE_MORALE:
+        if re.search(rf"\b{re.escape(mot)}\b", bas):
+            raise QualityGateFailed(
+                f"« {mot} » est un jugement sur la journée, pas un geste à faire (§17)",
+                payload,
+            )
+
+    return {"tache": tache}
 
 
 def check_debrief(payload: dict) -> dict:
@@ -332,6 +410,8 @@ def gate(task: Task, payload: dict, **contexte) -> dict:
     """
     if task is Task.BRIEFING:
         return check_briefing(payload, projets_connus=contexte["projets_connus"])
+    if task is Task.GARDIEN:
+        return check_gardien(payload)
     if task is Task.DEBRIEF:
         return check_debrief(payload)
     if task is Task.ENTRETIEN_PROJET:

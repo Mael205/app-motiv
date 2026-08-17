@@ -11,6 +11,12 @@ les trois seuls mécanismes qui font que l'app se manifeste toute seule.
 Aucun n'a besoin d'IA : la proposition est construite depuis la roadmap. C'est
 volontaire — le gardien doit exister dès J1 et ne jamais tomber, même quand
 l'API du modèle est en panne (SPEC §5.4).
+
+Le gardien **demande** en plus au modèle de découper sa tâche en un geste de dix
+minutes, parce que reprendre une étape dimensionnée pour trois séances et
+écrire « 10 min » devant est une promesse fausse. Mais il part quoi qu'il
+arrive : ``coaching.tache_du_gardien`` rend le texte de repli quand le modèle
+manque, décline ou dérape.
 """
 
 from __future__ import annotations
@@ -116,9 +122,16 @@ def check_guardian(profile: Profile, now: datetime) -> list[dict]:
 
     left = int((window.end - now).total_seconds() // 60)
     if proposal:
-        task = proposal["amorce"] or (proposal["step"]["label"] if proposal["step"] else None)
+        # Le découpage est la seule chose confiée au modèle ici, et il ne peut
+        # rien casser : ``tache_du_gardien`` rend toujours un texte, celui du
+        # repli si l'IA manque, refuse ou dérape.
+        from .coaching import tache_du_gardien
+
+        tache = tache_du_gardien(proposal, minutes_restantes=left)
         body = (
-            f"10 min : {task}" if task else f"10 min sur {proposal['project']['name']}"
+            f"10 min : {tache['texte']}"
+            if tache["texte"]
+            else f"10 min sur {proposal['project']['name']}"
         )
         body += f"\n{left} min avant la fin de la fenêtre."
     else:

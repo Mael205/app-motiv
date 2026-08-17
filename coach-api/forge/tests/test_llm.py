@@ -20,7 +20,7 @@ from forge.llm import Task, get_provider, set_provider
 from forge.llm.claude_code import ClaudeCodeBackend
 from forge.llm.base import LLMUnavailable, QualityGateFailed
 from forge.llm.fake import ScriptedProvider, UnavailableProvider
-from forge.llm.gate import check_briefing, check_debrief, gate
+from forge.llm.gate import check_briefing, check_debrief, check_gardien, gate
 from forge.llm.router import OPUS, RESERVE_RAISONNEMENT, SONNET, route_for
 
 PROJETS = {"Bestiaire — app mobile", "Evolve — prototype 4v1 UE5"}
@@ -106,6 +106,45 @@ class TestPorteBriefing:
             check_briefing(briefing(tache="Continuer le bot"), projets_connus=PROJETS)
         assert "continuer" in echec.value.reason.lower()
         assert echec.value.payload is not None
+
+
+class TestPorteGardien:
+    """La notification d'un soir raté (§5.4). Un geste, pas un avis sur la journée."""
+
+    def test_un_geste_de_dix_minutes_passe(self):
+        resultat = check_gardien(
+            {"tache": "Écrire le cas de test du mur dans test_collision.py"}
+        )
+        assert resultat["tache"].startswith("Écrire")
+
+    def test_une_tache_floue_est_refusee(self):
+        with pytest.raises(QualityGateFailed, match="floue"):
+            check_gardien({"tache": "Avancer sur le moteur de rendu"})
+
+    def test_deux_pistes_sont_refusees(self):
+        with pytest.raises(QualityGateFailed, match="plusieurs pistes"):
+            check_gardien({"tache": "Écrire le test du mur, sinon relire le parseur"})
+
+    def test_une_tache_trop_longue_est_refusee(self):
+        """Ce qui ne tient pas dans une notification n'est pas lu — et n'est pas dix minutes."""
+        with pytest.raises(QualityGateFailed, match="trop longue"):
+            check_gardien({"tache": "Écrire le cas de test du mur dans test_collision.py " * 4})
+
+    def test_l_encouragement_est_refuse(self):
+        """Le §17 : pas de « bravo », et surtout pas le soir où rien n'a été fait."""
+        with pytest.raises(QualityGateFailed, match="jugement"):
+            check_gardien({"tache": "Allez, écrire le cas de test du mur dans test_collision.py"})
+
+    def test_le_point_d_exclamation_est_refuse(self):
+        with pytest.raises(QualityGateFailed, match="exclamation"):
+            check_gardien({"tache": "Écrire le cas de test du mur dans test_collision.py !"})
+
+    def test_le_reproche_est_refuse(self):
+        with pytest.raises(QualityGateFailed, match="jugement"):
+            check_gardien({"tache": "Tu devrais écrire le test du mur dans test_collision.py"})
+
+    def test_la_porte_est_branchee_sur_la_tache(self):
+        assert gate(Task.GARDIEN, {"tache": "Écrire le cas de test du mur dans test.py"})
 
 
 class TestPorteDebrief:
