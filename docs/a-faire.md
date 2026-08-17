@@ -93,6 +93,64 @@ Projets → Nouveau projet → Copier le prompt.
 
 ---
 
+## Décidé le 17 août 2026, à construire
+
+Dix-sept ajouts tranchés en une fois : du jeu, de la raison de revenir, et les
+situations que le système ne savait pas encaisser. L'ordre est celui de
+construction, pas d'importance égale.
+
+### Parer ce qui n'est pas couvert
+
+1. **Le mode veille.** Une à quatre semaines déclarées : tout gèle, aucune
+   notification, aucun jour raté, aucune sanction. C'est le manque le plus
+   dangereux du lot — les jours off sont plafonnés à 2 par semaine, ce qui ne
+   couvre ni des vacances, ni une grippe, ni des partiels, et la seule issue
+   actuelle est la désinstallation.
+2. **Le gel de saison.** Le statut `paused` existe dans le modèle et ne sert
+   nulle part. Une absence longue suspend la saison au lieu de la laisser mourir.
+3. **Baisser un engagement à tout moment, le monter seulement le dimanche.**
+   Le dimanche protège de l'abandon impulsif, pas de l'ajustement honnête.
+4. **Le projet en attente déclarée.** Bloqué par un tiers ou du matériel : deux
+   semaines où la détection « projet mort » se tait sans libérer le slot.
+5. **Le gardien de secours local.** Serveur injoignable à 21h30 : l'agent
+   connaît l'heure et la dernière tâche, il lève le sien.
+6. **Le fuseau horaire.** Voyager casse silencieusement la fenêtre du soir et la
+   bascule de 4h. Détecter l'écart et proposer de basculer.
+7. **Le remplaçant de l'ami.** Trois semaines sans lecture sont signalées, mais
+   rien n'est proposé ensuite. Changer de destinataire ne doit pas coûter les
+   24 heures du désarmement.
+
+### Le jeu
+
+8. **Les quêtes du jour et de la semaine (§4.4).** Spécifiées, jamais
+   construites : une quête plancher, une quête bonus contextuelle, une quête
+   hebdo posée le dimanche.
+9. **Le coup critique.** Une session sur dix rapporte le double, avec son effet.
+   Récompense variable posée sur du travail réel.
+10. **Les phases de boss.** À 50 % et 25 %, il change de nom et de
+    comportement. Aucune règle modifiée, de la mise en scène là où la saison
+    s'aplatit.
+11. **Le butin d'étape.** Terminer une étape lâche une carte garantie : c'est
+    l'action la plus structurante du système et la moins fêtée.
+12. **Le fantôme en direct.** Sa position à cette heure-ci, sur la jauge du
+    soir. Aujourd'hui la comparaison n'existe qu'en fin de journée.
+13. **Le dernier round.** Les trois derniers jours, la vie du boss s'affiche en
+    sessions restantes. Informatif seulement — un bonus de fin encouragerait le
+    sur-régime exactement là où il fait le plus de dégâts.
+
+### Revenir
+
+14. **La notification du matin.** L'amorce, à l'heure de ton choix : « ce soir,
+    brancher le raycast ». Le déclencheur le moins cher du lot.
+15. **« Il y a quatre semaines ».** Une entrée de journal d'il y a un mois,
+    ressortie dans la revue du dimanche.
+16. **Le contrat de saison signé.** Un engagement pris explicitement se tient
+    mieux qu'un réglage modifié en passant.
+17. **La trace longue.** Un écran des seuls compteurs qui ne redescendent
+    jamais, à consulter le soir où le streak vient de casser.
+
+---
+
 ## Fait depuis
 
 - **Le bilan de saison comparé** (17 août 2026). Comparaison à toutes les
