@@ -366,6 +366,31 @@ export interface SeasonReport {
   already_closed: boolean
   cards: LootCardDrawn[]
   offer?: SeasonOffer
+  /** Le bilan comparé du §13.4. Absent tant qu'il n'y a pas de saison passée. */
+  comparaison: {
+    saisons: {
+      index: number
+      nom: string
+      heures: number
+      sessions: number
+      regularite: number
+      etapes: number
+      engagements: string
+      fuite_minutes: number
+    }[]
+    evolutions: {
+      mesure: string
+      valeur: number
+      reference: number
+      sens: 'progression' | 'regression' | 'stable'
+      phrase: string
+    }[]
+    causes: string[]
+    question: string
+    rupture: { jour: string; jours: number } | null
+    part_du_coach: number
+    premiere: boolean
+  }
 }
 
 export interface SeasonOffer {

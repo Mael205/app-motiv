@@ -29,7 +29,7 @@ from datetime import date, timedelta
 from django.db import transaction
 from django.db.models import Sum
 
-from . import progression, services
+from . import progression, seasonreport, services
 from .models import Season, Session
 from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
@@ -155,6 +155,10 @@ def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
         "already_closed": deja,
         "cards": [],
         "stake_delta": 0,
+        # Le §13.4 : la comparaison à toutes les saisons passées, et la question
+        # de fin de saison. C'est la passe de fin de saison de l'analyste (§5.5),
+        # l'autre étant celle de chaque nuit.
+        "comparaison": seasonreport.comparaison(user, season),
     }
 
 

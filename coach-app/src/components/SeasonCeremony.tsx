@@ -31,7 +31,7 @@ import './SeasonCeremony.css'
  * se calme : on est en train de décider de son mois, pas de regarder un
  * spectacle.
  */
-type Beat = 'score' | 'phantom' | 'title' | 'cards' | 'offer'
+type Beat = 'score' | 'phantom' | 'title' | 'cards' | 'bilan' | 'offer'
 
 export function SeasonCeremony({
   report,
@@ -52,6 +52,10 @@ export function SeasonCeremony({
     if (report.phantom.available) list.push('phantom')
     list.push('title')
     if (report.cards.length) list.push('cards')
+    // Le §13.4 arrive après les récompenses, jamais avant : une question sur ce
+    // qui a cassé, posée avant le titre gagné, ferait de la cérémonie un bilan
+    // de fautes. Elle est le dernier temps, et c'est celui qu'on emporte.
+    if (!report.comparaison.premiere) list.push('bilan')
     list.push('offer')
     return list
   }, [report])
@@ -100,6 +104,33 @@ export function SeasonCeremony({
                 {report.boss.name}
               </p>
               <Burst count={24} spread={230} />
+            </motion.div>
+          )}
+
+          {beat === 'bilan' && report && (
+            <motion.div key="bilan" className="cer__beat cer__beat--bilan" {...slam(reduced)}>
+              <p className="label cer__over">Comparé à tes autres saisons</p>
+
+              <ul className="cer__evolutions">
+                {report.comparaison.evolutions.slice(0, 4).map((evolution) => (
+                  <li key={evolution.mesure} className={`cer__evo cer__evo--${evolution.sens}`}>
+                    {evolution.phrase}
+                  </li>
+                ))}
+              </ul>
+
+              {report.comparaison.causes.length > 0 && (
+                <div className="cer__causes">
+                  <span className="label">Ce que tes revues disaient</span>
+                  <ul>
+                    {report.comparaison.causes.map((cause) => (
+                      <li key={cause}>{cause}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="cer__question">{report.comparaison.question}</p>
             </motion.div>
           )}
 
