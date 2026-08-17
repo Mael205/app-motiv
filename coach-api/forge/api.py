@@ -16,7 +16,18 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, daily, detections, links, progression, review, season_flow, services, weekly
+from . import (
+    coaching,
+    daily,
+    detections,
+    leak,
+    links,
+    progression,
+    review,
+    season_flow,
+    services,
+    weekly,
+)
 from .models import (
     ActionLink,
     FridgeIdea,
@@ -493,6 +504,17 @@ def daily_report(request):
             "phrase": bilan.phrase,
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def leak_report(request):
+    """Le rapport de fuite de temps (SPEC §13.2).
+
+    Strictement local : ces chiffres ne partent jamais dans le bilan de l'ami,
+    ni dans un export, ni dans une notification lisible sur écran verrouillé.
+    """
+    return Response(leak.rapport(request.user, today=_today(request)))
 
 
 @api_view(["GET"])

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { BuddyReport } from '../components/BuddyReport'
 import { Constats } from '../components/Constats'
+import { Fuite } from '../components/Fuite'
 import { Revue } from '../components/Revue'
 import type { JournalEntry } from '../types'
 import './Journal.css'
@@ -35,6 +36,7 @@ export function Journal() {
         </p>
         <Constats />
         <Revue />
+        <Fuite />
         <BuddyReport />
       </div>
     )
@@ -87,6 +89,7 @@ export function Journal() {
         </section>
       ))}
 
+      <Fuite />
       <BuddyReport />
     </div>
   )

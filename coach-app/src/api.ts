@@ -13,6 +13,7 @@ import type {
   ProjectDetail,
   ProjectImportResult,
   ProjectPreview,
+  RapportDeFuite,
   Revue,
   RoutineCheckResult,
   SessionResult,
@@ -147,6 +148,9 @@ export const api = {
 
   /** Les sept constats du §13.5, déjà faits, du plus urgent au moins urgent. */
   detections: () => request<Derive[]>('/detections'),
+
+  /** Le rapport de fuite (§13.2). Ne quitte jamais l'utilisateur. */
+  leak: () => request<RapportDeFuite>('/leak'),
 
   weekly: () => request<WeeklyPanel>('/weekly'),
 

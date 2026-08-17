@@ -579,3 +579,18 @@ export interface Revue {
   contract_applied: boolean
   closed: boolean
 }
+
+/** Le rapport de fuite de temps (§13.2). Strictement local. */
+export interface RapportDeFuite {
+  depuis: string
+  tranches: { debut: number; libelle: string; minutes: number }[]
+  charniere: { libelle: string; minutes: number } | null
+  cout_semaine: { minutes: number; sessions: number; part_du_boss: number; phrase: string }
+  cout_total: { minutes: number; sessions: number; part_du_boss: number; phrase: string }
+  par_surface: {
+    pc: { semaine: number; avant: number }
+    mobile: { semaine: number; avant: number }
+  }
+  declencheurs: { quoi: string; occurrences: number; part: number }[]
+  sans_horodatage: number
+}
