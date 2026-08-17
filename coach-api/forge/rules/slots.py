@@ -156,3 +156,36 @@ def breaches_diversity(taken: Iterable[tuple[int, str]]) -> str | None:
         counts[domain] = counts.get(domain, 0) + 1
     over = [d for d, n in counts.items() if n > MAX_PER_DOMAIN]
     return over[0] if over else None
+
+
+# --------------------------------------------------------------------------
+# L'engagement hebdomadaire : baisser quand on veut, monter le dimanche
+# --------------------------------------------------------------------------
+
+# Le §4.3 réserve l'échange de slot au dimanche, pour protéger de l'abandon
+# impulsif d'un projet pour un autre plus excitant. L'engagement n'est pas dans
+# ce cas : le baisser en milieu de semaine n'est pas un abandon, c'est un
+# ajustement honnête. Le refuser force à subir une semaine qu'on sait déjà
+# intenable — donc à la rater, donc à perdre le rang pour rien.
+#
+# Le monter, en revanche, reste au dimanche. Une hausse prise un soir d'élan est
+# exactement le sur-régime du §0.2, et c'est elle qu'il faut faire dormir une
+# nuit.
+DIMANCHE = 6
+ENGAGEMENT_MAX = 14
+
+
+def peut_changer_engagement(*, actuel: int, vise: int, weekday: int) -> tuple[bool, str]:
+    """Rend ``(autorise, motif)``. Le motif est affiche tel quel."""
+    if vise < 1:
+        return False, "Un engagement à zéro n'est pas un engagement. Le minimum est 1."
+    if vise > ENGAGEMENT_MAX:
+        return False, f"Le maximum est {ENGAGEMENT_MAX} sessions par semaine."
+    if vise <= actuel:
+        return True, ""
+    if weekday == DIMANCHE:
+        return True, ""
+    return (
+        False,
+        "Monter un engagement attend le dimanche. Le baisser, non — ça se fait quand tu veux.",
+    )

@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/leak", api.leak_report),
     path("api/veille", api.veille),
     path("api/quests", api.quests_panel),
+    path("api/projects/<int:project_id>/commitment", api.project_commitment),
     path("api/daily", api.daily_report),
     path("api/review", api.weekly_review),
     path("api/review/answer", api.weekly_review_answer),

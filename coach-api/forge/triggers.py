@@ -38,6 +38,7 @@ RELAX_OVER = "sas_fini"
 BILAN = "bilan"
 DAILY = "bilan_du_jour"
 BILAN_NON_LU = "bilan_non_lu"
+MATIN = "matin"
 
 # Dimanche 20h. Assez tôt pour que la semaine décrite soit encore la semaine
 # qu'on a en tête, assez tard pour que le dimanche compte dedans.
@@ -58,6 +59,7 @@ def run_all(now: datetime | None = None) -> list[dict]:
             # Le silence complet est la moitié de ce que la veille promet.
             continue
 
+        fired += check_morning(profile, now)
         fired += check_slot_reminder(profile, now)
         fired += check_relax_end(profile, now)
         fired += check_guardian(profile, now)
@@ -65,6 +67,50 @@ def run_all(now: datetime | None = None) -> list[dict]:
         fired += check_weekly_report(profile, now)
 
     return fired
+
+
+# --------------------------------------------------------------------------
+# 0. Le rappel du matin
+# --------------------------------------------------------------------------
+
+def check_morning(profile: Profile, now: datetime) -> list[dict]:
+    """Redit au réveil l'amorce laissée hier soir (§11.3).
+
+    L'amorce existe déjà, et elle n'est lue qu'au moment de démarrer —
+    c'est-à-dire le soir, quand il est trop tard pour y penser. La sortir le
+    matin fait travailler l'idée toute la journée : à 21h, ce n'est plus une
+    décision à prendre mais une chose déjà en tête.
+
+    Silencieux s'il n'y a rien de précis à dire. « Bonne journée » n'est pas une
+    notification, c'est du bruit — et le bruit apprend à ignorer les vraies.
+    """
+    if profile.morning_hour is None:
+        return []
+
+    local = now.astimezone(_zone(profile))
+    if local.hour != profile.morning_hour or local.minute >= 5:
+        return []
+
+    today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+    proposal = propose(profile.user, today=today)
+    if not proposal:
+        return []
+
+    amorce = proposal["amorce"] or (proposal["step"]["label"] if proposal["step"] else "")
+    if not amorce:
+        return []
+
+    sent = _deliver(
+        profile.user,
+        MATIN,
+        today,
+        Notification(
+            title="Ce soir",
+            body=f"{amorce}\n{proposal['project']['name']} · {proposal['minutes']} min.",
+            kind="info",
+        ),
+    )
+    return [{"kind": MATIN}] if sent else []
 
 
 # --------------------------------------------------------------------------

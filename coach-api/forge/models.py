@@ -45,6 +45,16 @@ class Profile(models.Model):
     guardian_minutes_before_end = models.PositiveSmallIntegerField(
         default=90, help_text="Le gardien se déclenche N minutes avant la fin de la fenêtre du soir"
     )
+    morning_hour = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        default=8,
+        help_text=(
+            "Heure du rappel du matin, qui redit l'amorce laissée hier soir. "
+            "Vide : pas de rappel. C'est le déclencheur le moins cher du système — "
+            "l'idée travaille toute la journée au lieu d'être découverte à 21h."
+        ),
+    )
     buddy_disable_requested_at = models.DateTimeField(null=True, blank=True)
     shards = models.IntegerField(default=0)
     # Cosmétique équipé, un emplacement par type de carte (§12.6). Vide = défaut

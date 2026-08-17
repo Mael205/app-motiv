@@ -508,6 +508,35 @@ def daily_report(request):
     )
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def project_commitment(request, project_id: int):
+    """Change l'engagement hebdomadaire d'un projet (SPEC §4.3, §5.3).
+
+    Baisser est possible n'importe quel jour : subir une semaine qu'on sait
+    intenable la fait rater, et rater un engagement coûte le rang. Monter attend
+    le dimanche — une hausse prise un soir d'élan est le sur-régime du §0.2.
+    """
+    projet = Project.objects.filter(user=request.user, id=project_id).first()
+    if not projet:
+        return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        vise = int(request.data.get("weekly_commitment"))
+    except (TypeError, ValueError):
+        return Response({"detail": "Nombre de sessions attendu."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ok, motif = slot_rules.peut_changer_engagement(
+        actuel=projet.weekly_commitment, vise=vise, weekday=_today(request).weekday()
+    )
+    if not ok:
+        return Response({"detail": motif}, status=status.HTTP_409_CONFLICT)
+
+    projet.weekly_commitment = vise
+    projet.save(update_fields=["weekly_commitment"])
+    return Response({"id": projet.id, "weekly_commitment": projet.weekly_commitment})
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def quests_panel(request):
