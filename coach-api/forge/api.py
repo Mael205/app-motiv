@@ -23,6 +23,7 @@ from . import (
     leak,
     links,
     progression,
+    quests,
     review,
     season_flow,
     services,
@@ -505,6 +506,17 @@ def daily_report(request):
             "phrase": bilan.phrase,
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def quests_panel(request):
+    """Les quêtes du jour et de la semaine (SPEC §4.4).
+
+    Elles paient en Éclats, jamais en XP : l'XP mesure le travail réel, et une
+    quête qui en donnerait ferait payer deux fois la même session.
+    """
+    return Response(quests.panneau(request.user, today=_today(request)))
 
 
 @api_view(["GET", "POST", "DELETE"])
