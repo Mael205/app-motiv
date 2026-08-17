@@ -41,6 +41,7 @@ from .models import (
     WeeklyReport,
 )
 from .probeauth import ProbeTokenAuthentication
+from .rules import hiatus as hiatus_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules import verification as verification_rules
@@ -504,6 +505,58 @@ def daily_report(request):
             "phrase": bilan.phrase,
         }
     )
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def veille(request):
+    """Le mode veille : une pause déclarée qui n'est pas un abandon.
+
+    ``POST`` la déclare, ``DELETE`` en sort tout de suite. Sortir est immédiat —
+    une pause dont on ne peut pas sortir est une raison de plus de ne pas la
+    prendre.
+    """
+    today = _today(request)
+
+    if request.method == "POST":
+        try:
+            en_cours = services.declarer_veille(
+                request.user,
+                debut=date.fromisoformat(request.data["debut"]),
+                fin=date.fromisoformat(request.data["fin"]),
+                today=today,
+                raison=request.data.get("raison", ""),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_veille_payload(en_cours, today), status=status.HTTP_201_CREATED)
+
+    if request.method == "DELETE":
+        services.terminer_veille(request.user, today=today)
+        return Response({"active": False, "message": ""})
+
+    services.synchroniser_veille(request.user, today=today)
+    return Response(_veille_payload(services.veille_en_cours(request.user, today=today), today))
+
+
+def _veille_payload(veille_en_cours, today: date) -> dict:
+    if veille_en_cours is None:
+        return {
+            "active": False,
+            "message": "",
+            "min_jours": hiatus_rules.DUREE_MINIMALE,
+            "max_jours": hiatus_rules.DUREE_MAXIMALE,
+        }
+    return {
+        "active": True,
+        "debut": veille_en_cours.starts_on.isoformat(),
+        "fin": veille_en_cours.ends_on.isoformat(),
+        "jours": veille_en_cours.days,
+        "raison": veille_en_cours.reason,
+        "message": hiatus_rules.message(veille_en_cours.starts_on, veille_en_cours.ends_on),
+        "min_jours": hiatus_rules.DUREE_MINIMALE,
+        "max_jours": hiatus_rules.DUREE_MAXIMALE,
+    }
 
 
 @api_view(["GET"])

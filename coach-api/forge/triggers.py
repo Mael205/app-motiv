@@ -29,6 +29,7 @@ from django.utils import timezone
 from .models import NotificationLog, Profile, RelaxWindow, Session, Track
 from .notifications import Notification, notify
 from .rules.calendar import coach_day, evening_window
+from . import services
 from .services import DEGRADED_MINUTES, propose, streak_state
 
 GUARDIAN = "gardien"
@@ -49,6 +50,14 @@ def run_all(now: datetime | None = None) -> list[dict]:
     fired: list[dict] = []
 
     for profile in Profile.objects.select_related("user").all():
+        today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+        # La reprise ne dépend d'aucun geste : quelqu'un qui rentre après trois
+        # semaines n'a pas à cliquer sur « je suis rentré ».
+        services.synchroniser_veille(profile.user, today=today)
+        if services.veille_en_cours(profile.user, today=today):
+            # Le silence complet est la moitié de ce que la veille promet.
+            continue
+
         fired += check_slot_reminder(profile, now)
         fired += check_relax_end(profile, now)
         fired += check_guardian(profile, now)

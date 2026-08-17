@@ -566,6 +566,45 @@ class ProbeToken(models.Model):
         return token, raw
 
 
+class Hiatus(models.Model):
+    """Le mode veille : une pause déclarée qui n'est pas un abandon (§11.5 étendu).
+
+    Les jours off couvrent deux jours par semaine. Rien ne couvrait des vacances,
+    une grippe ou une semaine de partiels — et un système qui n'a pas de pause
+    n'en offre qu'une : la désinstallation.
+
+    Pendant la veille, tout est **neutre** au sens du §4.2 : rien ne casse, rien
+    ne se construit, aucun déclencheur ne part, la saison est gelée. On en sort
+    quand on veut : une pause dont on ne peut pas sortir est une raison de plus
+    de ne pas la prendre.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="hiatuses"
+    )
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    reason = models.CharField(max_length=120, blank=True)
+    declared_at = models.DateTimeField(default=timezone.now)
+    ended_early_at = models.DateTimeField(null=True, blank=True)
+    # Jours déjà rendus à la saison. Stocké pour que la reprise soit idempotente :
+    # sans ça, deux lectures de l'accueil rallongeraient la saison deux fois.
+    days_given_back = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("-starts_on",)
+
+    def __str__(self) -> str:
+        return f"Veille du {self.starts_on} au {self.ends_on}"
+
+    def covers(self, day) -> bool:
+        return self.starts_on <= day <= self.ends_on
+
+    @property
+    def days(self) -> int:
+        return (self.ends_on - self.starts_on).days + 1
+
+
 class WeeklyReview(models.Model):
     """La revue du dimanche (SPEC §5.3, §13.3).
 

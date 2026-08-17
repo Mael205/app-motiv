@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/links", api.issue_link),
     path("api/detections", api.detections_view),
     path("api/leak", api.leak_report),
+    path("api/veille", api.veille),
     path("api/daily", api.daily_report),
     path("api/review", api.weekly_review),
     path("api/review/answer", api.weekly_review_answer),

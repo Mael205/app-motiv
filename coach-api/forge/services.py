@@ -47,6 +47,7 @@ from .rules import ranks as rank_rules
 from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import sanctions as sanction_rules
+from .rules import hiatus as hiatus_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -91,6 +92,9 @@ def resolve_days(user, track: Track, *, until: date, since: date | None = None) 
     }
     days_off = set(DayOff.objects.filter(user=user, date__gte=start, date__lte=until).values_list("date", flat=True))
     pauses = _season_pause_days(user, start, until)
+    # Le mode veille : une absence déclarée ne casse rien et ne construit rien.
+    # Même contrat que le jour off du §11.5, sur une durée qui a du sens.
+    pauses |= veille_days(user, start, until)
 
     result: list[streak_rules.Day] = []
     cursor = start
@@ -104,6 +108,124 @@ def resolve_days(user, track: Track, *, until: date, since: date | None = None) 
         result.append(streak_rules.Day(cursor, state))
         cursor += timedelta(days=1)
     return result
+
+
+def veille_days(user, start: date, until: date) -> set[date]:
+    """Les journées couvertes par une veille déclarée (mode veille).
+
+    Une veille interrompue ne couvre plus que jusqu'à son interruption : on en
+    sort quand on veut, et les jours d'après redeviennent des jours normaux.
+    """
+    from .models import Hiatus
+
+    couverts: set[date] = set()
+    for veille in Hiatus.objects.filter(user=user, ends_on__gte=start, starts_on__lte=until):
+        fin = veille.ends_on
+        if veille.ended_early_at:
+            fin = min(fin, veille.ended_early_at.date())
+        couverts |= {
+            jour
+            for jour in hiatus_rules.jours(veille.starts_on, fin)
+            if start <= jour <= until
+        }
+    return couverts
+
+
+def veille_en_cours(user, *, today: date):
+    """La veille qui couvre aujourd'hui, ou ``None``."""
+    from .models import Hiatus
+
+    for veille in Hiatus.objects.filter(
+        user=user, starts_on__lte=today, ends_on__gte=today, ended_early_at__isnull=True
+    ):
+        return veille
+    return None
+
+
+@transaction.atomic
+def synchroniser_veille(user, *, today: date) -> str:
+    """Gèle ou dégèle la saison selon la veille en cours. Rend ce qui a changé.
+
+    Appelée à chaque lecture de l'accueil et à chaque passage de l'ordonnanceur :
+    la reprise ne doit dépendre d'aucun geste. Quelqu'un qui rouvre l'app après
+    trois semaines d'absence n'a pas à cliquer sur « je suis rentré ».
+
+    La saison reprend **où elle en était** : les jours gelés lui sont rendus. Une
+    saison de 28 jours dont on a gelé 10 se termine 10 jours plus tard, sinon la
+    veille coûterait un tiers de la saison — et une pause qui coûte n'est pas une
+    pause.
+    """
+    from .models import Hiatus
+
+    veille = veille_en_cours(user, today=today)
+    saison = (
+        Season.objects.filter(user=user, status__in=[Season.RUNNING, Season.PAUSED])
+        .order_by("-index")
+        .first()
+    )
+    if saison is None:
+        return "rien"
+
+    if veille and saison.status == Season.RUNNING:
+        saison.status = Season.PAUSED
+        saison.save(update_fields=["status"])
+        return "gelee"
+
+    if veille:
+        return "gelee"
+
+    # Plus de veille : on rend à la saison les jours qu'on lui a pris.
+    rendus = 0
+    for passee in Hiatus.objects.filter(user=user, starts_on__lte=today):
+        fin = passee.ends_on
+        if passee.ended_early_at:
+            fin = min(fin, passee.ended_early_at.date())
+        fin = min(fin, today)
+        effectifs = max(0, (fin - passee.starts_on).days + 1)
+        du = effectifs - passee.days_given_back
+        if du <= 0:
+            continue
+        rendus += du
+        passee.days_given_back = effectifs
+        passee.save(update_fields=["days_given_back"])
+
+    if saison.status == Season.PAUSED:
+        saison.status = Season.RUNNING
+    if rendus:
+        saison.ends_on = saison.ends_on + timedelta(days=rendus)
+    if rendus or saison.status == Season.RUNNING:
+        saison.save(update_fields=["status", "ends_on"])
+    return "reprise" if rendus else "rien"
+
+
+@transaction.atomic
+def declarer_veille(user, *, debut: date, fin: date, today: date, raison: str = ""):
+    """Déclare une veille. Lève ``ValueError`` si les règles la refusent."""
+    from .models import Hiatus
+
+    verdict = hiatus_rules.verifier(debut=debut, fin=fin, aujourdhui=today)
+    if not verdict.ok:
+        raise ValueError(verdict.raison)
+    if veille_en_cours(user, today=today):
+        raise ValueError("Une veille est déjà en cours.")
+
+    veille = Hiatus.objects.create(
+        user=user, starts_on=debut, ends_on=fin, reason=raison.strip()[:120]
+    )
+    synchroniser_veille(user, today=today)
+    return veille
+
+
+@transaction.atomic
+def terminer_veille(user, *, today: date, now: datetime | None = None):
+    """Sort de la veille tout de suite. Rendre est immédiat, comme partout ici."""
+    veille = veille_en_cours(user, today=today)
+    if veille is None:
+        return None
+    veille.ended_early_at = now or timezone.now()
+    veille.save(update_fields=["ended_early_at"])
+    synchroniser_veille(user, today=today)
+    return veille
 
 
 def _season_pause_days(user, start: date, until: date) -> set[date]:
