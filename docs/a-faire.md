@@ -73,21 +73,29 @@ Projets → Nouveau projet → Copier le prompt.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
 
-- **Les écrans de ce qui vient d'être construit.** Trois endpoints existent sans
-  rien à l'écran : `/api/detections` (les sept constats du §13.5),
-  `/api/weekly` (les bilans envoyés, l'état du destinataire, le compteur de
-  non-lus) et `/api/links` (émettre un lien de frigo à épingler). Le serveur
-  décide, l'app ne le montre pas encore.
-
 - **Ce qui reste des §5 et §13.** La revue hebdomadaire dialoguée (§5.3), le
-  bilan quotidien poussé le matin (§13.1), le rapport de fuite de temps (§13.2),
-  le bilan de saison comparé (§13.4) et l'analyste de nuit (§5.5). Les sept
-  détections leur servent de matière première : c'est ce qui permet d'arriver
-  « avec les constats déjà faits », et c'est fait.
+  rapport de fuite de temps (§13.2), le bilan de saison comparé (§13.4) et
+  l'analyste de nuit (§5.5). Les sept détections leur servent de matière
+  première : c'est ce qui permet d'arriver « avec les constats déjà faits », et
+  c'est fait.
+
+  La revue du dimanche est la prochaine dans l'ordre : elle a maintenant ses
+  constats, son canal de réponse (le lien signé) et son texte de sortie (le
+  bilan à l'ami). Il ne manque que le dialogue.
+
+- **L'écran du bilan quotidien.** `/api/daily` rend la barre, la répartition et
+  la phrase ; la notification part la nuit. Il n'y a pas encore de tuile qui le
+  montre au réveil.
 
 ---
 
 ## Fait depuis
+
+- **Le bilan quotidien, et les écrans des constats** (17 août 2026). Le §13.1
+  part après la bascule de 4h : une phrase, des chiffres, aucun adjectif, et le
+  silence les jours où il n'aurait rien à dire. Les constats du §13.5 et le
+  bilan à l'ami sont dans l'onglet Journal — pas à l'accueil, qui ne porte
+  qu'une décision (§11.1).
 
 - **Les sept détections continues** (17 août 2026). Projet mort, étape figée,
   engagement irréaliste, concentration, fin de soirée qui glisse, migration du
