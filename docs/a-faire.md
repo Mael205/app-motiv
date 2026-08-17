@@ -73,11 +73,14 @@ Projets → Nouveau projet → Copier le prompt.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
 
-- **Ce qui reste des §5 et §13.** Le bilan de saison comparé (§13.4) et
-  l'analyste de nuit (§5.5). Le §5.5 est en grande partie couvert : les sept
-  détections tournent en continu et le bilan quotidien part chaque nuit. Ce qui
-  lui reste en propre est la passe de fin de saison, donc le §13.4 — les deux se
-  construisent ensemble.
+- **J6 — confort (§16).** Statistiques longues, export, cosmétiques
+  supplémentaires, réservoir de saisons étendu. Rien n'y bloque quoi que ce
+  soit : c'est du confort au sens propre, à prendre quand les jalons précédents
+  auront tourné pour de vrai.
+
+  Le §16 conditionne chaque jalon au précédent, et J1 attend toujours sa
+  **condition de passage : sept jours d'usage réel**. Ce qui manque maintenant
+  n'est plus du code.
 
 - **L'écran du bilan quotidien.** `/api/daily` rend la barre, la répartition et
   la phrase ; la notification part la nuit. Il n'y a pas encore de tuile qui le
@@ -91,6 +94,16 @@ Projets → Nouveau projet → Copier le prompt.
 ---
 
 ## Fait depuis
+
+- **Le bilan de saison comparé** (17 août 2026). Comparaison à toutes les
+  saisons passées et non à la dernière, régressions dites en premier, et la date
+  de rupture calculée : le début de la plus longue série de jours non tenus, pas
+  le premier jour raté. La question de fin de saison est toujours la même, et le
+  système n'apporte que la date — la cause, il vient la chercher.
+
+  Les trois causes probables sortent des revues du dimanche. Elles ne sont pas
+  devinées : c'est ce qui a été écrit chaque semaine pendant qu'elle était
+  fraîche.
 
 - **Le rapport de fuite de temps** (17 août 2026). Histogramme par tranche de 30
   minutes sur quatre semaines, et surtout la **charnière** : pas la tranche la
