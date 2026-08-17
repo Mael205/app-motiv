@@ -76,6 +76,27 @@ MOTS_DE_FELICITATION = (
     "fier",
 )
 
+# Le vocabulaire de la bonne résolution. Distinct des verbes flous ci-dessus :
+# « avancer le créneau du mardi à 19h30 » est parfaitement concret, alors que
+# « avancer sur l'API » ne l'est pas. Ce qui disqualifie une résolution n'est pas
+# son verbe, c'est qu'elle ne se vérifie pas — personne ne peut dire dimanche
+# prochain s'il a « été plus régulier ».
+RESOLUTIONS = (
+    "être plus",
+    "etre plus",
+    "plus régulier",
+    "plus regulier",
+    "essayer",
+    "continuer",
+    "faire mieux",
+    "faire plus",
+    "davantage",
+    "s'y remettre",
+    "tenir bon",
+    "rester motivé",
+    "rester motive",
+)
+
 # Marqueurs d'une réponse qui propose plusieurs pistes au lieu d'en choisir une.
 MARQUEURS_DE_LISTE = (
     " ou bien ",
@@ -232,6 +253,57 @@ def check_gardien(payload: dict) -> dict:
             )
 
     return {"tache": tache}
+
+
+def check_revue(payload: dict) -> dict:
+    """Valide le compte-rendu de la revue du dimanche (§13.3).
+
+    Deux refus, et ce sont les deux façons connues de rendre une revue inutile :
+
+    - **plusieurs choses à changer.** Le §13.3 en demande une seule, et la raison
+      est mécanique : trois changements simultanés ne se tiennent pas une
+      semaine, et n'en tenir aucun fait arrêter les revues ;
+    - **une intention vague.** « Être plus régulier » ne se vérifie pas dimanche
+      prochain, donc ne se corrige jamais. C'est le même défaut que le briefing
+      flou du §4.5, au niveau de la semaine.
+    """
+    seule = _texte(payload, "seule_chose")
+    if not seule:
+        raise QualityGateFailed("revue sans chose à changer", payload)
+    if len(seule) < LONGUEUR_MINIMALE:
+        raise QualityGateFailed(f"changement trop vague : « {seule} »", payload)
+
+    bas = seule.lower()
+
+    for resolution in RESOLUTIONS:
+        if resolution in bas:
+            raise QualityGateFailed(
+                f"« {resolution} » est une résolution, pas un changement : "
+                "ça ne se vérifie pas dimanche prochain",
+                payload,
+            )
+
+    if re.search(r"(^|\n)\s*(?:[-*•]|\d+[.)])\s", seule):
+        raise QualityGateFailed("le §13.3 demande UNE chose à changer, pas une liste", payload)
+
+    for marqueur in (" et aussi ", " ainsi que ", " puis ", " également "):
+        if marqueur in f" {bas} ":
+            raise QualityGateFailed(
+                "deux changements au lieu d'un : trois choses à la fois n'en font aucune",
+                payload,
+            )
+
+    for mot in MOTS_DE_MORALE + MOTS_DE_FELICITATION:
+        if re.search(rf"\b{re.escape(mot)}\b", f"{bas} {_texte(payload, 'n_a_pas_marche').lower()}"):
+            raise QualityGateFailed(
+                f"« {mot} » juge la personne : la revue décrit des soirées (§17)", payload
+            )
+
+    return {
+        "a_marche": _texte(payload, "a_marche"),
+        "n_a_pas_marche": _texte(payload, "n_a_pas_marche"),
+        "seule_chose": seule,
+    }
 
 
 def check_bilan(payload: dict) -> dict:
@@ -467,6 +539,8 @@ def gate(task: Task, payload: dict, **contexte) -> dict:
         return check_gardien(payload)
     if task is Task.BILAN:
         return check_bilan(payload)
+    if task is Task.REVUE_HEBDO:
+        return check_revue(payload)
     if task is Task.DEBRIEF:
         return check_debrief(payload)
     if task is Task.ENTRETIEN_PROJET:

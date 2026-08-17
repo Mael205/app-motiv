@@ -1,0 +1,147 @@
+/* La revue du dimanche (§5.3, §13.3).
+ *
+ * Le fait est au-dessus de la question, en plus petit et plus sourd : c'est lui
+ * qui rend la question répondable, mais ce n'est pas lui qu'on lit en premier.
+ *
+ * « La seule chose à changer » est le seul bloc accentué de tout l'écran. Le
+ * §13.3 en demande une, et une hiérarchie plate en ferait trois d'égale
+ * importance — donc aucune.
+ */
+
+.revue {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.revue__titre {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.revue__intro,
+.revue__note {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--dim);
+}
+
+.revue__q {
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.revue__fait {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.revue__question {
+  margin-top: 4px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.revue__reponse {
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--turquoise);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.revue__saisie {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.revue__saisie textarea {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  resize: vertical;
+}
+
+.revue__bloc {
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 2px solid var(--line-strong);
+}
+
+.revue__bloc--seul {
+  border-left-color: var(--accent);
+  background: var(--panel-high);
+}
+
+.revue__bloc p {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.revue__etiquette {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.revue__clore {
+  align-self: flex-start;
+  padding: 9px 16px;
+  background: var(--accent);
+  border: 0;
+  color: var(--bg-deep);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contrat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.contrat ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.contrat li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.contrat__projet {
+  color: var(--text);
+}
+
+.contrat__chiffres {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.contrat__raison {
+  flex: 1 1 100%;
+  color: var(--dim);
+  font-size: 12.5px;
+}

@@ -188,6 +188,93 @@ def debrief_prompt(*, projet: str, etape: str, minutes: int, note: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# La revue du dimanche (§5.3, §13.3)
+# --------------------------------------------------------------------------
+
+# Le modèle n'a pas à choisir les faits : les chiffres les ont déjà tranchés, et
+# les questions déterministes portent déjà sur les bons soirs. Ce qu'on lui
+# demande est ce qu'une règle ne sait pas faire — relier une réponse à une cause,
+# et n'en retenir qu'une seule chose à changer.
+
+SYSTEM_REVUE = """\
+Tu écris le compte-rendu de la semaine de quelqu'un, à partir de ses chiffres et
+de ses réponses à quatre ou cinq questions.
+
+Tu produis exactement trois choses, en français, à la deuxième personne :
+
+- CE QUI A MARCHÉ, avec **la cause** et pas seulement le résultat. « Trois soirs
+  sur le bot » n'est pas une cause ; « les trois soirs où l'environnement était
+  déjà ouvert » en est une. Si les réponses ne donnent aucune cause, dis ce que
+  les chiffres montrent et n'invente rien.
+- CE QUI N'A PAS MARCHÉ, dans les mêmes termes. Factuel. Sans reproche, sans
+  « il aurait fallu », sans supposer de la paresse ou du manque de volonté.
+- LA SEULE CHOSE À CHANGER la semaine prochaine. **Une seule.** Concrète,
+  vérifiable dimanche prochain : « avancer le créneau du mardi à 19h30 », pas
+  « être plus régulier ». Trois changements simultanés ne se tiennent pas une
+  semaine, et n'en tenir aucun fait arrêter les revues.
+
+Règles de ton, non négociables :
+
+- Aucune félicitation, aucun encouragement, aucun point d'exclamation.
+- Aucun jugement sur la personne. Tu décris des soirées, pas un caractère.
+- Deux ou trois phrases par bloc, pas davantage. Ce texte se relit dans un mois.
+- Tu n'inventes aucun chiffre et aucun fait qui ne soit pas dans le contexte.
+"""
+
+SCHEMA_REVUE = {
+    "type": "object",
+    "properties": {
+        "a_marche": {"type": "string", "description": "Ce qui a marché, avec sa cause."},
+        "n_a_pas_marche": {"type": "string", "description": "Ce qui n'a pas marché. Factuel."},
+        "seule_chose": {
+            "type": "string",
+            "description": "Une seule chose à changer, concrète et vérifiable.",
+        },
+    },
+    "required": ["a_marche", "n_a_pas_marche", "seule_chose"],
+    "additionalProperties": False,
+}
+
+
+def revue_prompt(*, faits: dict, constats: list[str], echanges: list[dict]) -> str:
+    """Les chiffres, les constats déjà faits, et ce que la personne a répondu."""
+    lignes = [
+        f"Semaine du {faits['semaine']}.",
+        f"Série : {faits['streak']} jour(s). Rang : {faits['rang']}.",
+    ]
+
+    for projet in faits["projets"]:
+        lignes.append(f"- {projet['nom']} : {projet['minutes']} min, {projet['sessions']} session(s)")
+    if not faits["projets"]:
+        lignes.append("- Aucune session cette semaine.")
+
+    for engagement in faits["engagements"]:
+        lignes.append(
+            f"- Engagement {engagement['nom']} : {engagement['tenus']}/{engagement['pris']}"
+        )
+
+    if constats:
+        lignes.append("")
+        lignes.append("Constats déjà calculés :")
+        lignes.extend(f"- {constat}" for constat in constats)
+
+    repondues = [e for e in echanges if (e.get("reponse") or "").strip()]
+    lignes.append("")
+    if repondues:
+        lignes.append("Ses réponses :")
+        for echange in repondues:
+            lignes.append(f"- {echange['question']} → « {echange['reponse'].strip()} »")
+    else:
+        lignes.append(
+            "Il n'a répondu à aucune question. Écris quand même la revue à partir des "
+            "seuls chiffres, et ne prête aucune intention : ce que tu ne peux pas savoir, "
+            "tu ne l'écris pas."
+        )
+
+    return "\n".join(lignes)
+
+
+# --------------------------------------------------------------------------
 # La phrase du bilan envoyé à l'ami (§4.7)
 # --------------------------------------------------------------------------
 

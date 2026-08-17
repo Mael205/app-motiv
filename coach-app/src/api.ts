@@ -13,6 +13,7 @@ import type {
   ProjectDetail,
   ProjectImportResult,
   ProjectPreview,
+  Revue,
   RoutineCheckResult,
   SessionResult,
   WeeklyPanel,
@@ -148,6 +149,25 @@ export const api = {
   detections: () => request<Derive[]>('/detections'),
 
   weekly: () => request<WeeklyPanel>('/weekly'),
+
+  /** Ouvre la revue de la semaine si elle n'existe pas — les questions sont
+   *  calculées à ce moment-là, depuis les constats du §13.5. */
+  review: () => request<Revue>('/review'),
+
+  answerReview: (index: number, texte: string) =>
+    request<Revue>('/review/answer', {
+      method: 'POST',
+      body: JSON.stringify({ index, texte }),
+    }),
+
+  closeReview: () => request<Revue>('/review', { method: 'POST' }),
+
+  /** Applique le contrat proposé. Jamais automatique (§17). */
+  applyContract: () =>
+    request<{ changes: { projet: string; avant: number; apres: number }[]; revue: Revue }>(
+      '/review/contract',
+      { method: 'POST' },
+    ),
 
   /** Demande l'arrêt du bilan. Ne coupe rien avant 24 h (§4.7). */
   requestWeeklyStop: () =>

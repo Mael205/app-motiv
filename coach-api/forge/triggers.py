@@ -245,7 +245,12 @@ def check_weekly_report(profile: Profile, now: datetime) -> list[dict]:
     if not (HEURE_BILAN <= local.hour < HEURE_BILAN + 1 and local.minute < 5):
         return []
 
-    from . import weekly
+    from . import review, weekly
+
+    # La revue s'ouvre avant que le bilan parte : ses questions sont calculées
+    # sur la semaine qui vient de finir, et c'est le moment où elle est encore
+    # en tête. Elle n'attend aucune réponse pour exister (§13.3).
+    review.ouvrir(profile.user, now=now)
 
     rapport = weekly.envoyer(profile.user, now=now)
     if rapport is None:

@@ -566,6 +566,45 @@ class ProbeToken(models.Model):
         return token, raw
 
 
+class WeeklyReview(models.Model):
+    """La revue du dimanche (SPEC §5.3, §13.3).
+
+    Le seul moment de la semaine où l'app pose des questions — et elle arrive
+    avec les constats déjà faits, jamais avec une page blanche (§0.9).
+
+    Les réponses sont stockées avec leur question : une réponse seule ne se
+    relit pas, et c'est la relecture qui fait la valeur d'une revue au bout de
+    quatre semaines.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="weekly_reviews"
+    )
+    week_start = models.DateField()
+    # [{"fait": …, "question": …, "reponse": …}]. Un seul champ plutôt qu'une
+    # table par question : rien ne les interroge séparément, et une revue se lit
+    # toujours entière.
+    questions = models.JSONField(default=list, blank=True)
+    # {"a_marche": …, "n_a_pas_marche": …, "seule_chose": …, "dialogue": bool}
+    report = models.JSONField(default=dict, blank=True)
+    # [{"projet": …, "actuel": n, "propose": n, "raison": …}]
+    contract = models.JSONField(default=list, blank=True)
+    contract_applied_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-week_start",)
+        unique_together = ("user", "week_start")
+
+    def __str__(self) -> str:
+        return f"Revue du {self.week_start}"
+
+    @property
+    def answered(self) -> int:
+        return sum(1 for q in self.questions if (q.get("reponse") or "").strip())
+
+
 class WeeklyReport(models.Model):
     """Le bilan envoyé à un ami, une fois par semaine (SPEC §4.7).
 

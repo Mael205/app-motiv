@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, daily, detections, links, progression, season_flow, services, weekly
+from . import coaching, daily, detections, links, progression, review, season_flow, services, weekly
 from .models import (
     ActionLink,
     FridgeIdea,
@@ -416,6 +416,58 @@ def fridge(request):
             for i in FridgeIdea.objects.filter(user=request.user, promoted_at__isnull=True)
         ]
     )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def weekly_review(request):
+    """La revue du dimanche (SPEC §5.3, §13.3).
+
+    ``GET`` ouvre la revue de la semaine si elle n'existe pas — les questions
+    sont calculées à ce moment-là, à partir des constats du §13.5. ``POST`` la
+    clôt et écrit le compte-rendu, avec ou sans réponses.
+    """
+    if request.method == "POST":
+        revue = review.clore(review.ouvrir(request.user))
+    else:
+        revue = review.ouvrir(request.user)
+
+    return Response(_revue_payload(revue))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def weekly_review_answer(request):
+    """Une réponse, deux phrases suffisent (SPEC §13.3)."""
+    try:
+        revue = review.repondre(
+            review.ouvrir(request.user),
+            index=int(request.data.get("index", -1)),
+            texte=request.data.get("texte", ""),
+        )
+    except (ValueError, TypeError) as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(_revue_payload(revue))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def weekly_review_contract(request):
+    """Applique le contrat proposé. Jamais automatique (SPEC §17)."""
+    revue = review.ouvrir(request.user)
+    return Response({"changes": review.appliquer_contrat(revue), "revue": _revue_payload(revue)})
+
+
+def _revue_payload(revue) -> dict:
+    return {
+        "week_start": revue.week_start.isoformat(),
+        "questions": revue.questions,
+        "answered": revue.answered,
+        "report": revue.report,
+        "contract": revue.contract,
+        "contract_applied": revue.contract_applied_at is not None,
+        "closed": revue.closed_at is not None,
+    }
 
 
 @api_view(["GET"])

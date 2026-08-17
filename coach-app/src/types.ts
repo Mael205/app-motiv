@@ -562,3 +562,20 @@ export interface WeeklyPanel {
     read_at: string | null
   }[]
 }
+
+/** La revue du dimanche (§5.3, §13.3). */
+export interface Revue {
+  week_start: string
+  questions: { fait: string; question: string; reponse: string }[]
+  answered: number
+  report: {
+    a_marche?: string
+    n_a_pas_marche?: string
+    seule_chose?: string
+    dialogue?: boolean
+    note?: string
+  }
+  contract: { projet: string; actuel: number; propose: number; raison: string }[]
+  contract_applied: boolean
+  closed: boolean
+}

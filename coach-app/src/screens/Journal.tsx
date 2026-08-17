@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { BuddyReport } from '../components/BuddyReport'
 import { Constats } from '../components/Constats'
+import { Revue } from '../components/Revue'
 import type { JournalEntry } from '../types'
 import './Journal.css'
 
@@ -33,6 +34,7 @@ export function Journal() {
           relisibles au lieu de floues.
         </p>
         <Constats />
+        <Revue />
         <BuddyReport />
       </div>
     )
@@ -56,6 +58,7 @@ export function Journal() {
       </header>
 
       <Constats />
+      <Revue />
 
       {Object.entries(byDay).map(([day, dayEntries]) => (
         <section key={day} className="jday">
