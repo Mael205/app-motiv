@@ -60,6 +60,22 @@ MOTS_DE_MORALE = (
     "ne rien faire",
 )
 
+# Le §17 : « pas de bravo, tu es incroyable ». Ces mots-là ne coûtent rien à
+# l'écran, mais dans un bilan lu par un tiers ils décrédibilisent le suivant —
+# un compte-rendu qui félicite chaque semaine ne dit plus rien quand la semaine
+# a vraiment été bonne.
+MOTS_DE_FELICITATION = (
+    "bravo",
+    "félicitations",
+    "felicitations",
+    "impressionnant",
+    "excellent",
+    "superbe",
+    "magnifique",
+    "continue comme ça",
+    "fier",
+)
+
 # Marqueurs d'une réponse qui propose plusieurs pistes au lieu d'en choisir une.
 MARQUEURS_DE_LISTE = (
     " ou bien ",
@@ -77,6 +93,10 @@ LONGUEUR_MINIMALE = 15
 # indice mécanique qu'on a d'une tâche trop grosse pour dix minutes : ce qui
 # demande trois lignes à décrire n'en est pas une.
 LONGUEUR_MAXIMALE_GARDIEN = 120
+
+# Le §4.7 demande « une phrase de synthèse ». Deux cents caractères en laissent
+# une vraie, et refusent le paragraphe qui commenterait la semaine.
+LONGUEUR_MAXIMALE_BILAN = 200
 
 # Les bornes du §4.5. En dessous de quatre étapes, un projet n'est pas découpé :
 # il est renommé en quatre morceaux. Au-delà de douze, la roadmap ne se relit
@@ -212,6 +232,39 @@ def check_gardien(payload: dict) -> dict:
             )
 
     return {"tache": tache}
+
+
+def check_bilan(payload: dict) -> dict:
+    """Valide la phrase envoyée à l'ami (§4.7).
+
+    Le lecteur n'est pas l'utilisateur, et c'est ce qui change tout : un
+    encouragement rend le bilan suivant moins crédible, un reproche fait d'un
+    ami un juge. La porte refuse donc le registre avant le contenu.
+
+    Elle ne vérifie pas ici l'absence des données interdites — ``weekly`` le
+    fait sur le texte **complet**, juste avant l'envoi, parce que c'est là que
+    la fuite compterait.
+    """
+    phrase = _texte(payload, "phrase")
+
+    if not phrase:
+        raise QualityGateFailed("bilan sans phrase", payload)
+    if len(phrase) > LONGUEUR_MAXIMALE_BILAN:
+        raise QualityGateFailed(
+            f"phrase de {len(phrase)} caractères : le §4.7 en demande une, pas un paragraphe",
+            payload,
+        )
+    if "!" in phrase:
+        raise QualityGateFailed("un bilan n'a pas de point d'exclamation (§17)", payload)
+
+    bas = phrase.lower()
+    for mot in MOTS_DE_MORALE + MOTS_DE_FELICITATION:
+        if re.search(rf"\b{re.escape(mot)}\b", bas):
+            raise QualityGateFailed(
+                f"« {mot} » : le bilan constate, il ne juge pas (§4.7, §17)", payload
+            )
+
+    return {"phrase": phrase}
 
 
 def check_debrief(payload: dict) -> dict:
@@ -412,6 +465,8 @@ def gate(task: Task, payload: dict, **contexte) -> dict:
         return check_briefing(payload, projets_connus=contexte["projets_connus"])
     if task is Task.GARDIEN:
         return check_gardien(payload)
+    if task is Task.BILAN:
+        return check_bilan(payload)
     if task is Task.DEBRIEF:
         return check_debrief(payload)
     if task is Task.ENTRETIEN_PROJET:

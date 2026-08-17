@@ -1,0 +1,78 @@
+{% comment %}
+La page d'un lien signé (SPEC §11.7, §4.7, §5.3).
+
+Une seule chose à faire, aucun choix, aucune navigation. C'est la même règle
+qu'au §0.9 pour l'accueil de l'app : ce qui est présenté est déjà décidé.
+
+Aucun script, aucune police distante, aucune image. La page doit s'ouvrir dans
+le navigateur intégré d'une messagerie, sur un téléphone en 3G, chez quelqu'un
+qui n'a pas le coach et n'en veut pas.
+{% endcomment %}<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coach</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 48px 20px; background: #191320; color: #ede6f5;
+         font: 16px/1.65 system-ui, -apple-system, sans-serif; }
+  main { max-width: 27rem; margin: 0 auto; }
+  h1 { font-size: 19px; margin: 0 0 6px; font-weight: 600; }
+  p { color: #9a8cae; margin: 0 0 20px; font-size: 14.5px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 7.5rem; padding: 12px;
+             background: #120d18; color: #ede6f5; font: inherit; font-size: 15px;
+             border: 1px solid rgba(237,230,245,.16); border-radius: 2px; resize: vertical; }
+  button { margin-top: 14px; padding: 12px 20px; background: #e8a33d; color: #120d18;
+           border: 0; border-radius: 2px; font: inherit; font-weight: 600; cursor: pointer; }
+  .fait { color: #4fc4b4; }
+  .rate { color: #de5f7e; }
+  .note { font-size: 13px; color: #6b5f7d; margin-top: 28px; }
+</style>
+
+<main>
+{% if introuvable %}
+  <h1>Ce lien ne mène à rien</h1>
+  <p>Il a peut-être expiré. Ça n'a aucune conséquence.</p>
+
+{% elif resultat %}
+  <h1 class="{% if resultat.ok %}fait{% else %}rate{% endif %}">{{ resultat.message }}</h1>
+  {% if not resultat.ok and vue.utilisable %}
+    <form method="post">{% csrf_token %}
+      <textarea name="texte" autofocus></textarea>
+      <button type="submit">Envoyer</button>
+    </form>
+  {% endif %}
+
+{% elif vue.expire %}
+  <h1>Lien expiré</h1>
+  <p>Rien à faire. Le prochain arrivera à l'heure prévue.</p>
+
+{% elif vue.fait and vue.kind != 'frigo' %}
+  <h1 class="fait">Déjà fait</h1>
+  <p>Rien à refaire.</p>
+
+{% elif vue.kind == 'vu' %}
+  <h1>{{ vue.titre }}</h1>
+  <p>Un clic suffit. Il sert à savoir que le bilan a été lu — rien de plus n'est
+     demandé, et rien n'est envoyé en retour.</p>
+  <form method="post">{% csrf_token %}
+    <button type="submit">J'ai lu</button>
+  </form>
+
+{% elif vue.kind == 'reponse' %}
+  <h1>{{ vue.question }}</h1>
+  <p>Deux phrases suffisent.</p>
+  <form method="post">{% csrf_token %}
+    <textarea name="texte" autofocus></textarea>
+    <button type="submit">Envoyer</button>
+  </form>
+
+{% else %}
+  <h1>Au frigo</h1>
+  <p>Une idée, une phrase. Elle attendra dimanche sans rien réclamer.</p>
+  <form method="post">{% csrf_token %}
+    <textarea name="texte" autofocus placeholder="…"></textarea>
+    <button type="submit">Jeter au frigo</button>
+  </form>
+{% endif %}
+
+<p class="note">Ce lien ne donne accès à rien d'autre.</p>
+</main>

@@ -16,8 +16,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, progression, season_flow, services
+from . import coaching, links, progression, season_flow, services, weekly
 from .models import (
+    ActionLink,
     FridgeIdea,
     Garde,
     Project,
@@ -26,6 +27,7 @@ from .models import (
     RoadmapStep,
     Routine,
     Session,
+    WeeklyReport,
 )
 from .probeauth import ProbeTokenAuthentication
 from .rules import signals as signal_rules
@@ -414,6 +416,115 @@ def fridge(request):
             for i in FridgeIdea.objects.filter(user=request.user, promoted_at__isnull=True)
         ]
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def weekly_reports(request):
+    """Ce qui est parti à l'ami, et ce qu'il en a fait (SPEC §4.7).
+
+    L'utilisateur doit pouvoir relire **mot pour mot** ce qui a été envoyé en
+    son nom. Un bilan recalculé à l'affichage ne dirait pas ce que l'ami a lu,
+    et c'est justement la question au bout de trois semaines sans lecture.
+    """
+    profile = request.user.profile
+    rapports = WeeklyReport.objects.filter(user=request.user)[:12]
+    demande = profile.buddy_disable_requested_at
+
+    return Response(
+        {
+            "actif": weekly.destinataire_actif(profile),
+            "destinataire_configure": bool(profile.buddy_channel),
+            "desactivation_demandee_le": demande.isoformat() if demande else None,
+            "desactivation_effective_le": (
+                (demande + weekly.DELAI_DESARMEMENT).isoformat() if demande else None
+            ),
+            "non_lus": weekly.non_lus(request.user),
+            "seuil_non_lus": weekly.SEUIL_NON_LUS,
+            "rapports": [
+                {
+                    "week_start": r.week_start.isoformat(),
+                    "body": r.body,
+                    "sent_at": r.sent_at.isoformat() if r.sent_at else None,
+                    "read_at": r.read_at.isoformat() if r.read_at else None,
+                }
+                for r in rapports
+            ],
+        }
+    )
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def weekly_disable(request):
+    """Demande — ou annule — l'arrêt du bilan (SPEC §4.7).
+
+    ``POST`` enregistre la demande, qui ne prend effet que 24 heures plus tard.
+    ``DELETE`` l'annule, et prend effet tout de suite : seul l'arrêt coûte du
+    temps. C'est le seul mécanisme volontairement difficile à désarmer du
+    produit, et le délai est tout ce qui le rend difficile.
+    """
+    profile = request.user.profile
+
+    if request.method == "DELETE":
+        weekly.annuler_desactivation(profile)
+        return Response({"actif": weekly.destinataire_actif(profile), "effective_le": None})
+
+    effective = weekly.demander_desactivation(profile)
+    return Response(
+        {
+            "actif": weekly.destinataire_actif(profile),
+            "effective_le": effective.isoformat(),
+            "detail": "Le bilan continue de partir jusque-là. Annulable à tout moment.",
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def issue_link(request):
+    """Émet un lien signé et rend son adresse (SPEC §11.7).
+
+    Le secret n'existe qu'ici : ensuite, seule son empreinte est stockée. Un
+    lien de frigo se met en raccourci sur l'écran d'accueil du téléphone, et
+    devient la capture d'idée en une phrase que le §11.7 attendait du bot.
+    """
+    kind = request.data.get("kind", "")
+    if kind not in dict(ActionLink.KINDS):
+        return Response({"detail": "Type de lien inconnu."}, status=status.HTTP_400_BAD_REQUEST)
+
+    lien, secret = links.emettre(request.user, kind=kind, context=request.data.get("context") or {})
+    return Response(
+        {
+            "id": lien.id,
+            "kind": lien.kind,
+            "url": request.build_absolute_uri(f"/l/{secret}"),
+            "expires_at": lien.expires_at.isoformat() if lien.expires_at else None,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def action_link(request, token: str):
+    """La seule porte d'entrée sans compte du produit (SPEC §11.7, §4.7).
+
+    Sans authentification, volontairement : l'ami du §4.7 n'a aucune raison de
+    créer un compte pour cliquer « vu » une fois par semaine. Le lien **est**
+    le secret, il ne donne accès qu'à son propre geste, et il ne lit rien.
+    """
+    lien = links.resoudre(token)
+    if lien is None:
+        return Response({"detail": "Lien inconnu."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "GET":
+        return Response(links.presenter(lien))
+
+    resultat = links.consommer(lien, texte=request.data.get("texte", ""))
+    code = status.HTTP_200_OK if resultat["ok"] else status.HTTP_400_BAD_REQUEST
+    return Response(resultat, status=code)
 
 
 @api_view(["POST"])

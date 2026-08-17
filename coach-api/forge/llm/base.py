@@ -36,6 +36,7 @@ class Task(str, Enum):
     DEBRIEF = "debrief"                   # §5.2 — structurer des notes brutes
     ENTRETIEN_PROJET = "entretien_projet" # §4.5 — interroger, produire une roadmap
     REVUE_HEBDO = "revue_hebdo"           # §5.3 — analyse dialoguée
+    BILAN = "bilan"                       # §4.7 — la phrase envoyée à l'ami
     DECOUPAGE = "decoupage"               # §4.5 — découper une étape trop grosse
 
 

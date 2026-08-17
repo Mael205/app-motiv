@@ -84,6 +84,12 @@ ROUTES: dict[Task, Route] = {
         max_tokens=16000,
         why="analyse dialoguée : il faut arriver avec les constats déjà faits (§5.3)",
     ),
+    Task.BILAN: Route(
+        model=SONNET,
+        effort="low",
+        max_tokens=2500,
+        why="une phrase de constat sur des chiffres déjà calculés, et elle est facultative",
+    ),
     Task.DEBRIEF: Route(
         model=SONNET,
         effort="low",

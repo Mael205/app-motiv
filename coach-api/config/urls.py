@@ -2,10 +2,18 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from forge import api
+from forge import api, views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Le canal entrant (SPEC §11.7). Court à dessein : il se colle dans un
+    # message, se met en raccourci sur un écran d'accueil, et se tape à la main
+    # si la messagerie l'a mutilé.
+    path("l/<str:token>", views.action_link_page),
+    path("api/links", api.issue_link),
+    path("api/weekly", api.weekly_reports),
+    path("api/weekly/disable", api.weekly_disable),
+    path("api/links/<str:token>", api.action_link),
     path("api/health", api.health),
     path("api/auth/token", TokenObtainPairView.as_view()),
     path("api/auth/refresh", TokenRefreshView.as_view()),

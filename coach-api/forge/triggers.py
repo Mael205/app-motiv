@@ -34,6 +34,12 @@ from .services import DEGRADED_MINUTES, propose, streak_state
 GUARDIAN = "gardien"
 SLOT_REMINDER = "creneau"
 RELAX_OVER = "sas_fini"
+BILAN = "bilan"
+BILAN_NON_LU = "bilan_non_lu"
+
+# Dimanche 20h. Assez tôt pour que la semaine décrite soit encore la semaine
+# qu'on a en tête, assez tard pour que le dimanche compte dedans.
+HEURE_BILAN = 20
 
 
 def run_all(now: datetime | None = None) -> list[dict]:
@@ -45,6 +51,7 @@ def run_all(now: datetime | None = None) -> list[dict]:
         fired += check_slot_reminder(profile, now)
         fired += check_relax_end(profile, now)
         fired += check_guardian(profile, now)
+        fired += check_weekly_report(profile, now)
 
     return fired
 
@@ -178,6 +185,63 @@ def check_relax_end(profile: Profile, now: datetime) -> list[dict]:
         ),
     )
     return [{"kind": RELAX_OVER}] if sent else []
+
+
+# --------------------------------------------------------------------------
+# 4. Le bilan du dimanche soir
+# --------------------------------------------------------------------------
+
+def check_weekly_report(profile: Profile, now: datetime) -> list[dict]:
+    """Envoie le bilan à l'ami, le dimanche soir (SPEC §4.7).
+
+    À heure fixe et non en fin de fenêtre : la fenêtre du dimanche peut être
+    ouverte tard, et un bilan qui part à 23h est un bilan lu le lundi — quand
+    la semaine qu'il décrit est déjà commencée.
+
+    Aucun rattrapage si le serveur était éteint à cette minute-là : l'envoi
+    suivant portera sa propre semaine, et un bilan en retard d'une semaine ne
+    contrôle plus rien.
+    """
+    local = now.astimezone(_zone(profile))
+    if local.weekday() != 6:                       # dimanche
+        return []
+    if not (HEURE_BILAN <= local.hour < HEURE_BILAN + 1 and local.minute < 5):
+        return []
+
+    from . import weekly
+
+    rapport = weekly.envoyer(profile.user, now=now)
+    if rapport is None:
+        return []
+
+    today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
+    if rapport.sent_at:
+        _deliver(
+            profile.user,
+            BILAN,
+            today,
+            Notification(
+                title="Bilan envoyé",
+                body="La semaine est partie. Tu peux le relire dans le journal.",
+                kind="bilan",
+            ),
+        )
+
+    # Le §4.7 : un contrôleur qui ne regarde pas ne contrôle rien.
+    if weekly.non_lus(profile.user) >= weekly.SEUIL_NON_LUS:
+        _deliver(
+            profile.user,
+            BILAN_NON_LU,
+            today,
+            Notification(
+                title="Trois bilans sans lecture",
+                body="Ton destinataire n'a rien ouvert depuis trois semaines. "
+                "Le point d'appui n'en est plus un : change de destinataire.",
+                kind="bilan",
+            ),
+        )
+
+    return [{"kind": BILAN, "sent": bool(rapport.sent_at)}]
 
 
 # --------------------------------------------------------------------------

@@ -188,6 +188,80 @@ def debrief_prompt(*, projet: str, etape: str, minutes: int, note: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# La phrase du bilan envoyé à l'ami (§4.7)
+# --------------------------------------------------------------------------
+
+# Le corps du bilan est écrit par le serveur : le §4.7 énumère ce qui doit y
+# figurer, et laisser un modèle composer la liste reviendrait à parier chaque
+# dimanche sur le fait qu'il n'oubliera rien. Il n'écrit qu'une phrase.
+#
+# Elle est lue par un tiers, et c'est ce qui rend le registre difficile. Trop
+# élogieuse, elle décrédibilise le bilan suivant ; trop sévère, elle transforme
+# un ami en juge, et le §17 interdit ce ton. Ce qu'on veut est le constat qu'un
+# collègue ferait en passant : une chose vraie, dite sans commentaire.
+
+SYSTEM_BILAN = """\
+Tu écris UNE phrase, qui sera lue par un ami à qui quelqu'un envoie son bilan de
+la semaine. Pas par la personne elle-même.
+
+Cette phrase est un constat, pas un jugement et pas un encouragement.
+
+- Une seule phrase, moins de deux cents caractères, en français.
+- Elle dit ce que les chiffres montrent : une régularité, une reprise, un projet
+  qui avance, un engagement tenu ou non. Rien qui ne soit pas dans les données.
+- Aucune félicitation, aucun reproche, aucun conseil, aucun point
+  d'exclamation. Ni « bravo », ni « il faudrait », ni « continue comme ça ».
+- Tu ne t'adresses ni à l'ami ni à la personne : tu constates. « Trois semaines
+  d'affilée sur le même projet, et la première étape est close. »
+- Tu ne parles JAMAIS de temps d'écran, de scroll, de réseaux sociaux, de
+  qualité de session ni de rien qui ressemble à de la surveillance. Ces données
+  existent, elles ne regardent pas l'ami, et les mentionner ferait couper le
+  bilan.
+"""
+
+SCHEMA_BILAN = {
+    "type": "object",
+    "properties": {
+        "phrase": {
+            "type": "string",
+            "description": "Un constat factuel, une phrase, sans encouragement.",
+        },
+    },
+    "required": ["phrase"],
+    "additionalProperties": False,
+}
+
+
+def bilan_prompt(faits: dict) -> str:
+    """Les chiffres de la semaine, tels qu'ils partent à l'ami."""
+    lignes = [
+        f"Semaine du {faits['semaine']}.",
+        f"Série en cours : {faits['streak']} jour(s). Rang : {faits['rang']}.",
+    ]
+
+    for projet in faits["projets"]:
+        lignes.append(
+            f"- {projet['nom']} : {projet['minutes']} minutes, {projet['sessions']} session(s)"
+        )
+    if not faits["projets"]:
+        lignes.append("- Aucune session cette semaine.")
+
+    for engagement in faits["engagements"]:
+        lignes.append(
+            f"- Engagement {engagement['nom']} : {engagement['tenus']} tenues sur "
+            f"{engagement['pris']} prises"
+        )
+
+    for etape in faits["etapes"]:
+        lignes.append(f"- Étape terminée : {etape}")
+
+    if faits.get("boss"):
+        lignes.append(f"- Boss de saison entamé à {faits['boss']['part']} %")
+
+    return "\n".join(lignes)
+
+
+# --------------------------------------------------------------------------
 # Gardien du soir (§5.4)
 # --------------------------------------------------------------------------
 

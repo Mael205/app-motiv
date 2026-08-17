@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import time
+from datetime import time, timedelta
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -34,6 +34,14 @@ class Profile(models.Model):
     day_rollover_hour = models.PositiveSmallIntegerField(default=4)
     discord_webhook = models.URLField(blank=True, help_text="Webhook d'un salon perso, canal de redondance")
     buddy_channel = models.CharField(max_length=255, blank=True)
+    public_base_url = models.URLField(
+        blank=True,
+        help_text=(
+            "Adresse par laquelle un lien signé est joignable de l'extérieur (§11.7). "
+            "Sans elle, le bilan part sans son bouton « vu » : mieux vaut pas de lien "
+            "qu'un lien vers 127.0.0.1, qui ne mène nulle part chez l'ami."
+        ),
+    )
     guardian_minutes_before_end = models.PositiveSmallIntegerField(
         default=90, help_text="Le gardien se déclenche N minutes avant la fin de la fenêtre du soir"
     )
@@ -551,6 +559,128 @@ class ProbeToken(models.Model):
         raw = secrets.token_urlsafe(32)
         token = cls.objects.create(user=user, name=name, kind=kind, token_hash=cls.hash_of(raw))
         return token, raw
+
+
+class WeeklyReport(models.Model):
+    """Le bilan envoyé à un ami, une fois par semaine (SPEC §4.7).
+
+    Le seul point d'appui **externe** du produit. Le §0.1 dit que la contrainte
+    interne n'existe pas chez cet utilisateur : tout le reste — streak, boss,
+    sanctions — est un cadre qu'il s'impose et peut donc se lever. Celui-ci
+    engage quelqu'un d'autre, et c'est pour ça qu'il est le seul mécanisme
+    volontairement difficile à désarmer.
+
+    Ce qui est stocké est **ce qui a été envoyé**, mot pour mot. Un bilan
+    recalculé à l'affichage ne dirait pas ce que l'ami a lu, et la question qui
+    compte au bout de trois semaines sans lecture est justement : qu'a-t-il vu ?
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="weekly_reports"
+    )
+    week_start = models.DateField(help_text="Lundi de la semaine couverte")
+    body = models.TextField()
+    channel = models.CharField(max_length=32, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-week_start",)
+        # Un bilan par semaine. L'unicité est la règle du §4.7, pas une
+        # précaution : deux envois le même dimanche feraient du destinataire un
+        # spectateur qu'on sature, et un ami saturé cesse de lire.
+        unique_together = ("user", "week_start")
+
+    def __str__(self) -> str:
+        return f"Bilan du {self.week_start} ({'lu' if self.read_at else 'non lu'})"
+
+
+class ActionLink(models.Model):
+    """Un lien signé qui fait **une** chose, sans compte ni application.
+
+    Le canal entrant du produit. Le §11.7 le confiait à un bot Telegram, remplacé
+    depuis par le Web Push et un webhook Discord — parfait pour ce qui sort, muet
+    pour ce qui rentre. Or trois mécaniques ont besoin qu'on réponde : l'accusé
+    de lecture du bilan de l'ami (§4.7), les questions de la revue du dimanche
+    (§5.3), et la capture d'une idée au frigo sans ouvrir l'app (§11.7).
+
+    Un lien n'a ni compte à créer, ni application à installer, ni jeton à coller
+    dans un réglage — ce qui compte surtout pour l'ami du §4.7, qui n'a aucune
+    raison de s'inscrire quelque part pour cliquer une fois par semaine.
+
+    **Ce qu'un lien ne donne jamais**, même volé : la lecture de l'historique, le
+    moindre projet, la moindre garde. Il porte son geste et son contexte, et il
+    ne déverrouille rien d'autre — la même règle que le ``ProbeToken`` du §8, et
+    pour la même raison : un secret qui voyage dans une notification finit par
+    fuir.
+    """
+
+    FRIGO, VU, REPONSE = "frigo", "vu", "reponse"
+    KINDS = [
+        (FRIGO, "Jeter une idée au frigo"),
+        (VU, "Accuser réception d'un bilan"),
+        (REPONSE, "Répondre à une question"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="action_links"
+    )
+    kind = models.CharField(max_length=8, choices=KINDS)
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    # Ce que la page a besoin de savoir pour se dessiner : la question posée, le
+    # titre du bilan. Jamais de donnée qu'un lien volé ne devrait pas montrer.
+    context = models.JSONField(default=dict, blank=True)
+    answer = models.TextField(blank=True)
+    max_uses = models.PositiveSmallIntegerField(default=1)
+    uses = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} ({self.uses}/{self.max_uses})"
+
+    @staticmethod
+    def hash_of(raw: str) -> str:
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def issue(
+        cls,
+        user,
+        *,
+        kind: str,
+        context: dict | None = None,
+        max_uses: int = 1,
+        ttl_days: int | None = 30,
+    ) -> tuple["ActionLink", str]:
+        """Crée le lien et rend le secret en clair — la seule et unique fois."""
+        raw = secrets.token_urlsafe(24)
+        lien = cls.objects.create(
+            user=user,
+            kind=kind,
+            token_hash=cls.hash_of(raw),
+            context=context or {},
+            max_uses=max_uses,
+            expires_at=timezone.now() + timedelta(days=ttl_days) if ttl_days else None,
+        )
+        return lien, raw
+
+    @property
+    def expired(self) -> bool:
+        return bool(self.expires_at and timezone.now() >= self.expires_at)
+
+    @property
+    def spent(self) -> bool:
+        return self.uses >= self.max_uses
+
+    @property
+    def usable(self) -> bool:
+        return not self.expired and not self.spent
 
 
 class Signal(models.Model):
