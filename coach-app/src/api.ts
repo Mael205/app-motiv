@@ -1,6 +1,7 @@
 import type {
   Briefing,
   DebriefSuggestion,
+  Derive,
   EntretienPanel,
   Interview,
   ProgressionPanel,
@@ -14,6 +15,7 @@ import type {
   ProjectPreview,
   RoutineCheckResult,
   SessionResult,
+  WeeklyPanel,
 } from './types'
 
 const TOKEN_KEY = 'coach.access'
@@ -141,6 +143,28 @@ export const api = {
     }),
 
   journal: () => request<JournalEntry[]>('/journal'),
+
+  /** Les sept constats du §13.5, déjà faits, du plus urgent au moins urgent. */
+  detections: () => request<Derive[]>('/detections'),
+
+  weekly: () => request<WeeklyPanel>('/weekly'),
+
+  /** Demande l'arrêt du bilan. Ne coupe rien avant 24 h (§4.7). */
+  requestWeeklyStop: () =>
+    request<{ actif: boolean; effective_le: string | null; detail: string }>('/weekly/disable', {
+      method: 'POST',
+    }),
+
+  /** Annule la demande. Immédiat : seul l'arrêt coûte du temps. */
+  cancelWeeklyStop: () =>
+    request<{ actif: boolean }>('/weekly/disable', { method: 'DELETE' }),
+
+  /** Un lien signé à épingler — le frigo alimentable sans ouvrir l'app (§11.7). */
+  issueLink: (kind: 'frigo') =>
+    request<{ id: number; kind: string; url: string }>('/links', {
+      method: 'POST',
+      body: JSON.stringify({ kind }),
+    }),
 
   fridge: () => request<{ id: number; text: string; created_at: string }[]>('/fridge'),
 

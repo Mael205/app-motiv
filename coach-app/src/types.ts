@@ -531,3 +531,34 @@ export interface TreeShape {
   a_l_arret: string[]
   concentration: number
 }
+
+/** Un constat du §13.5. Il ne décide rien : `proposition` attend un geste. */
+export interface Derive {
+  kind:
+    | 'projet_mort'
+    | 'etape_figee'
+    | 'engagement_irrealiste'
+    | 'concentration'
+    | 'fin_de_soiree'
+    | 'migration_scroll'
+    | 'sur_regime'
+  constat: string
+  proposition: string
+  donnees: Record<string, unknown>
+}
+
+/** Ce qui est parti à l'ami, et ce qu'il en a fait (§4.7). */
+export interface WeeklyPanel {
+  actif: boolean
+  destinataire_configure: boolean
+  desactivation_demandee_le: string | null
+  desactivation_effective_le: string | null
+  non_lus: number
+  seuil_non_lus: number
+  rapports: {
+    week_start: string
+    body: string
+    sent_at: string | null
+    read_at: string | null
+  }[]
+}

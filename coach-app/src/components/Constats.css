@@ -1,0 +1,54 @@
+/* Les constats du §13.5.
+ *
+ * Sobres à dessein : ce sont des faits, pas des alertes. Pas d'icône
+ * d'avertissement, pas de rouge, pas de badge qui clignote — le §17 interdit le
+ * jugement, et un panneau qui a l'air d'engueuler se fait fermer.
+ *
+ * La seule distinction visuelle est un liseré : doré pour ce qui annonce un
+ * arrêt à venir, sourd pour ce qui décrit un état installé.
+ */
+
+.constats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.constats__titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.constats__compte {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.constat {
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 2px solid var(--line-strong);
+}
+
+.constat--tot {
+  border-left-color: var(--gold);
+}
+
+.constat__fait {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.constat__suite {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}

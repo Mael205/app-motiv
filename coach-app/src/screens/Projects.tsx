@@ -101,7 +101,38 @@ export function Projects({ onChanged }: { onChanged: () => void }) {
             <li key={idea.id}>{idea.text}</li>
           ))}
         </ul>
+
+        <LienDeFrigo />
       </section>
+    </div>
+  )
+}
+
+/** Le lien à épingler sur l'écran d'accueil du téléphone (§11.7).
+ *
+ * L'idée qui arrive en cours de journée est perdue si la capturer demande
+ * d'ouvrir l'app, de trouver l'onglet et de taper. Un raccourci vers une page à
+ * champ unique la garde. C'est ce que le bot Telegram devait faire, et le lien
+ * signé le fait sans compte ni application de plus.
+ */
+function LienDeFrigo() {
+  const [url, setUrl] = useState<string | null>(null)
+
+  if (!url) {
+    return (
+      <button className="ghost lien-frigo" onClick={async () => setUrl((await api.issueLink('frigo')).url)}>
+        Créer un lien à épingler
+      </button>
+    )
+  }
+
+  return (
+    <div className="lien-frigo__resultat">
+      <p className="section-hint">
+        Ouvre-le sur le téléphone, puis « Ajouter à l'écran d'accueil ». Une idée, une phrase, sans
+        ouvrir l'app.
+      </p>
+      <code className="lien-frigo__url">{url}</code>
     </div>
   )
 }

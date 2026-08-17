@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { BuddyReport } from '../components/BuddyReport'
+import { Constats } from '../components/Constats'
 import type { JournalEntry } from '../types'
 import './Journal.css'
 
@@ -7,6 +9,11 @@ import './Journal.css'
  *
  * C'est ce qui répond au « ça devient flou » du diagnostic. Chronologique,
  * groupé par jour, avec l'amorce laissée à chaque fois.
+ *
+ * Les constats du §13.5 et le bilan à l'ami (§4.7) vivent ici et pas à
+ * l'accueil : le §11.1 veut que l'accueil ne porte qu'une décision, et rien de
+ * tout ça ne se fait maintenant. Ce sont des choses qu'on **relit**, et le
+ * journal est l'endroit où l'on relit.
  */
 export function Journal() {
   const [entries, setEntries] = useState<JournalEntry[] | null>(null)
@@ -25,6 +32,8 @@ export function Journal() {
           Rien encore. Chaque session terminée écrit une ligne ici — c'est ce qui rend les semaines
           relisibles au lieu de floues.
         </p>
+        <Constats />
+        <BuddyReport />
       </div>
     )
   }
@@ -45,6 +54,8 @@ export function Journal() {
           <span className="num">{Math.round((totalMinutes / 60) * 10) / 10}</span> heures cumulées
         </p>
       </header>
+
+      <Constats />
 
       {Object.entries(byDay).map(([day, dayEntries]) => (
         <section key={day} className="jday">
@@ -72,6 +83,8 @@ export function Journal() {
           ))}
         </section>
       ))}
+
+      <BuddyReport />
     </div>
   )
 }

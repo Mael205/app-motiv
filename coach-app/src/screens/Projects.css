@@ -122,3 +122,28 @@
   background: rgba(0, 0, 0, 0.22);
   border-left: 2px solid var(--turquoise);
 }
+
+/* Le lien de frigo à épingler (§11.7). Discret : il se crée une fois, et ce
+   n'est pas lui qu'on vient chercher dans cet onglet. */
+.lien-frigo {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.lien-frigo__resultat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lien-frigo__url {
+  padding: 9px 11px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  color: var(--turquoise);
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+  user-select: all;
+}
