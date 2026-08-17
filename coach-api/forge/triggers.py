@@ -35,6 +35,7 @@ GUARDIAN = "gardien"
 SLOT_REMINDER = "creneau"
 RELAX_OVER = "sas_fini"
 BILAN = "bilan"
+DAILY = "bilan_du_jour"
 BILAN_NON_LU = "bilan_non_lu"
 
 # Dimanche 20h. Assez tôt pour que la semaine décrite soit encore la semaine
@@ -51,6 +52,7 @@ def run_all(now: datetime | None = None) -> list[dict]:
         fired += check_slot_reminder(profile, now)
         fired += check_relax_end(profile, now)
         fired += check_guardian(profile, now)
+        fired += check_daily_report(profile, now)
         fired += check_weekly_report(profile, now)
 
     return fired
@@ -188,7 +190,42 @@ def check_relax_end(profile: Profile, now: datetime) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
-# 4. Le bilan du dimanche soir
+# 4. Le bilan de la nuit
+# --------------------------------------------------------------------------
+
+def check_daily_report(profile: Profile, now: datetime) -> list[dict]:
+    """Pousse le bilan de la journée écoulée, après la bascule (SPEC §13.1).
+
+    Envoyé la nuit et lu au réveil : une notification qui ne demande rien et
+    qu'on peut ignorer sans conséquence. C'est le seul message du produit qui
+    n'attend aucun geste — et le §13.1 y tient, « aucune interaction demandée,
+    rien à remplir ».
+
+    Silencieux les jours où il n'y a rien à dire. Un bilan quotidien qui
+    annonce tous les matins zéro minute travaillée devient un compteur de
+    reproches, ce que le §17 refuse.
+    """
+    local = now.astimezone(_zone(profile))
+    if local.hour != profile.day_rollover_hour or local.minute >= 5:
+        return []
+
+    from . import daily as daily_service
+
+    jour, bilan = daily_service.hier(profile.user, now=now)
+    if bilan.travaillees == 0 and not bilan.repartition:
+        return []
+
+    sent = _deliver(
+        profile.user,
+        DAILY,
+        jour,
+        Notification(title="Hier", body=bilan.phrase, kind="info"),
+    )
+    return [{"kind": DAILY, "day": jour.isoformat()}] if sent else []
+
+
+# --------------------------------------------------------------------------
+# 5. Le bilan du dimanche soir
 # --------------------------------------------------------------------------
 
 def check_weekly_report(profile: Profile, now: datetime) -> list[dict]:

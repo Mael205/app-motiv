@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from . import coaching, detections, links, progression, season_flow, services, weekly
+from . import coaching, daily, detections, links, progression, season_flow, services, weekly
 from .models import (
     ActionLink,
     FridgeIdea,
@@ -415,6 +415,31 @@ def fridge(request):
             {"id": i.id, "text": i.text, "created_at": i.created_at.isoformat()}
             for i in FridgeIdea.objects.filter(user=request.user, promoted_at__isnull=True)
         ]
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def daily_report(request):
+    """Le bilan de la journée écoulée (SPEC §13.1).
+
+    Recalculé à la lecture : une sonde qui remonte ses minutes en retard doit
+    pouvoir corriger le tableau du matin plutôt que le laisser faux.
+    """
+    jour, bilan = daily.hier(request.user)
+    return Response(
+        {
+            "jour": jour.isoformat(),
+            "disponibles": bilan.disponibles,
+            "travaillees": bilan.travaillees,
+            "part": round(bilan.part_travaillee, 3),
+            "creneau_prevu": bilan.creneau_prevu,
+            "creneau_tenu": bilan.creneau_tenu,
+            "repartition": [
+                {"label": label, "minutes": minutes} for label, minutes in bilan.repartition
+            ],
+            "phrase": bilan.phrase,
+        }
     )
 
 
