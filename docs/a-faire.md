@@ -73,12 +73,11 @@ Projets → Nouveau projet → Copier le prompt.
 
   Le §11.7 de la spec parle encore de Telegram et devra être réécrit.
 
-- **Ce qui reste des §5 et §13.** Le rapport de fuite de temps (§13.2), le bilan
-  de saison comparé (§13.4) et l'analyste de nuit (§5.5). Le §13.2 est le plus
-  gros des trois : histogramme par tranche de 30 min sur quatre semaines
-  glissantes, déclencheurs de décrochage, comparaison PC/téléphone, et le coût
-  affiché en unités du système — « 1h40 de Shorts = 4 sessions = 12 % de la vie
-  du boss ».
+- **Ce qui reste des §5 et §13.** Le bilan de saison comparé (§13.4) et
+  l'analyste de nuit (§5.5). Le §5.5 est en grande partie couvert : les sept
+  détections tournent en continu et le bilan quotidien part chaque nuit. Ce qui
+  lui reste en propre est la passe de fin de saison, donc le §13.4 — les deux se
+  construisent ensemble.
 
 - **L'écran du bilan quotidien.** `/api/daily` rend la barre, la répartition et
   la phrase ; la notification part la nuit. Il n'y a pas encore de tuile qui le
@@ -92,6 +91,15 @@ Projets → Nouveau projet → Copier le prompt.
 ---
 
 ## Fait depuis
+
+- **Le rapport de fuite de temps** (17 août 2026). Histogramme par tranche de 30
+  minutes sur quatre semaines, et surtout la **charnière** : pas la tranche la
+  plus lourde, celle où la montée est la plus forte. C'est là qu'on bascule, et
+  le seul endroit où un créneau placé juste avant peut mordre.
+
+  Le coût est en unités du système — sessions, points de vie du boss — et jamais
+  en morale. Une fenêtre remontée sans heure compte dans le total mais pas dans
+  l'histogramme : l'inventer déplacerait la charnière.
 
 - **La revue du dimanche** (17 août 2026). Quatre ou cinq questions portant
   chacune sur un fait daté — un créneau manqué se retient, une semaine en
