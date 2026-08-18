@@ -244,3 +244,34 @@
   font-size: 14px;
   line-height: 1.55;
 }
+
+/* Le bouton de forge, sous une carte qu'on ne possède pas.
+ *
+ * Discret par construction : forger est le dernier recours, celui de la carte
+ * qui ne tombe pas, et pas la façon normale de compléter la collection. Un
+ * bouton aussi visible que la carte elle-même en ferait un raccourci. */
+.slotcard__forge {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.24rem 0.4rem;
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--accent, #E8A33D);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 32%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.slotcard__forge:disabled {
+  color: var(--dim, #6B5F7D);
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+  cursor: default;
+}
+
+.slotcard__forge:focus-visible {
+  outline: 2px solid var(--accent, #E8A33D);
+  outline-offset: 2px;
+}

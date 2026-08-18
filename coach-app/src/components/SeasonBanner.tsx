@@ -56,9 +56,19 @@ export const SeasonBanner = memo(function SeasonBanner({
             // points de suspension donne moins qu'une ligne courte assumée.
             <span
               className="label banner__when"
-              title={`Saison ${season.index}, jour ${season.day_index} sur ${season.days_total}. ${season.days_left} jours avant la fin.`}
+              title={
+                `An ${season.year}, saison ${season.rank_in_year} sur ${season.seasons_per_year}. ` +
+                `Jour ${season.day_index} sur ${season.days_total}, ${season.days_left} avant la fin. ` +
+                (season.closes_the_year
+                  ? 'Celle-ci ferme l’année : une ascendance suit sa clôture.'
+                  : `${season.seasons_left_in_year} saisons avant l’ascendance.`)
+              }
             >
-              J{season.day_index}/{season.days_total} · {season.days_left} j
+              {/* L'année d'abord, le jour ensuite. Sans le compte des saisons,
+                  la douzième arrive sans prévenir — et une ascendance qu'on n'a
+                  pas vue venir n'est pas un événement. */}
+              An {season.year} · S{season.rank_in_year}/{season.seasons_per_year} · J
+              {season.day_index}/{season.days_total}
             </span>
           )}
         </div>

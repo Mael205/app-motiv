@@ -31,6 +31,7 @@ export function BossBar({
             {season && (
               <span className="label">
                 Jour {season.day_index} / {season.days_total} · {season.days_left} restants
+                {season.closes_the_year && ' · dernière saison de l’année'}
               </span>
             )}
           </div>

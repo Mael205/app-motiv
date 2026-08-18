@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
-import type { HomeState, SeasonOffer, SeasonReport, SeasonState as SeasonPhase } from './types'
+import type { AnneeAccomplie, HomeState, SeasonOffer, SeasonPhase, SeasonReport } from './types'
 import { Comeback } from './components/Comeback'
 import { SeasonCeremony } from './components/SeasonCeremony'
 import { Home } from './screens/Home'
@@ -8,6 +8,7 @@ import { Character } from './screens/Character'
 import { Journal } from './screens/Journal'
 import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
+import { Ascendance } from './components/Ascendance'
 import { Assistant, AssistantButton } from './components/Assistant'
 import { TabBar, type Tab } from './components/TabBar'
 import { TimezoneNotice } from './components/TimezoneNotice'
@@ -19,6 +20,7 @@ export default function App() {
   const [authed, setAuthed] = useState(() => Boolean(storedToken()))
   const [tab, setTab] = useState<Tab>('soir')
   const [assistant, setAssistant] = useState(false)
+  const [annee, setAnnee] = useState<AnneeAccomplie | null>(null)
   // La cérémonie du §7.4 : une saison finie pendant qu'on ne regardait pas doit
   // se conclure quand on revient, pas rester en suspens jusqu'à un déclencheur.
   const [ceremony, setCeremony] = useState<{ report: SeasonReport | null; offer: SeasonOffer } | null>(null)
@@ -30,6 +32,10 @@ export default function App() {
     try {
       const etat = await api.seasonState()
       setExitOffer(etat.exit_offer)
+      // L'année close dont la voie n'a pas été tranchée passe avant tout : une
+      // treizième saison ouverte sans ascendance repartirait sur l'ancienne
+      // échelle d'XP, et le choix serait perdu.
+      setAnnee(etat.annee)
       if (etat.pending_close) {
         const bilan = await api.closeSeason()
         setCeremony({ report: bilan, offer: bilan.offer ?? etat.offer! })
@@ -82,6 +88,21 @@ export default function App() {
       <div className="shell boot">
         <span className="label">Chargement…</span>
       </div>
+    )
+  }
+
+  // L'ascendance passe avant la cérémonie de saison : elle est plus rare, et
+  // la saison suivante ne doit pas s'ouvrir avant que la voie soit gravée.
+  if (annee) {
+    return (
+      <Ascendance
+        annee={annee}
+        onDone={() => {
+          setAnnee(null)
+          load()
+          checkSeason()
+        }}
+      />
     )
   }
 

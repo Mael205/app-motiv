@@ -1,4 +1,5 @@
 import type {
+  AnneeAccomplie,
   Briefing,
   DebriefSuggestion,
   Derive,
@@ -7,10 +8,12 @@ import type {
   Interview,
   ProgressionPanel,
   SeasonReport,
-  SeasonState,
+  SeasonPhase,
   GardesPanel,
+  HautsFaits,
   HomeState,
   JournalEntry,
+  LootCardDrawn,
   ProjectDetail,
   ProjectHold,
   ProjectImportResult,
@@ -107,7 +110,7 @@ export const api = {
 
   progression: () => request<ProgressionPanel>('/progression'),
 
-  seasonState: () => request<SeasonState>('/season'),
+  seasonState: () => request<SeasonPhase>('/season'),
 
   /** `early` clôt une saison **en cours** au titre du §14 : au-delà de cinq
    *  jours d'arrêt, repartir à neuf vaut mieux que traîner un retard
@@ -160,6 +163,20 @@ export const api = {
 
   dismissAction: (id: number) =>
     request<FilAssistant>(`/assistant/actions/${id}`, { method: 'DELETE' }),
+
+  /** Grave la voie d'une ascendance. Définitif : une voie échangeable le mois
+   *  suivant serait un réglage, pas un choix. */
+  chooseVoie: (voie: string) =>
+    request<AnneeAccomplie>('/season/voie', {
+      method: 'POST',
+      body: JSON.stringify({ voie }),
+    }),
+
+  achievements: () => request<HautsFaits>('/achievements'),
+
+  /** Fabrique une carte contre des Éclats. Ouvert par la voie « Forge ». */
+  forgeCard: (key: string) =>
+    request<LootCardDrawn>(`/loot/${key}/forge`, { method: 'POST' }),
 
   /** Les compteurs qui ne redescendent jamais (§17 de la liste du 17 août). */
   trace: () => request<TraceLongue>('/trace'),

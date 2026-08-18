@@ -78,6 +78,32 @@ Aucun algorithme ne sait interroger quelqu'un sur son projet, ni comprendre
 « fusionne mes deux routines du matin ». Quand le modèle manque, les deux
 écrans le disent et renvoient vers les chemins manuels, qui font la même chose.
 
+### L'année, et l'ascendance
+
+Douze saisons de trente jours font une année du coach. Chaque identité de saison
+sort exactement une fois par an, chaque boss aussi, dans un ordre qui change
+d'une année à l'autre.
+
+À la douzième clôture, l'**ascendance** : l'XP, le niveau et le rang repartent
+de zéro, et une **voie** se choisit parmi six — un slot de plus, un plancher
+plus haut payé en Éclats, le fantôme nommé, cinq modificateurs au lieu de trois,
+le contrat annuel, ou la Forge.
+
+Deux choses à savoir, parce que ce sont les deux questions qu'on se pose :
+
+- **rien n'est effacé.** Les resets déplacent un horizon de lecture — l'XP se
+  compte depuis l'ascendance, les semaines tenues aussi. Aucune session, aucune
+  semaine ne disparaît, et la trace longue garde le cumul de toujours ;
+- **les slots acquis sont gravés.** Le rang les reprendrait en repartant de F,
+  et le §4.3 l'interdit : un rang remis à zéro qui retirerait deux slots
+  gèlerait deux projets en cours du jour au lendemain.
+
+Une voie ouvre une mécanique, une capacité ou un choix — jamais de la puissance.
+La **Forge** est la plus nette : elle permet de fabriquer une carte précise
+contre des Éclats, à six fois ce qu'un doublon rapporte. Elle répond à un défaut
+qui ne se voyait qu'au bout de plusieurs mois — les Éclats ne se dépensaient
+nulle part, et une monnaie qui ne descend jamais est un compteur.
+
 ### L'assistant, et ce qu'il a le droit de faire
 
 Le bouton ✦ ouvre un fil où l'on demande des choses en français. L'assistant y

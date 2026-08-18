@@ -134,6 +134,14 @@ export interface SeasonState {
   stake: number
   stake_forfeited: number
   contract: SeasonContract | null
+  /** L'année : douze saisons, et le compte à rebours qui va avec. Sans lui, la
+   *  douzième arrive sans prévenir, et une ascendance qu'on n'a pas vue venir
+   *  n'est pas un événement. */
+  year: number
+  rank_in_year: number
+  seasons_per_year: number
+  seasons_left_in_year: number
+  closes_the_year: boolean
 }
 
 export interface BossState {
@@ -521,6 +529,21 @@ export interface FilAssistant {
   turns: TourAssistant[]
 }
 
+/** Les hauts faits, et les trois plus proches de tomber. */
+export interface HautsFaits {
+  obtenus: { key: string; label: string; description: string; registre: string; at: string }[]
+  total: number
+  prochains: {
+    key: string
+    label: string
+    description: string
+    registre: string
+    valeur: number
+    seuil: number
+    part: number
+  }[]
+}
+
 export interface TraceLongue {
   since: string | null
   days_since: number
@@ -578,11 +601,43 @@ export interface SeasonContract {
   line: string
 }
 
-export interface SeasonState {
+/** Une année accomplie : douze saisons closes, et la voie qui s'ouvre après.
+ *
+ * `voie` est vide tant que le choix n'est pas fait, et tant qu'il ne l'est pas
+ * l'ascendance n'ouvre **rien** — c'est ce qui rend le choix réel plutôt qu'une
+ * formalité à cliquer plus tard.
+ */
+export interface AnneeAccomplie {
+  year: number
+  title: string
+  seasons: number
+  bosses_killed: number
+  hours: number
+  xp_at_reset: number
+  level_at_reset: number
+  rank_at_reset: string
+  slots_engraved: number
+  voie: string
+  voies: { key: string; label: string; promesse: string; cout: string }[]
+  garde: string
+}
+
+/** Où en est le **cycle** : à clore, à ouvrir, ou en cours.
+ *
+ * Renommée depuis `SeasonState`, qui existait déjà plus haut pour l'identité
+ * d'une saison. Deux interfaces du même nom dans un même fichier ne s'annulent
+ * pas : TypeScript les **fusionne**, et le type obtenu exigeait à la fois le
+ * nom de la saison et l'état du cycle. Personne ne s'en apercevait parce que
+ * les deux ne servent qu'à typer des réponses d'API, jamais à en construire —
+ * et `App.tsx` renommait déjà l'import pour s'y retrouver.
+ */
+export interface SeasonPhase {
   pending_close: boolean
   running: boolean
   /** La porte de sortie du palier 3 (§14). Proposée, jamais prise d'office. */
   exit_offer: { season: string; days_left: number; stake_at_risk: number } | null
+  /** L'année close dont la voie n'a pas été choisie. Passe avant tout le reste. */
+  annee: AnneeAccomplie | null
   offer: SeasonOffer | null
 }
 
@@ -702,6 +757,8 @@ export interface OwnedCard extends Omit<LootCardDrawn, 'duplicate' | 'shards' | 
   owned: boolean
   copies: number
   equipped: boolean
+  /** Le prix de forge, présent seulement quand la voie « Forge » est ouverte. */
+  forge_price?: number
 }
 
 export interface RelicEntry {
@@ -730,6 +787,9 @@ export interface ProgressionPanel {
   }
   collection: {
     slots: Record<string, OwnedCard[]>
+    /** La Forge est ouverte par une ascendance. Fermée, aucune carte ne se
+     *  fabrique et les Éclats n'ont toujours nulle part où aller. */
+    forge_open: boolean
     owned: number
     total: number
     shards: number

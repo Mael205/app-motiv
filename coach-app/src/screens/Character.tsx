@@ -4,6 +4,7 @@ import { api } from '../api'
 import { MomentumEmber } from '../components/MomentumEmber'
 import { PhantomRace } from '../components/PhantomRace'
 import { SkillTree } from '../components/SkillTree'
+import { HautsFaits } from '../components/HautsFaits'
 import { Trace } from '../components/Trace'
 import { LootReveal } from '../components/LootReveal'
 import type { LootCardDrawn, Phantom, ProgressionPanel } from '../types'
@@ -44,6 +45,7 @@ export function Character({
   const [error, setError] = useState('')
   const [queue, setQueue] = useState<LootCardDrawn[]>([])
   const [slot, setSlot] = useState<string>('theme')
+  const [forging, setForging] = useState('')
 
   async function load() {
     try {
@@ -77,6 +79,8 @@ export function Character({
         {phantom?.available && <PhantomRace phantom={phantom} />}
 
         <Trace compact />
+
+        <HautsFaits />
 
         <section className="panel">
           <SkillTree branches={panel.skills.branches} tiers={panel.skills.tiers} />
@@ -177,6 +181,29 @@ export function Character({
                 <span className="slotcard__rarity">{c.rarity_label}</span>
                 {c.copies > 1 && <span className="slotcard__copies num">×{c.copies}</span>}
               </button>
+
+              {/* La Forge : le seul endroit du produit où des Éclats sortent.
+                  Le bouton n'apparaît que sur une carte qu'on n'a pas, et reste
+                  éteint faute d'Éclats — un prix affiché sans être atteignable
+                  vaut mieux qu'un bouton qui refuse après coup. */}
+              {panel.collection.forge_open && !c.owned && c.forge_price !== undefined && (
+                <button
+                  className="slotcard__forge"
+                  disabled={panel.collection.shards < c.forge_price || forging === c.key}
+                  onClick={async () => {
+                    setForging(c.key)
+                    try {
+                      const carte = await api.forgeCard(c.key)
+                      setQueue([carte])
+                      await load()
+                    } finally {
+                      setForging('')
+                    }
+                  }}
+                >
+                  Forger · <span className="num">{c.forge_price}</span>
+                </button>
+              )}
             </li>
           ))}
         </ul>

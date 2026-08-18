@@ -1,0 +1,65 @@
+/* Les hauts faits. Les trois prochains d'abord, l'acquis ensuite.
+ *
+ * Cet ordre est délibéré : ce qui est acquis n'a plus rien à dire, ce qui est
+ * à trois sessions de tomber en a beaucoup. */
+.hf__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.hf__compte {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.hf__prochains {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.proche {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "texte compte" "jauge jauge";
+  gap: 0.3rem 0.7rem;
+  align-items: baseline;
+}
+
+.proche__texte { grid-area: texte; display: grid; gap: 0.1rem; }
+.proche__compte { grid-area: compte; font-size: 0.78rem; opacity: 0.65; }
+.proche__jauge { grid-area: jauge; height: 3px; border-radius: 2px; background: color-mix(in srgb, currentColor 10%, transparent); overflow: hidden; }
+.proche__jauge span { display: block; height: 100%; background: var(--accent, #E8A33D); transform-origin: left center; }
+
+.proche__label { font-size: 0.88rem; }
+.proche__desc { font-size: 0.76rem; line-height: 1.4; }
+
+.hf__obtenus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Un registre, une teinte. Le travail dans l'accent, la franchise en neutre,
+   la saison en rose, la collection en turquoise — quatre familles qui se
+   distinguent sans légende. */
+.hf__item {
+  font-size: 0.74rem;
+  padding: 0.16rem 0.5rem;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  cursor: default;
+}
+
+.hf__item--travail { color: var(--accent, #E8A33D); border-color: color-mix(in srgb, var(--accent, #E8A33D) 35%, transparent); }
+.hf__item--saison { color: var(--rose, #DE5F7E); border-color: color-mix(in srgb, var(--rose, #DE5F7E) 35%, transparent); }
+.hf__item--collection { color: var(--turquoise, #4FC4B4); border-color: color-mix(in srgb, var(--turquoise, #4FC4B4) 35%, transparent); }
+.hf__item--franchise { opacity: 0.75; }
