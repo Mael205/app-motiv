@@ -199,6 +199,9 @@ export interface Evening {
 }
 
 export interface Proposal {
+  /** Quelle piste la décision engage. L'Atelier la plupart du temps ; le Corps
+   *  quand sa semaine est sur le point d'être ratée (§11.4). */
+  track: 'atelier' | 'corps'
   project: { id: number; name: string; color: string; emblem: string; completion: number }
   minutes: number
   step: { id: number; label: string; needs_split: boolean } | null
@@ -371,9 +374,38 @@ export interface HomeState {
   phantom: Phantom | null
   modifier: SeasonModifier | null
   quests: Quest[]
+  /** La piste Corps, côte à côte avec l'Atelier — jamais fusionnées en un
+   *  score unique (§11.4). `null` quand aucune activité physique n'est suivie. */
+  corps: CorpsPanel | null
   entretien: EntretienPanel
   gardes: GardesPanel
   relax_used: boolean
+  /** Les cartes équipées, enfin appliquées. */
+  cosmetics: Cosmetics
+}
+
+/** La piste Corps (§11.4) : objectif hebdomadaire, streak de **semaines**.
+ *
+ * Pas de bouclier ici, et ce n'est pas un oubli : le battement est déjà dans
+ * l'objectif — viser deux séances quand la semaine en compte sept laisse cinq
+ * jours de marge.
+ */
+export interface CorpsPanel {
+  objectif: number
+  faites: number
+  restantes: number
+  tenue: boolean
+  ratio: number
+  streak: number
+  best: number
+  semaines_tenues: number
+  message: string
+  plancher: number
+  degrade: number
+  jours_restants: number
+  /** De 0 à 1. Au-delà du seuil, la piste prend la décision du soir. */
+  priorite: number
+  projets: { id: number; name: string; color: string; emblem: string }[]
 }
 
 export interface SessionResult {
@@ -543,6 +575,25 @@ export interface HautsFaits {
     part: number
   }[]
 }
+
+/** Les cosmétiques équipés, résolus en valeurs affichables (§12.6).
+ *
+ * Le serveur envoie une couleur, un glyphe ou un mot — jamais une clé de carte
+ * que le front devrait retrouver dans un catalogue qu'il n'a pas.
+ *
+ * **Rien de tout ça n'entre dans un calcul.** Le §17 est formel : le loot est
+ * de l'apparence, jamais du pouvoir.
+ */
+export interface CosmeticSlot {
+  key: string
+  label: string
+  value: string
+  rarity: string
+}
+
+export type Cosmetics = Partial<
+  Record<'theme' | 'emblem' | 'frame' | 'title' | 'finisher', CosmeticSlot>
+>
 
 export interface TraceLongue {
   since: string | null

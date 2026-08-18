@@ -2,7 +2,7 @@ import { memo, useState } from 'react'
 import { motion } from 'motion/react'
 import { Glossary } from './Glossary'
 import { setSoundMuted, soundMuted } from '../juice'
-import type { Progression, SeasonState, Streak } from '../types'
+import type { Cosmetics, Progression, SeasonState, Streak } from '../types'
 import { RankBadge } from './art/RankBadge'
 import { SeasonOrnament, SeasonSigil } from './art/SeasonSigil'
 import { Icon } from './art/Icons'
@@ -31,11 +31,13 @@ export const SeasonBanner = memo(function SeasonBanner({
   progression,
   streak,
   unlock,
+  cosmetics,
 }: {
   season: SeasonState | null
   progression: Progression
   streak: Streak
   unlock?: string | null
+  cosmetics?: Cosmetics
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
   // La coupure du son vit ici plutôt que dans un écran de réglages : on la
@@ -47,9 +49,26 @@ export const SeasonBanner = memo(function SeasonBanner({
       <div className="banner__glow" aria-hidden />
 
       <div className="banner__top">
-        <SeasonSigil seasonKey={season?.key} size={34} className="banner__sigil" />
+        {/* L'emblème équipé remplace le sceau de saison. C'est le seul endroit
+            du produit où une carte se voit en permanence, et c'est ce qui rend
+            l'emplacement désirable : un cosmétique qui n'apparaît que sur un
+            écran qu'on ouvre une fois par semaine n'est pas un cosmétique. */}
+        {cosmetics?.emblem ? (
+          <span
+            className="banner__sigil banner__sigil--carte"
+            title={`Emblème : ${cosmetics.emblem.label}`}
+            aria-hidden
+          >
+            {cosmetics.emblem.value}
+          </span>
+        ) : (
+          <SeasonSigil seasonKey={season?.key} size={34} className="banner__sigil" />
+        )}
         <div className="banner__titles">
           <h1 className="banner__name display">{season?.name ?? 'Hors saison'}</h1>
+          {cosmetics?.title && (
+            <span className="banner__titre">{cosmetics.title.value}</span>
+          )}
           {season && (
             // Abrégé jusqu'à tenir dans le rail de 262 px sans être coupé. Le
             // texte entier reste en infobulle : une ligne tronquée par des

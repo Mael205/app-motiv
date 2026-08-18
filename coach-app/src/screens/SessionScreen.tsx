@@ -219,6 +219,43 @@ export function SessionScreen({
  * La séquence 3 (niveau, palier, relique, carte) s'enchaîne ensuite, et
  * seulement s'il y a quelque chose à montrer.
  */
+/** La gerbe de fin, selon l'effet de fin équipé.
+ *
+ * Lue sur `data-finisher` du document plutôt que passée en props : la séquence
+ * de fin est loin de l'endroit qui charge l'état, et faire descendre un
+ * cosmétique à travers quatre composants pour changer une couleur de
+ * particules coûterait plus cher que ce que ça rapporte.
+ *
+ * Aucune de ces variantes ne change un chiffre. Elles changent un nombre de
+ * particules et une couleur — c'est tout ce qu'un cosmétique a le droit de
+ * faire (§17).
+ */
+function finisseur(): { count: number; spread: number; color?: string } {
+  const effet = typeof document !== 'undefined' ? document.body.dataset.finisher : ''
+  switch (effet) {
+    case 'shockwave':
+      return { count: 34, spread: 320 }
+    case 'fracture':
+      return { count: 44, spread: 280, color: '#8B6FE8' }
+    case 'ascension':
+      return { count: 56, spread: 400, color: '#E8A33D' }
+    case 'frost':
+      return { count: 26, spread: 240, color: '#5FA8DE' }
+    case 'slash':
+      return { count: 18, spread: 420 }
+    case 'seal':
+      return { count: 30, spread: 180, color: '#C9A227' }
+    case 'eclipse':
+      return { count: 60, spread: 340, color: '#E85F9F' }
+    case 'ember':
+      return { count: 24, spread: 210, color: '#E8843D' }
+    case 'dust':
+      return { count: 16, spread: 160 }
+    default:
+      return { count: 22, spread: 200 }
+  }
+}
+
 function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => void }) {
   const { shake, style } = useTrauma()
   const [xpDone, setXpDone] = useState(false)
@@ -265,7 +302,10 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         animate={{ scale: [0.7, 1.12, 1] }}
         transition={{ duration: 0.5, times: [0, 0.6, 1], ease: 'easeOut' }}
       >
-        <Burst count={22} spread={200} />
+        {/* L'effet de fin équipé (§12.6). Il change la gerbe, jamais le nombre :
+            le §17 interdit qu'un cosmétique touche à la mesure, et une carte qui
+            modifierait l'XP affichée serait exactement ça. */}
+        <Burst {...finisseur()} />
         {crit && !critLance ? (
           <CountUp
             to={b.base_total}

@@ -1,5 +1,6 @@
 import type { HomeState } from '../types'
 import { useBriefing } from '../hooks/useBriefing'
+import { CorpsPanel } from '../components/CorpsPanel'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { GardePanel } from '../components/GardePanel'
 import { NightHud } from '../components/NightHud'
@@ -64,6 +65,7 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
       {/* ---- Rail gauche : qui tu es ----------------------------------- */}
       <aside className="deck__rail deck__rail--left">
         <SeasonBanner
+          cosmetics={state.cosmetics}
           season={state.season}
           progression={state.progression}
           streak={state.streak}
@@ -149,6 +151,11 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
             ))}
           </ul>
         )}
+
+        {/* Côte à côte avec l'Atelier, jamais fusionnées en un score unique
+            (§11.4). Elle reste visible même vitrine fermée : ce n'est pas un
+            trophée, c'est l'état d'une piste sur laquelle on peut encore agir. */}
+        {state.corps && <CorpsPanel corps={state.corps} />}
 
         <RoutinePanel initial={state.entretien} />
 

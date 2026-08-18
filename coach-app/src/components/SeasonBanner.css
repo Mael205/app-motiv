@@ -247,3 +247,53 @@
     margin-top: 4px;
   }
 }
+
+/* L'emblème et le titre équipés. Le seul endroit du produit où une carte se voit
+ * en permanence — un cosmétique visible une fois par semaine n'en est pas un.
+ *
+ * Le cadre vient de `data-frame` sur le document : une variable CSS ne saurait
+ * pas porter une texture, et la fiche comme le bandeau doivent le lire. */
+.banner__sigil--carte {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--accent, #E8A33D);
+}
+
+.banner__titre {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent, #E8A33D);
+  opacity: 0.85;
+}
+
+body[data-frame='iron'] .banner__sigil--carte,
+body[data-frame='slate'] .banner__sigil--carte {
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 6px;
+}
+
+body[data-frame='brass'] .banner__sigil--carte,
+body[data-frame='silver'] .banner__sigil--carte,
+body[data-frame='burnt'] .banner__sigil--carte {
+  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 55%, transparent);
+  border-radius: 8px;
+}
+
+body[data-frame='obsidian'] .banner__sigil--carte,
+body[data-frame='stained'] .banner__sigil--carte,
+body[data-frame='leather'] .banner__sigil--carte {
+  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 70%, transparent);
+  border-radius: 50%;
+}
+
+body[data-frame='aurora'] .banner__sigil--carte,
+body[data-frame='meteor'] .banner__sigil--carte {
+  border: 1px solid var(--accent, #E8A33D);
+  border-radius: 50%;
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent, #E8A33D) 70%, transparent);
+}

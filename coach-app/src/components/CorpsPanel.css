@@ -1,0 +1,64 @@
+/* La piste Corps. Volontairement plus petite que la décision du soir : elle se
+ * consulte, elle ne se décide pas — quand elle réclame la soirée, c'est la
+ * décision elle-même qui devient une séance. */
+.corps {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.corps--tenue {
+  border-color: color-mix(in srgb, var(--vert, #7ED08C) 35%, transparent);
+}
+
+.corps__head {
+  align-items: baseline;
+}
+
+.corps__streak {
+  font-size: 0.74rem;
+  opacity: 0.75;
+}
+
+/* Une pastille par séance visée. Le format compte : une barre de progression
+ * dirait « 50 % », alors que deux pastilles disent « une faite, une à faire » —
+ * et c'est la seconde formulation qui se traduit en soirée. */
+.corps__pastilles {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pastille {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  background: transparent;
+}
+
+.pastille--pleine {
+  background: var(--vert, #7ED08C);
+  border-color: var(--vert, #7ED08C);
+}
+
+.corps__extra {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  margin-left: 0.15rem;
+}
+
+.corps__message {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.corps__projets {
+  margin: 0;
+  font-size: 0.72rem;
+  opacity: 0.55;
+}

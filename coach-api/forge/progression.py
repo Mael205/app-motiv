@@ -354,6 +354,40 @@ def collection(user) -> dict:
     }
 
 
+def cosmetics(user) -> dict:
+    """Ce qui est équipé, **résolu en valeurs affichables** (§12.6).
+
+    Sans cette fonction, les cartes ne servaient à rien. Elles se tiraient, se
+    rangeaient dans la collection, s'équipaient — et l'application restait
+    strictement identique : ``profile.cosmetics`` ne quittait jamais le serveur,
+    et rien côté client n'allait le chercher. Un emplacement « équipé » qui ne
+    change rien à l'écran est la définition d'une récompense creuse.
+
+    Les valeurs sont résolues ici plutôt que rendues sous forme de clés : le
+    client n'a pas le catalogue, et le lui envoyer pour qu'il en retrouve les
+    charges reviendrait à dupliquer le contenu de chaque côté. Il reçoit une
+    couleur, un glyphe, un mot.
+
+    **Rien de tout cela n'entre dans un calcul.** Le §17 est formel — le loot
+    est de l'apparence, jamais du pouvoir. Ces valeurs partent vers le thème,
+    l'avatar et la séquence de fin, et nulle part ailleurs.
+    """
+    equipes = user.profile.cosmetics or {}
+    resolu: dict[str, dict] = {}
+
+    for emplacement, cle in equipes.items():
+        carte = loot_rules.PAR_CLE.get(cle)
+        if carte is None:
+            continue
+        resolu[emplacement] = {
+            "key": carte.key,
+            "label": carte.label,
+            "value": carte.payload,
+            "rarity": carte.rarity,
+        }
+    return resolu
+
+
 def equip_card(user, key: str) -> dict:
     """Équipe une carte dans son emplacement. Rien n'est cumulable.
 

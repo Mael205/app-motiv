@@ -182,6 +182,20 @@ export default function App() {
 function applySeasonTheme(home: HomeState) {
   const root = document.body
   if (home.season) root.style.setProperty('--accent', home.season.accent)
+
+  // Le thème équipé **passe devant l'accent de saison**, et c'est tout
+  // l'intérêt d'équiper une carte : sans ça, la couleur choisie n'apparaîtrait
+  // que pendant les deux jours de pause entre deux saisons. La saison garde son
+  // sceau, son nom et sa baseline — elle perd seulement la teinte.
+  const theme = home.cosmetics?.theme?.value
+  if (theme) root.style.setProperty('--accent', theme)
+
+  // Le cadre d'avatar est une classe sur le document : la fiche de personnage
+  // et le bandeau le lisent tous les deux, et une variable CSS ne saurait pas
+  // porter une texture.
+  root.dataset.frame = home.cosmetics?.frame?.value ?? ''
+  root.dataset.finisher = home.cosmetics?.finisher?.value ?? ''
+
   root.classList.toggle('terne', home.streak.sanction_level >= 1 && !home.validated_today)
 }
 

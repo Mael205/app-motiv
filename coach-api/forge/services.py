@@ -43,6 +43,7 @@ from .models import (
 from . import achievements, filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
 from .rules import contract as contract_rules
+from .rules import corps as corps_rules
 from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
@@ -1069,20 +1070,149 @@ def _update_quests(session: Session) -> None:
 
 
 # --------------------------------------------------------------------------
+# La piste Corps (SPEC §11.4)
+# --------------------------------------------------------------------------
+
+def corps_track(user) -> Track:
+    piste, _ = Track.objects.get_or_create(user=user, kind=Track.CORPS)
+    return piste
+
+
+def corps_objectif(user) -> int:
+    """L'objectif hebdomadaire de la piste, en séances.
+
+    Somme des engagements des projets Corps actifs, plafonnée. Le §11.4 donne
+    deux séances par défaut ; deux activités qui en visent une chacune font
+    donc bien deux, et il n'y a pas de second réglage à tenir en cohérence avec
+    le premier.
+    """
+    engagements = list(
+        Project.objects.filter(
+            user=user, status=Project.ACTIVE, track__kind=Track.CORPS
+        ).values_list("weekly_commitment", flat=True)
+    )
+    if not engagements:
+        return corps_rules.OBJECTIF_PAR_DEFAUT
+    return min(sum(engagements), corps_rules.OBJECTIF_MAX)
+
+
+def corps_state(user, *, today: date, semaines: int = 8) -> corps_rules.CorpsState:
+    """L'état de la piste Corps : semaine en cours, streak de semaines tenues.
+
+    Les séances sous le plancher du §11.4 ne comptent pas. Elles sont
+    enregistrées — le travail a eu lieu — mais une séance de dix minutes n'est
+    pas une séance, et l'objectif hebdomadaire perdrait tout son sens si elle
+    l'était.
+    """
+    objectif = corps_objectif(user)
+    lundi = week_start(today)
+    debut = lundi - timedelta(days=7 * semaines)
+
+    par_semaine: dict[date, int] = {}
+    for jour in Session.objects.filter(
+        user=user,
+        status=Session.DONE,
+        project__track__kind=Track.CORPS,
+        coach_day__gte=debut,
+        coach_day__lte=today,
+        actual_minutes__gte=corps_rules.DEGRADE,
+    ).values_list("coach_day", flat=True):
+        par_semaine[week_start(jour)] = par_semaine.get(week_start(jour), 0) + 1
+
+    passees = [
+        corps_rules.Semaine(
+            lundi=debut + timedelta(days=7 * i),
+            seances=par_semaine.get(debut + timedelta(days=7 * i), 0),
+            objectif=objectif,
+        )
+        for i in range(semaines)
+    ]
+    en_cours = corps_rules.Semaine(
+        lundi=lundi, seances=par_semaine.get(lundi, 0), objectif=objectif
+    )
+    return corps_rules.evaluate(passees, en_cours=en_cours)
+
+
+def corps_panel(user, *, today: date) -> dict | None:
+    """Ce que l'accueil affiche de la piste Corps.
+
+    ``None`` quand aucun projet Corps n'existe : afficher une piste vide à
+    côté de la décision du soir ajouterait un panneau qui ne demande rien, et
+    le §11.1 n'en veut pas.
+    """
+    projets = list(
+        Project.objects.filter(user=user, status=Project.ACTIVE, track__kind=Track.CORPS)
+    )
+    if not projets:
+        return None
+
+    etat = corps_state(user, today=today)
+    jours_restants = 7 - today.weekday()
+
+    return {
+        "objectif": etat.objectif,
+        "faites": etat.faites,
+        "restantes": etat.restantes,
+        "tenue": etat.tenue,
+        "ratio": etat.semaine_en_cours.ratio if etat.semaine_en_cours else 0.0,
+        "streak": etat.current,
+        "best": etat.best,
+        "semaines_tenues": etat.semaines_tenues,
+        "message": corps_rules.message_for(etat),
+        "plancher": corps_rules.PLANCHER,
+        "degrade": corps_rules.DEGRADE,
+        "jours_restants": jours_restants,
+        "priorite": corps_rules.priorite(etat, jours_restants=jours_restants),
+        "projets": [
+            {"id": p.id, "name": p.name, "color": p.color, "emblem": p.emblem}
+            for p in projets
+        ],
+    }
+
+
+# --------------------------------------------------------------------------
 # La proposition unique de l'accueil (SPEC §11.1)
 # --------------------------------------------------------------------------
 
-def propose(user, *, today: date, comeback: bool = False) -> dict | None:
-    """Choisit le projet, la durée et la tâche. L'utilisateur n'arbitre pas.
+# À partir de quelle urgence la piste Corps prend la décision du soir.
+#
+# 0,6 place la bascule au vendredi quand deux séances manquent : trois jours
+# devant, deux à poser, il faut commencer. À 0,75 elle serait tombée le samedi
+# — techniquement encore possible, mais une semaine qui ne tient plus qu'à deux
+# soirées consécutives est une semaine déjà perdue si l'une des deux saute.
+SEUIL_PRIORITE_CORPS = 0.6
 
-    Priorité : le créneau du jour, puis le retard sur l'engagement hebdo, puis
-    l'ancienneté du dernier passage.
+
+def propose(user, *, today: date, comeback: bool = False) -> dict | None:
+    """Choisit la piste, le projet, la durée et la tâche. L'utilisateur n'arbitre pas.
+
+    **La décision peut désormais être une séance de Corps.** Jusqu'ici elle ne
+    regardait que l'Atelier : la piste Corps du §11.4 existait dans la base,
+    donnait de l'XP et des dégâts au boss, et n'a jamais été proposée une seule
+    fois. Une piste qu'on ne propose pas est une piste qu'on oublie.
+
+    L'arbitrage est une règle, pas un choix rendu à l'utilisateur — le §11.1
+    n'autorise qu'une seule décision à l'écran. Le Corps l'emporte quand sa
+    semaine est sur le point d'être ratée : deux séances manquantes et deux
+    jours restants, et c'est ce soir ou jamais. Le reste du temps l'Atelier
+    passe devant, parce qu'il se compte en jours et que chaque soirée y compte.
+
+    Une semaine de Corps déjà tenue ne réclame plus rien : le §17 interdit de
+    pousser au-delà d'un objectif, qui est un objectif et pas un plancher.
 
     ``comeback`` est le palier 3 du §14 : après trois jours d'arrêt, la durée
     proposée tombe à dix minutes quoi qu'annonce le créneau. Proposer une
     séance de cinquante minutes à quelqu'un qui n'a rien fait depuis trois
     jours, c'est proposer de ne pas ouvrir l'app.
     """
+    # Le Corps d'abord, s'il est en train de perdre sa semaine. Le comeback du
+    # §14 en est exclu : quelqu'un qui revient après trois jours d'arrêt reprend
+    # par dix minutes de son travail, pas par une séance de sport de trente.
+    if not comeback:
+        corps = _propose_corps(user, today=today)
+        if corps is not None:
+            return corps
+
     # Le développement du coach reste accessible en un tap, mais n'est jamais
     # ce que l'app propose d'elle-même : proposer de coder le coach le soir,
     # c'est le piège du SPEC §11.6. Aucune restriction, juste aucune promotion.
@@ -1144,6 +1274,7 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
     )
 
     return {
+        "track": Track.ATELIER,
         "project": {
             "id": chosen.id,
             "name": chosen.name,
@@ -1161,6 +1292,73 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
             "Une tâche, dix minutes."
             if comeback
             else _proposal_reason(chosen, slot, done_by_project.get(chosen.id, 0))
+        ),
+    }
+
+
+def _propose_corps(user, *, today: date) -> dict | None:
+    """La séance de Corps, quand la semaine est sur le point d'être ratée.
+
+    Rend ``None`` la plupart du temps, et c'est voulu : la piste Corps réclame
+    la soirée deux fois par semaine, pas tous les soirs. Une piste qui prendrait
+    la décision chaque jour ferait de l'Atelier la piste secondaire, ce que le
+    §11.4 refuse dans les deux sens — « les deux pistes apparaissent côte à
+    côte, jamais fusionnées ».
+    """
+    panneau = corps_panel(user, today=today)
+    if panneau is None or panneau["priorite"] < SEUIL_PRIORITE_CORPS:
+        return None
+
+    # Celui qui a le moins servi cette semaine : deux activités qui se
+    # partagent l'objectif tournent au lieu que l'une prenne tout.
+    semaine = week_start(today)
+    faites = {
+        row["project"]: row["n"]
+        for row in Session.objects.filter(
+            user=user,
+            status=Session.DONE,
+            project__track__kind=Track.CORPS,
+            coach_day__gte=semaine,
+            coach_day__lte=today,
+        )
+        .values("project")
+        .annotate(n=Count("id"))
+    }
+    projets = list(
+        Project.objects.filter(user=user, status=Project.ACTIVE, track__kind=Track.CORPS)
+        .prefetch_related("timeslots")
+    )
+    if not projets:
+        return None
+
+    choisi = min(
+        projets,
+        key=lambda p: (
+            faites.get(p.id, 0),
+            not any(ts.weekday == today.weekday() and ts.active for ts in p.timeslots.all()),
+            p.slot or 99,
+        ),
+    )
+    creneau = next(
+        (ts for ts in choisi.timeslots.all() if ts.weekday == today.weekday() and ts.active),
+        None,
+    )
+
+    return {
+        "track": Track.CORPS,
+        "project": {
+            "id": choisi.id,
+            "name": choisi.name,
+            "color": choisi.color,
+            "emblem": choisi.emblem,
+            "completion": choisi.completion,
+        },
+        "minutes": creneau.duration_minutes if creneau else corps_rules.PLANCHER,
+        "step": None,
+        "amorce": "",
+        "reason": (
+            f"{panneau['restantes']} séance(s) pour tenir la semaine, "
+            f"{panneau['jours_restants']} jour(s) devant."
         ),
     }
 
@@ -1231,6 +1429,10 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     return {
         "day": today.isoformat(),
         "now": now.isoformat(),
+        # Les cosmétiques équipés, résolus en valeurs affichables. Ils partaient
+        # nulle part : une carte s'équipait et l'écran ne changeait pas d'un
+        # pixel (§12.6).
+        "cosmetics": progression.cosmetics(user),
         "momentum": progression.heat(user, today=today),
         "skills": progression.skill_tree(user)["branches"],
         "phantom": progression.phantom_panel(user, today=today, now=now),
@@ -1305,6 +1507,8 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             }
             for q in Quest.objects.filter(user=user, date=today)
         ],
+        # Côte à côte, jamais fusionnées en un score unique (§11.4).
+        "corps": corps_panel(user, today=today),
         "entretien": routine_panel(user, today=today),
         "gardes": gardes_panel(user, today=today),
         "relax_used": RelaxWindow.objects.filter(user=user, coach_day=today).exists(),

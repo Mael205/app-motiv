@@ -70,7 +70,11 @@ export const DecisionBlock = memo(function DecisionBlock({
   return (
     <section className="decision" style={{ ['--project' as string]: proposal.project.color }}>
       <div className="decision__head">
-        <span className="label">Ce soir</span>
+        {/* Quelle piste la soirée engage. Sans ce mot, une séance de sport
+            proposée un vendredi se lit comme un projet d'atelier au nom
+            bizarre — et le §11.4 tient à ce que les deux ne se confondent
+            jamais. */}
+        <span className="label">{proposal.track === 'corps' ? 'Ce soir · Corps' : 'Ce soir'}</span>
         <span className="decision__reason">{proposal.reason}</span>
       </div>
 
@@ -79,12 +83,16 @@ export const DecisionBlock = memo(function DecisionBlock({
         <h2 className="decision__name display">{proposal.project.name}</h2>
       </div>
 
-      <div className="decision__progress" title={`${Math.round(proposal.project.completion * 100)}% de la roadmap`}>
-        <div
-          className="decision__progress-fill"
-          style={{ transform: `scaleX(${proposal.project.completion})` }}
-        />
-      </div>
+      {/* Une activité physique n'a pas de roadmap : la barre resterait à zéro
+          en permanence, ce qui se lirait comme un projet à l'arrêt. */}
+      {proposal.track !== 'corps' && (
+        <div className="decision__progress" title={`${Math.round(proposal.project.completion * 100)}% de la roadmap`}>
+          <div
+            className="decision__progress-fill"
+            style={{ transform: `scaleX(${proposal.project.completion})` }}
+          />
+        </div>
+      )}
 
       {task ? (
         <div className="decision__task">
