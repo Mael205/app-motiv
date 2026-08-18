@@ -484,6 +484,43 @@ export interface SeasonReport {
  * une remarque : l'écran s'ouvre le soir où le streak vient de casser, et un
  * seul compteur qui redescendrait suffirait à l'annuler.
  */
+/** L'assistant qui agit sur l'app (§5 étendu).
+ *
+ * Une action proposée n'est **pas** une action faite. `state` vaut « attente »
+ * tant que personne n'a cliqué, et le front ne doit jamais laisser croire
+ * l'inverse — c'est la même règle que la porte de qualité applique au texte du
+ * modèle, appliquée à l'interface.
+ */
+export interface ActionProposee {
+  id: number
+  key: string
+  label: string
+  domain: string
+  summary: string
+  params: Record<string, unknown>
+  before: string
+  after: string
+  warning: string
+  state: 'attente' | 'appliquee' | 'ecartee' | 'perimee'
+  detail: string
+}
+
+export interface TourAssistant {
+  id: number
+  role: 'user' | 'assistant'
+  text: string
+  at: string
+  model: string
+  tokens: number
+  actions: ActionProposee[]
+}
+
+export interface FilAssistant {
+  conversation_id: number
+  started_at: string
+  turns: TourAssistant[]
+}
+
 export interface TraceLongue {
   since: string | null
   days_since: number

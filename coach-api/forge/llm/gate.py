@@ -527,6 +527,84 @@ def check_entretien(payload: dict) -> dict:
     return {"fini": True, "question": "", "markdown": markdown, "parsed": relu}
 
 
+# Ce qu'un assistant dit quand il croit avoir agi. C'est le mode de
+# défaillance propre à cette tâche : le modèle propose, mais son biais naturel
+# est de raconter qu'il a fait — et quelqu'un qui lit « c'est réglé » ne clique
+# pas sur « Appliquer », donc la modification n'a jamais lieu et l'app paraît
+# cassée. Un faux « c'est fait » coûte plus cher qu'un refus.
+FAUX_ACCOMPLI = (
+    "c'est fait",
+    "c'est réglé",
+    "c'est bon, j'ai",
+    "j'ai renommé",
+    "j'ai créé",
+    "j'ai fusionné",
+    "j'ai supprimé",
+    "j'ai archivé",
+    "j'ai modifié",
+    "j'ai changé",
+    "j'ai appliqué",
+    "j'ai mis à jour",
+    "voilà, c'est",
+)
+
+LONGUEUR_MAXIMALE_ASSISTANT = 700
+
+
+def check_assistant(payload: dict, *, cles_connues: tuple[str, ...]) -> dict:
+    """Valide un tour d'assistant : le texte, et la forme des actions proposées.
+
+    La porte ne juge pas si l'action est *pertinente* — ça, seul l'aperçu
+    avant/après le montre, et c'est à l'utilisateur d'en décider. Elle refuse
+    trois choses : le faux accompli, le ton, et une clé d'action hors
+    catalogue.
+
+    La clé hors catalogue ne devrait jamais arriver, l'énumération du schéma la
+    rendant impossible. On la vérifie quand même : le jour où un backend
+    n'applique pas le schéma — un modèle local, un mode dégradé —, c'est cette
+    ligne qui tient le mur, et elle ne coûte rien.
+    """
+    texte = _texte(payload, "reponse")
+    if not texte:
+        raise QualityGateFailed("réponse vide", payload)
+    if len(texte) > LONGUEUR_MAXIMALE_ASSISTANT:
+        raise QualityGateFailed(
+            f"réponse de {len(texte)} caractères : le détail va dans les cartes "
+            "d'action, pas dans le paragraphe",
+            payload,
+        )
+
+    bas = texte.lower()
+    for faux in FAUX_ACCOMPLI:
+        if faux in bas:
+            raise QualityGateFailed(
+                f"l'assistant dit « {faux} » alors que rien n'est appliqué : "
+                "il propose, l'utilisateur applique",
+                payload,
+            )
+    for mot in MOTS_DE_FELICITATION:
+        if mot in bas:
+            raise QualityGateFailed(f"félicitation interdite (§17) : « {mot} »", payload)
+
+    actions = payload.get("actions")
+    if actions is None:
+        actions = []
+    if not isinstance(actions, list):
+        raise QualityGateFailed("« actions » n'est pas une liste", payload)
+
+    propres = []
+    for action in actions:
+        if not isinstance(action, dict):
+            raise QualityGateFailed("action illisible", payload)
+        cle = action.get("action")
+        if cle not in cles_connues:
+            raise QualityGateFailed(f"action hors catalogue : « {cle} »", payload)
+        params = action.get("params")
+        propres.append({"action": cle, "params": params if isinstance(params, dict) else {}})
+
+    return {"reponse": texte, "actions": propres}
+
+
 def gate(task: Task, payload: dict, **contexte) -> dict:
     """Applique la porte correspondant à la tâche.
 
@@ -545,4 +623,6 @@ def gate(task: Task, payload: dict, **contexte) -> dict:
         return check_debrief(payload)
     if task is Task.ENTRETIEN_PROJET:
         return check_entretien(payload)
+    if task is Task.ASSISTANT:
+        return check_assistant(payload, cles_connues=contexte["cles_connues"])
     return payload

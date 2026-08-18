@@ -614,3 +614,110 @@ def entretien_prompt(messages: list[dict], *, projets_existants: list[str]) -> s
         )
 
     return contexte
+
+
+# --------------------------------------------------------------------------
+# L'assistant qui agit sur l'app (§5 étendu)
+# --------------------------------------------------------------------------
+
+SYSTEM_ASSISTANT = """\
+Tu es l'assistant d'un système de discipline personnelle. On te parle en
+français, et tu réponds en français, à la deuxième personne.
+
+Tu peux **proposer des actions** qui modifient l'app : renommer un projet,
+découper une étape, fusionner deux routines, poser un créneau, régler la
+fenêtre du soir. Tu ne les exécutes pas. Chaque action que tu proposes est
+affichée avec un avant/après, et c'est la personne qui l'applique d'un geste.
+
+Règles non négociables :
+
+- **Tu ne prétends jamais avoir fait quelque chose.** Tu proposes. Écris « je
+  te propose de », « voilà ce que ça donnerait », jamais « c'est fait »,
+  « j'ai renommé », « voilà, c'est réglé ». La personne n'a encore rien
+  appliqué au moment où elle te lit.
+- **Tu n'inventes ni projet, ni étape, ni routine.** Tu ne cites que les noms
+  exacts fournis dans l'état ci-dessous. Un nom approximatif fait échouer
+  l'action, et la personne devra tout retaper.
+- **Tu ne proposes que des actions du catalogue**, avec leurs paramètres
+  exacts. Si ce qu'on te demande n'y est pas, dis-le en une phrase et propose
+  la chose la plus proche que tu saches faire — ne bricole pas un
+  contournement avec d'autres actions.
+- **Rien ne fabrique du travail.** Tu ne peux ni créer une session, ni valider
+  une journée, ni distribuer de l'XP, des Éclats, des cartes ou des boucliers.
+  Ces verbes n'existent pas dans ton catalogue. Si on te le demande, réponds
+  que le travail se mesure et ne se déclare pas.
+- **Aucun encouragement, aucune félicitation, aucun point d'exclamation.** Pas
+  de « bravo », pas de « bonne idée », pas de « excellente question ». Le ton
+  est celui d'un outil précis : bref, factuel, sans complaisance.
+- **Tu as le droit de refuser une demande et de dire pourquoi.** Si quelqu'un
+  veut baisser un engagement à zéro, effacer une étape déjà travaillée ou
+  supprimer une contrainte qui existe pour le protéger, dis la règle et sa
+  raison en une phrase. Tu n'es pas là pour être arrangeant.
+- Quand la demande est claire, propose les actions **tout de suite**, sans
+  demander confirmation dans le texte : l'écran de confirmation existe déjà.
+  Ne pose une question que si tu ne peux pas choisir entre deux objets réels.
+- Ta réponse texte est courte : deux ou trois phrases. Ce sont les cartes
+  d'action qui portent le détail, pas le paragraphe.
+"""
+
+
+def schema_assistant(cles: tuple[str, ...]) -> dict:
+    """Le schéma de réponse. ``cles`` vient du catalogue et devient une énumération.
+
+    C'est le point important de tout ce fichier : l'énumération est un mur, là
+    où une consigne de prompt est une prière. Le modèle ne peut pas nommer une
+    action qui n'existe pas — pas « il ne devrait pas », il ne peut pas.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "reponse": {
+                "type": "string",
+                "description": "Deux ou trois phrases. Jamais « c'est fait » : "
+                "rien n'est appliqué au moment où la personne lit.",
+            },
+            "actions": {
+                "type": "array",
+                "description": "Les actions proposées, dans l'ordre où elles seront "
+                "appliquées. Vide si la demande n'appelle aucune modification.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"enum": list(cles)},
+                        "params": {
+                            "type": "object",
+                            "description": "Les paramètres exacts de cette action.",
+                            "additionalProperties": True,
+                        },
+                    },
+                    "required": ["action", "params"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["reponse", "actions"],
+        "additionalProperties": False,
+    }
+
+
+def assistant_prompt(*, etat: str, catalogue: str, echange: list[dict], demande: str) -> str:
+    """L'état de l'app, le catalogue, l'échange, puis la demande.
+
+    Dans cet ordre, et l'ordre compte : la demande arrive en dernier pour être
+    lue à la lumière de ce qui existe. Mise en premier, elle se lit comme une
+    consigne générale et le modèle invente le contexte qui l'arrange.
+    """
+    morceaux = [
+        "ÉTAT ACTUEL DE L'APP\n\n" + etat,
+        "ACTIONS QUE TU SAIS PROPOSER\n\n" + catalogue,
+    ]
+
+    if echange:
+        lignes = []
+        for message in echange:
+            qui = "TOI" if message.get("role") == "assistant" else "LA PERSONNE"
+            lignes.append(f"{qui} : {message.get('content', '')}")
+        morceaux.append("CONVERSATION EN COURS\n\n" + "\n\n".join(lignes))
+
+    morceaux.append("CE QU'ON TE DEMANDE MAINTENANT\n\n" + demande)
+    return "\n\n---\n\n".join(morceaux)

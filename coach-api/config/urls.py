@@ -14,6 +14,8 @@ urlpatterns = [
     path("api/detections", api.detections_view),
     path("api/leak", api.leak_report),
     path("api/trace", api.trace_longue),
+    path("api/assistant", api.assistant_fil),
+    path("api/assistant/actions/<int:action_id>", api.assistant_action),
     path("api/veille", api.veille),
     path("api/quests", api.quests_panel),
     path("api/projects/<int:project_id>/commitment", api.project_commitment),

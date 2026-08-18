@@ -8,6 +8,7 @@ import { Character } from './screens/Character'
 import { Journal } from './screens/Journal'
 import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
+import { Assistant, AssistantButton } from './components/Assistant'
 import { TabBar, type Tab } from './components/TabBar'
 import { TimezoneNotice } from './components/TimezoneNotice'
 import './App.css'
@@ -17,6 +18,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [authed, setAuthed] = useState(() => Boolean(storedToken()))
   const [tab, setTab] = useState<Tab>('soir')
+  const [assistant, setAssistant] = useState(false)
   // La cérémonie du §7.4 : une saison finie pendant qu'on ne regardait pas doit
   // se conclure quand on revient, pas rester en suspens jusqu'à un déclencheur.
   const [ceremony, setCeremony] = useState<{ report: SeasonReport | null; offer: SeasonOffer } | null>(null)
@@ -141,6 +143,15 @@ export default function App() {
           disparaît se lit comme une panne, et le §14 veut une sanction lisible
           comme telle. */}
       <TabBar active={tab} onChange={setTab} lockedTabs={locked ? ['perso'] : []} />
+
+      {/* L'assistant n'est pas un onglet : les onglets sont les endroits où
+          l'on va, lui est quelque chose qu'on appelle. Un cinquième onglet en
+          aurait fait une destination, donc un endroit où traîner un soir de
+          fatigue — ce que le §11.1 cherche à éviter. */}
+      {!assistant && <AssistantButton onOpen={() => setAssistant(true)} />}
+      {assistant && (
+        <Assistant onClose={() => setAssistant(false)} onApplied={load} />
+      )}
     </>
   )
 }

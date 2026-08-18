@@ -38,6 +38,7 @@ class Task(str, Enum):
     REVUE_HEBDO = "revue_hebdo"           # §5.3 — analyse dialoguée
     BILAN = "bilan"                       # §4.7 — la phrase envoyée à l'ami
     DECOUPAGE = "decoupage"               # §4.5 — découper une étape trop grosse
+    ASSISTANT = "assistant"               # §5 étendu — agir sur l'app, sur demande
 
 
 @dataclass(frozen=True)

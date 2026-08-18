@@ -73,6 +73,32 @@ déterministe, et l'accueil s'affiche à la même vitesse qu'avant : le briefing
 part en fond une fois l'écran déjà utilisable, et ne remplace la proposition que
 s'il arrive et passe la porte de qualité.
 
+Deux exceptions assumées, sans repli : l'entretien de projet, et l'assistant.
+Aucun algorithme ne sait interroger quelqu'un sur son projet, ni comprendre
+« fusionne mes deux routines du matin ». Quand le modèle manque, les deux
+écrans le disent et renvoient vers les chemins manuels, qui font la même chose.
+
+### L'assistant, et ce qu'il a le droit de faire
+
+Le bouton ✦ ouvre un fil où l'on demande des choses en français. L'assistant y
+répond par des **actions proposées** — trente-deux verbes, listés dans
+`coach-api/forge/rules/actions.py` — chacune affichée avec son avant/après et
+son bouton. Trois murs le bornent :
+
+- **le catalogue est fermé.** La clé d'action est une énumération dans le
+  schéma envoyé au modèle : il ne peut pas nommer un verbe qui n'existe pas.
+  Pas « il ne devrait pas » — il ne peut pas ;
+- **rien ne s'écrit sans un geste.** Un tour de conversation ne modifie jamais
+  la base, quoi que réponde le modèle. Une carte, un bouton, une écriture —
+  il n'y a pas de « tout appliquer » ;
+- **aucun verbe ne fabrique du travail.** Ni session, ni XP, ni Éclats, ni
+  boucliers, ni journée validée. Un test relit le catalogue et le prouve.
+
+Chaque action passe par le service qui existe déjà : baisser un engagement
+appelle la règle du §4.3, terminer une étape appelle le même code que le
+bouton de la roadmap. L'assistant ne peut rien faire qu'on ne puisse déjà
+faire à la main — c'est la seule raison pour laquelle il est sûr.
+
 ## Tests
 
 ```bash

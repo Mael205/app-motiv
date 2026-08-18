@@ -3,6 +3,7 @@ import type {
   DebriefSuggestion,
   Derive,
   EntretienPanel,
+  FilAssistant,
   Interview,
   ProgressionPanel,
   SeasonReport,
@@ -141,6 +142,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ tz }),
     }),
+
+  /** L'assistant (§5 étendu). Aucun de ces trois appels n'écrit dans l'app :
+   *  seul `applyAction` le fait, et il demande un geste par action. */
+  assistant: () => request<FilAssistant>('/assistant'),
+
+  ask: (texte: string) =>
+    request<FilAssistant>('/assistant', {
+      method: 'POST',
+      body: JSON.stringify({ texte }),
+    }),
+
+  newThread: () => request<FilAssistant>('/assistant', { method: 'DELETE' }),
+
+  applyAction: (id: number) =>
+    request<FilAssistant>(`/assistant/actions/${id}`, { method: 'POST' }),
+
+  dismissAction: (id: number) =>
+    request<FilAssistant>(`/assistant/actions/${id}`, { method: 'DELETE' }),
 
   /** Les compteurs qui ne redescendent jamais (§17 de la liste du 17 août). */
   trace: () => request<TraceLongue>('/trace'),

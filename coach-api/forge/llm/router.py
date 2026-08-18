@@ -96,6 +96,13 @@ ROUTES: dict[Task, Route] = {
         max_tokens=3000,
         why="structurer des notes déjà écrites — la réponse est dans l'entrée",
     ),
+    Task.ASSISTANT: Route(
+        model=OPUS,
+        effort="high",
+        max_tokens=16000,
+        why="il agit sur l'app : une action mal comprise se voit dans les données, "
+        "pas dans un texte qu'on relit",
+    ),
     Task.DECOUPAGE: Route(
         model=SONNET,
         effort="medium",

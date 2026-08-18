@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from . import (
+    assistant,
     coaching,
     daily,
     detections,
@@ -37,6 +38,7 @@ from .models import (
     Project,
     ProjectInterview,
     ProjectRepo,
+    ProposedAction,
     RoadmapStep,
     Routine,
     Session,
@@ -638,6 +640,71 @@ def _veille_payload(veille_en_cours, today: date) -> dict:
         "min_jours": hiatus_rules.DUREE_MINIMALE,
         "max_jours": hiatus_rules.DUREE_MAXIMALE,
     }
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def assistant_fil(request):
+    """Le fil de discussion avec l'assistant (§5 étendu).
+
+    ``GET`` rend le fil, ``POST`` envoie une demande, ``DELETE`` en ouvre un
+    neuf. Aucune de ces méthodes n'applique quoi que ce soit : le modèle
+    propose, et ``assistant_action`` est le seul chemin qui écrit.
+    """
+    if request.method == "DELETE":
+        assistant.fermer(request.user)
+        return Response(assistant.payload_fil(request.user))
+
+    if request.method == "POST":
+        try:
+            return Response(
+                assistant.parler(
+                    request.user, request.data.get("texte", ""), today=_today(request)
+                )
+            )
+        except ValueError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        except assistant.AssistantIndisponible as error:
+            # 503 et pas 500 : ce n'est pas une panne du coach, c'est l'IA qui
+            # manque — et le §5 la veut facultative. L'écran le dit et renvoie
+            # vers les écrans qui marchent sans elle.
+            return Response(
+                {
+                    "detail": f"L'assistant n'est pas joignable : {error}. "
+                    "Les écrans Projets et Entretien font la même chose à la main."
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+    return Response(assistant.payload_fil(request.user))
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def assistant_action(request, action_id: int):
+    """Applique (``POST``) ou écarte (``DELETE``) une action proposée.
+
+    C'est le seul endroit du produit où une décision de modèle devient une
+    écriture, et il demande un geste explicite pour chaque action — une par
+    une, jamais « tout appliquer ». Un bouton qui applique cinq écritures d'un
+    coup se clique sans lire les cinq.
+    """
+    action = ProposedAction.objects.filter(
+        turn__conversation__user=request.user, id=action_id
+    ).first()
+    if action is None:
+        return Response({"detail": "Action introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        assistant.ecarter(action)
+        return Response(assistant.payload_fil(request.user))
+
+    try:
+        assistant.appliquer(action, today=_today(request), user=request.user)
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+    return Response(assistant.payload_fil(request.user))
 
 
 @api_view(["GET"])

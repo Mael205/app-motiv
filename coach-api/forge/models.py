@@ -839,6 +839,87 @@ class ActionLink(models.Model):
         return not self.expired and not self.spent
 
 
+class Conversation(models.Model):
+    """Le fil de discussion avec l'assistant (§5 étendu).
+
+    Un seul fil ouvert à la fois par utilisateur. Ce n'est pas une limite
+    technique : plusieurs fils demanderaient de choisir lequel reprendre, ce
+    qui est exactement l'espace à remplir que le §0.9 interdit. On reprend là
+    où on s'était arrêté, ou on repart de zéro — deux états, pas une liste.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="conversations"
+    )
+    started_at = models.DateTimeField(default=timezone.now)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+
+    def __str__(self) -> str:
+        return f"Conversation du {self.started_at:%d/%m %H:%M}"
+
+
+class ConversationTurn(models.Model):
+    """Un tour de parole. Le contexte du modèle se relit d'ici, pas d'un cache."""
+
+    UTILISATEUR, ASSISTANT = "user", "assistant"
+    ROLES = [(UTILISATEUR, "Toi"), (ASSISTANT, "L'assistant")]
+
+    conversation = models.ForeignKey(
+        Conversation, on_delete=models.CASCADE, related_name="turns"
+    )
+    role = models.CharField(max_length=12, choices=ROLES)
+    text = models.TextField(blank=True)
+    # Ce qui a servi à répondre : modèle, coût, motif de refus de la porte. Le
+    # §5.6 veut que le coût soit affiché et jamais caché.
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("created_at", "id")
+
+
+class ProposedAction(models.Model):
+    """Une action proposée par l'assistant, en attente d'un geste.
+
+    Elle porte son **aperçu** — l'avant et l'après, calculés au moment de la
+    proposition — et le point de contrôle de l'état sur lequel elle a été
+    calculée. Une proposition appliquée trois jours plus tard, sur un projet
+    qui a changé entre-temps, ferait une écriture que personne n'a validée :
+    ``empreinte`` la fait refuser plutôt que l'appliquer à l'aveugle.
+    """
+
+    EN_ATTENTE, APPLIQUEE, ECARTEE, PERIMEE = "attente", "appliquee", "ecartee", "perimee"
+    ETATS = [
+        (EN_ATTENTE, "En attente"),
+        (APPLIQUEE, "Appliquée"),
+        (ECARTEE, "Écartée"),
+        (PERIMEE, "Périmée"),
+    ]
+
+    turn = models.ForeignKey(
+        ConversationTurn, on_delete=models.CASCADE, related_name="actions"
+    )
+    key = models.CharField(max_length=48)
+    params = models.JSONField(default=dict, blank=True)
+    summary = models.CharField(max_length=255)
+    before = models.TextField(blank=True)
+    after = models.TextField(blank=True)
+    warning = models.CharField(max_length=255, blank=True)
+    empreinte = models.CharField(max_length=64, blank=True)
+    state = models.CharField(max_length=16, choices=ETATS, default=EN_ATTENTE)
+    detail = models.CharField(max_length=255, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("id",)
+
+    def __str__(self) -> str:
+        return f"{self.key} ({self.get_state_display()})"
+
+
 class Signal(models.Model):
     """Une observation d'une sonde (SPEC §8, §9, §11.10).
 
