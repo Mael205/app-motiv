@@ -1,0 +1,20 @@
+/* L'écart de fuseau. Une bande, en haut, sans couleur d'alerte.
+ *
+ * Ce n'est pas une erreur : c'est une information dont on ne pouvait pas
+ * disposer avant d'être là. La peindre en rouge ferait passer un voyage pour
+ * un incident. */
+.tznotice {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.tznotice__line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}

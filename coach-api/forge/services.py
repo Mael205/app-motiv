@@ -25,6 +25,7 @@ from .models import (
     JournalEntry,
     Profile,
     Project,
+    ProjectHold,
     ProjectRepo,
     Quest,
     RelaxWindow,
@@ -40,6 +41,7 @@ from .models import (
 )
 from . import filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
+from .rules import contract as contract_rules
 from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
@@ -50,6 +52,7 @@ from .rules import roadmap_import
 from .rules import routines as routine_rules
 from .rules import sanctions as sanction_rules
 from .rules import hiatus as hiatus_rules
+from .rules import holds as hold_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -277,6 +280,7 @@ def open_season(
     stake: int = 0,
     modifier_key: str = "",
     phantom_choice: str = "",
+    contract_sessions_per_week: int = 0,
 ) -> Season:
     """Ouvre une saison. ``modifier_key`` et ``phantom_choice`` viennent des
     choix faits à l'écran d'ouverture (§12.5, §12.7) ; vides, le plan décide.
@@ -298,9 +302,31 @@ def open_season(
             or None
         )
 
-    plan = season_rules.plan_season(index, starts_on, previous_score=previous_score, used_keys=used)
+    # Le contrat, s'il est signé, dimensionne le boss de la première saison :
+    # sans score précédent, la seule estimation honnête du volume à venir est
+    # celle que quelqu'un vient d'annoncer lui-même.
+    contrat = 0
+    if contract_sessions_per_week:
+        verdict = contract_rules.verifier(contract_sessions_per_week)
+        if not verdict.ok:
+            raise ValueError(verdict.raison)
+        contrat = contract_sessions_per_week
+
+    plan = season_rules.plan_season(
+        index,
+        starts_on,
+        previous_score=previous_score,
+        used_keys=used,
+        contract_sessions_per_week=contrat or 3,
+    )
     retenu = modifier_key or plan.modifier_key
     effets = modifier_rules.resolve(retenu)
+
+    projets = list(
+        Project.objects.filter(user=user, status=Project.ACTIVE)
+        .exclude(slot=None)
+        .values_list("name", flat=True)
+    )
 
     season = Season.objects.create(
         user=user,
@@ -316,6 +342,9 @@ def open_season(
         # l'ouverture, et jamais recalculé ensuite : une saison dont l'enjeu
         # bougerait en cours de route ne serait plus un engagement.
         stake_shards=stake * effets.stake_multiplier,
+        contract_sessions_per_week=contrat,
+        contract_projects=projets if contrat else [],
+        contract_signed_at=timezone.now() if contrat else None,
         **({"phantom_choice": phantom_choice} if phantom_choice else {}),
     )
     SeasonBoss.objects.create(
@@ -325,6 +354,38 @@ def open_season(
         max_hp=round(plan.boss_hp * effets.boss_hp_multiplier),
     )
     return season
+
+
+def season_contract(user, season: Season | None) -> dict | None:
+    """Le contrat signé et où il en est. ``None`` si la saison n'a rien signé.
+
+    L'avancement se **recalcule** depuis les sessions closes, comme tout le
+    reste (§10) : un contrat dont le compteur divergerait serait cru sur parole,
+    et c'est précisément ce qu'un contrat ne doit jamais demander.
+    """
+    if season is None or not season.signed:
+        return None
+
+    semaines = max(1, ((season.ends_on - season.starts_on).days + 1) // 7)
+    contrat = contract_rules.Contrat(
+        sessions_par_semaine=season.contract_sessions_per_week,
+        projets=tuple(season.contract_projects or ()),
+        semaines=semaines,
+    )
+    faites = Session.objects.filter(
+        user=user, season=season, status=Session.DONE
+    ).count()
+
+    return {
+        "sessions_per_week": contrat.sessions_par_semaine,
+        "projects": list(contrat.projets),
+        "weeks": contrat.semaines,
+        "total": contrat.total,
+        "done": faites,
+        "signed_on": season.contract_signed_at.date().isoformat(),
+        "terms": list(contrat.lignes),
+        "line": contract_rules.bilan(signe=contrat.total, fait=faites),
+    }
 
 
 def boss_payload(season: Season | None, *, today: date | None = None) -> dict | None:
@@ -966,12 +1027,20 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
     # Le développement du coach reste accessible en un tap, mais n'est jamais
     # ce que l'app propose d'elle-même : proposer de coder le coach le soir,
     # c'est le piège du SPEC §11.6. Aucune restriction, juste aucune promotion.
-    projects = list(
-        Project.objects.filter(user=user, status=Project.ACTIVE, track__kind=Track.ATELIER)
+    # Un projet en attente déclarée reste à sa place mais ne se propose plus :
+    # le soir où il est bloqué par quelqu'un d'autre, le proposer quand même
+    # ferait de la proposition unique du §11.1 une proposition impossible.
+    en_attente = projects_on_hold(user, day=today)
+    projects = [
+        p
+        for p in Project.objects.filter(
+            user=user, status=Project.ACTIVE, track__kind=Track.ATELIER
+        )
         .exclude(is_coach_project=True)
         .select_related("track")
         .prefetch_related("steps", "timeslots")
-    )
+        if p.id not in en_attente
+    ]
     if not projects:
         return None
 
@@ -1134,6 +1203,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
                 "modifier": season.modifier_key,
                 "stake": max(0, season.stake_shards - season.stake_forfeited),
                 "stake_forfeited": season.stake_forfeited,
+                "contract": season_contract(user, season),
             }
             if season
             else None
@@ -1213,9 +1283,20 @@ def rank_state(user, *, today: date) -> dict:
     Cumulatif et monotone : une mauvaise semaine n'en retire aucune. Le §17
     interdit tout retrait rétroactif de rang.
     """
+    # Les semaines où un projet était en attente déclarée en sortent : ne pas
+    # pouvoir travailler n'est pas manquer de fiabilité, et le rang mesure la
+    # fiabilité. Sans ça, l'inaction d'un tiers faisait tomber le rang.
+    attentes = list(
+        ProjectHold.objects.filter(project__user=user).select_related("project")
+    )
     semaines = [
         (c.week_start, c.done_sessions >= c.planned_sessions)
         for c in Commitment.objects.filter(project__user=user, week_start__lt=week_start(today))
+        if not any(
+            a.project_id == c.project_id
+            and hold_rules.leve_la_semaine(a.starts_on, a.effective_end, lundi=c.week_start)
+            for a in attentes
+        )
     ]
     tenues = rank_rules.weeks_kept(semaines)
     code = rank_rules.rank_for(tenues)
@@ -1230,6 +1311,92 @@ def rank_state(user, *, today: date) -> dict:
         "extra_days_off": recompenses.extra_days_off,
         "next": {"code": suivant[0], "weeks_left": suivant[1]} if suivant else None,
         "next_unlock": rank_rules.unlock_label(code),
+    }
+
+
+# --------------------------------------------------------------------------
+# Le projet en attente déclarée (ajout du 17 août 2026)
+# --------------------------------------------------------------------------
+
+def projects_on_hold(user, *, day: date) -> set[int]:
+    """Les projets en attente à une date donnée."""
+    return {
+        a.project_id
+        for a in ProjectHold.objects.filter(
+            project__user=user, starts_on__lte=day, ends_on__gte=day
+        )
+        if a.covers(day)
+    }
+
+
+def hold_days_between(user, project_id: int, *, since: date, until: date) -> int:
+    """Combien de jours d'attente séparent deux dates, pour ce projet.
+
+    Sert à la détection « projet mort » : sans cette soustraction, un projet
+    bloqué quatorze jours serait déclaré mort le lendemain de son déblocage,
+    c'est-à-dire au seul moment où il redevient vivant.
+    """
+    return sum(
+        hold_rules.jours_couverts(a.starts_on, a.effective_end, entre=since, et=until)
+        for a in ProjectHold.objects.filter(project_id=project_id, project__user=user)
+    )
+
+
+def declare_hold(
+    user, project: Project, *, starts_on: date, ends_on: date, reason: str, today: date
+) -> ProjectHold:
+    """Déclare une attente. Lève ``ValueError`` si les règles s'y opposent."""
+    verdict = hold_rules.verifier(
+        debut=starts_on, fin=ends_on, aujourdhui=today, raison=reason
+    )
+    if not verdict.ok:
+        raise ValueError(verdict.raison)
+
+    if projects_on_hold(user, day=starts_on) & {project.id}:
+        raise ValueError("Ce projet est déjà en attente à cette date.")
+
+    return ProjectHold.objects.create(
+        project=project, starts_on=starts_on, ends_on=ends_on, reason=reason.strip()
+    )
+
+
+def end_hold(user, project: Project, *, today: date) -> bool:
+    """Sort le projet de l'attente, immédiatement.
+
+    Comme pour la veille : une attente dont on ne peut pas sortir est une raison
+    de plus de ne pas la déclarer. Rend ``False`` s'il n'y en avait pas.
+    """
+    attente = (
+        ProjectHold.objects.filter(
+            project=project, project__user=user, starts_on__lte=today, ends_on__gte=today
+        )
+        .order_by("-starts_on")
+        .first()
+    )
+    if attente is None or attente.ended_on is not None:
+        return False
+
+    attente.ended_on = today
+    attente.save(update_fields=["ended_on"])
+    return True
+
+
+def hold_payload(user, project: Project, *, today: date) -> dict | None:
+    """L'attente en cours d'un projet, prête à afficher. ``None`` s'il n'y en a pas."""
+    attente = (
+        ProjectHold.objects.filter(project=project, starts_on__lte=today, ends_on__gte=today)
+        .order_by("-starts_on")
+        .first()
+    )
+    if attente is None or not attente.covers(today):
+        return None
+
+    return {
+        "starts_on": attente.starts_on.isoformat(),
+        "ends_on": attente.effective_end.isoformat(),
+        "reason": attente.reason,
+        "days_left": max(0, (attente.effective_end - today).days),
+        "line": hold_rules.message(project.name, attente.effective_end, attente.reason),
     }
 
 
@@ -1309,6 +1476,45 @@ def create_project_from_markdown(user, markdown: str) -> Project:
 # L'agent local (SPEC §8)
 # --------------------------------------------------------------------------
 
+def _guardian_consign(user, profile: Profile, *, today: date, now: datetime) -> dict:
+    """La consigne que l'agent rejouera si le serveur devient injoignable.
+
+    Le gardien du §11.3 part du serveur, ce qui est le bon endroit — c'est lui
+    qui sait si la journée est validée. Mais il a un défaut qui ne se voit
+    qu'une fois : le soir où le serveur ne répond pas, il ne part pas, et
+    personne ne le sait. Un gardien qui tombe le soir où il tombe n'est pas un
+    gardien.
+
+    Ce que l'agent reçoit est **exactement ce que la notification aurait
+    affiché sur cette même machine** : l'heure, la tâche de dix minutes, le
+    plancher. Aucune classe d'information nouvelle ne descend vers un jeton de
+    sonde qui peut fuir (§8) — ni boucliers, ni streak, ni historique.
+    """
+    window = evening_window(today, profile.windows_by_weekday(), profile.timezone_name)
+    declenche = window.end - timedelta(minutes=profile.guardian_minutes_before_end)
+
+    minutes = (
+        Session.objects.filter(user=user, coach_day=today, status=Session.DONE).aggregate(
+            t=Sum("actual_minutes")
+        )["t"]
+        or 0
+    )
+    proposition = propose(user, today=today)
+
+    return {
+        "day": today.isoformat(),
+        "at": declenche.isoformat(),
+        "window_end": window.end.isoformat(),
+        "floor_minutes": DEGRADED_MINUTES,
+        "validated": minutes >= DEGRADED_MINUTES,
+        "project": proposition["project"]["name"] if proposition else "",
+        # L'amorce du §11.3, telle quelle. Pas de découpage par le modèle ici :
+        # le repli local doit rester calculable hors ligne, et une consigne qui
+        # dépendrait d'un appel au modèle serait vide le jour où il manque.
+        "task": (proposition or {}).get("amorce", ""),
+    }
+
+
 def agent_state(user, *, now: datetime | None = None) -> dict:
     """Le strict nécessaire à l'agent : que lancer, et quoi afficher.
 
@@ -1336,6 +1542,7 @@ def agent_state(user, *, now: datetime | None = None) -> dict:
         "now": now.isoformat(),
         "day": today.isoformat(),
         "block_scroll": _block_scroll(user, profile, today=today, now=now),
+        "guardian": _guardian_consign(user, profile, today=today, now=now),
         "running_session": (
             {
                 "id": running.pk,

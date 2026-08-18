@@ -9,6 +9,7 @@ import { Journal } from './screens/Journal'
 import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
 import { TabBar, type Tab } from './components/TabBar'
+import { TimezoneNotice } from './components/TimezoneNotice'
 import './App.css'
 
 export default function App() {
@@ -126,6 +127,11 @@ export default function App() {
   return (
     <>
       <main className="shell">
+        {/* Au-dessus de tout, y compris de la décision : un écart de fuseau
+            rend faux tout ce qui suit — la fenêtre du soir, l'heure du gardien,
+            la journée à laquelle une session sera comptée. */}
+        <TimezoneNotice />
+
         {tab === 'soir' && <Home state={state} onStarted={load} />}
         {tab === 'projets' && <Projects onChanged={load} />}
         {tab === 'perso' && <Character locked={locked} phantom={state.phantom} />}

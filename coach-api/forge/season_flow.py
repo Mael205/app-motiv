@@ -30,7 +30,8 @@ from django.db import transaction
 from django.db.models import Sum
 
 from . import progression, seasonreport, services
-from .models import Season, Session
+from .models import Project, Season, Session
+from .rules import contract as contract_rules
 from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
 from .rules import phantom as phantom_rules
@@ -152,6 +153,8 @@ def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
             "reference": ecart.reference,
             "series": phantom_rules.series(mienne, fantome, days=jours),
         },
+        # Le contrat relu à la clôture : un écart, jamais une note (§17).
+        "contract": services.season_contract(user, season),
         "already_closed": deja,
         "cards": [],
         "stake_delta": 0,
@@ -211,6 +214,39 @@ def next_offer(user, *, today: date) -> dict:
         "modifiers": propositions,
         "phantoms": _phantom_offer(user, index=index),
         "shards": user.profile.shards,
+        "contract": _contract_offer(user, plan),
+    }
+
+
+def _contract_offer(user, plan) -> dict:
+    """Ce qu'on propose de signer, et ce que ça engage en toutes lettres.
+
+    Le nombre proposé est la somme des engagements hebdomadaires déjà pris sur
+    les projets en slot : il ne sort pas de nulle part, et une proposition qui
+    reprend ce qu'on fait déjà se signe sans négocier. Reste à la lire.
+    """
+    projets = list(
+        Project.objects.filter(user=user, status=Project.ACTIVE)
+        .exclude(slot=None)
+        .values_list("name", "weekly_commitment")
+    )
+    propose = sum(engagement for _, engagement in projets) or 3
+    propose = min(propose, contract_rules.MAXIMUM)
+    semaines = max(1, plan.days_total // 7)
+    contrat = contract_rules.Contrat(
+        sessions_par_semaine=propose,
+        projets=tuple(nom for nom, _ in projets),
+        semaines=semaines,
+    )
+
+    return {
+        "proposed": contrat.sessions_par_semaine,
+        "minimum": contract_rules.MINIMUM,
+        "maximum": contract_rules.MAXIMUM,
+        "weeks": semaines,
+        "total": contrat.total,
+        "projects": list(contrat.projets),
+        "terms": list(contrat.lignes),
     }
 
 
@@ -259,6 +295,7 @@ def open_next(
     modifier_key: str = "",
     phantom_choice: str = phantom_rules.MEILLEURE,
     stake: int = 0,
+    contract_sessions_per_week: int = 0,
 ) -> Season:
     """Ouvre la saison suivante avec les choix faits à l'écran d'ouverture."""
     if phantom_choice not in phantom_rules.CHOIX:
@@ -278,6 +315,7 @@ def open_next(
         stake=stake,
         modifier_key=modifier_key,
         phantom_choice=phantom_choice,
+        contract_sessions_per_week=contract_sessions_per_week,
     )
 
 

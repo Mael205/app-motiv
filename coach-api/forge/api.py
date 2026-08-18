@@ -27,6 +27,7 @@ from . import (
     review,
     season_flow,
     services,
+    trace,
     weekly,
 )
 from .models import (
@@ -45,6 +46,7 @@ from .probeauth import ProbeTokenAuthentication
 from .rules import hiatus as hiatus_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
+from .rules import timezones as timezone_rules
 from .rules import verification as verification_rules
 from .rules.calendar import coach_day, week_start
 
@@ -76,6 +78,7 @@ def home(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def projects(request):
+    today = _today(request)
     payload = []
     for project in (
         Project.objects.filter(user=request.user)
@@ -103,6 +106,7 @@ def projects(request):
                 "completion": project.completion,
                 "weekly_commitment": project.weekly_commitment,
                 "is_coach_project": project.is_coach_project,
+                "hold": services.hold_payload(request.user, project, today=today),
                 "current_step": (
                     {"id": step.id, "label": step.label, "needs_split": step.needs_split} if step else None
                 ),
@@ -459,6 +463,11 @@ def weekly_review_contract(request):
 def _revue_payload(revue) -> dict:
     return {
         "week_start": revue.week_start.isoformat(),
+        # Le seul bloc de la revue qui ne compte rien : une note d'il y a un
+        # mois, telle qu'elle a été écrite (§13.3 étendu).
+        "il_y_a_quatre_semaines": review.il_y_a_quatre_semaines(
+            revue.user, semaine=revue.week_start
+        ),
         "questions": revue.questions,
         "answered": revue.answered,
         "report": revue.report,
@@ -520,6 +529,52 @@ def project_commitment(request, project_id: int):
     projet.weekly_commitment = vise
     projet.save(update_fields=["weekly_commitment"])
     return Response({"id": projet.id, "weekly_commitment": projet.weekly_commitment})
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def project_hold(request, project_id: int):
+    """Le projet en attente déclarée : bloqué par un tiers ou du matériel.
+
+    ``POST`` la déclare, ``DELETE`` en sort immédiatement. L'attente fait taire
+    la détection « projet mort » et lève l'engagement de la semaine, mais **ne
+    libère pas le slot** — c'est ce qui la distingue du frigo.
+    """
+    projet = Project.objects.filter(user=request.user, id=project_id).first()
+    if not projet:
+        return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    today = _today(request)
+
+    if request.method == "DELETE":
+        sorti = services.end_hold(request.user, projet, today=today)
+        return Response({"id": projet.id, "hold": None, "ended": sorti})
+
+    try:
+        debut = date.fromisoformat(request.data.get("starts_on") or today.isoformat())
+        fin = date.fromisoformat(request.data["ends_on"])
+    except (KeyError, TypeError, ValueError):
+        return Response(
+            {"detail": "Donne une date de fin (AAAA-MM-JJ)."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        services.declare_hold(
+            request.user,
+            projet,
+            starts_on=debut,
+            ends_on=fin,
+            reason=request.data.get("reason", ""),
+            today=today,
+        )
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+    return Response(
+        {"id": projet.id, "hold": services.hold_payload(request.user, projet, today=today)},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET"])
@@ -587,6 +642,24 @@ def _veille_payload(veille_en_cours, today: date) -> dict:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+def trace_longue(request):
+    """Les compteurs qui ne redescendent jamais.
+
+    À consulter le soir où le streak vient de casser — c'est-à-dire le seul
+    soir où tous les autres chiffres de l'app disent zéro.
+
+    **Volontairement hors de la vitrine fermée du §14.** La vitrine ferme les
+    *récompenses* : le loot, les reliques, l'équipement. On ne consulte pas ses
+    trophées un soir où l'on n'a rien fait, et c'est juste. La trace n'est pas
+    une récompense, c'est le relevé du travail déjà accompli — le fermer
+    reviendrait à sanctionner quelqu'un en lui retirant des faits, ce que le
+    §17 n'autorise nulle part.
+    """
+    return Response(trace.longue(request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def leak_report(request):
     """Le rapport de fuite de temps (SPEC §13.2).
 
@@ -641,6 +714,9 @@ def weekly_reports(request):
             ),
             "non_lus": weekly.non_lus(request.user),
             "seuil_non_lus": weekly.SEUIL_NON_LUS,
+            # Le constat des trois semaines sans lecture était déjà là ; ce qui
+            # manquait était la suite. Un constat sans suite s'ignore (§4.7).
+            "remplacement": weekly.proposition_de_remplacement(request.user),
             "rapports": [
                 {
                     "week_start": r.week_start.isoformat(),
@@ -676,6 +752,70 @@ def weekly_disable(request):
             "actif": weekly.destinataire_actif(profile),
             "effective_le": effective.isoformat(),
             "detail": "Le bilan continue de partir jusque-là. Annulable à tout moment.",
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def weekly_buddy(request):
+    """Change le destinataire du bilan. Immédiat (SPEC §4.7 étendu).
+
+    Remplacer n'est pas arrêter : le bilan continue de partir, à quelqu'un
+    d'autre. Faire payer les vingt-quatre heures du désarmement au geste qui
+    sauve le mécanisme reviendrait à le décourager — et un contrôleur qui ne
+    regarde plus est pire que pas de contrôleur, puisqu'on se croit surveillé.
+    """
+    try:
+        canal = weekly.remplacer_destinataire(
+            request.user.profile, request.data.get("channel", "")
+        )
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+    return Response(
+        {
+            "channel": canal,
+            "actif": weekly.destinataire_actif(request.user.profile),
+            "detail": "Le précédent destinataire a été prévenu.",
+        }
+    )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def timezone_check(request):
+    """Détecte un écart de fuseau, et ne bascule que sur demande.
+
+    ``GET ?tz=Europe/Lisbon`` constate. ``POST {"tz": …}`` applique. Voyager
+    casse la fenêtre du soir et la bascule de 4h **en silence** : on lit des
+    chiffres faux en les croyant justes. Mais une escale de trois heures n'est
+    pas un déménagement, et le §11.1 n'autorise le système à décider que de ce
+    qu'on fait maintenant — pas du fuseau.
+    """
+    profile = request.user.profile
+    detecte = (request.query_params.get("tz") or request.data.get("tz") or "").strip()
+    proposition = timezone_rules.proposer(
+        profile.timezone_name, detecte, at=timezone.now()
+    )
+
+    if request.method == "POST":
+        if not proposition.valide:
+            return Response(
+                {"detail": proposition.line or "Rien à basculer."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        profile.timezone_name = proposition.detecte
+        profile.save(update_fields=["timezone_name"])
+        return Response({"timezone": profile.timezone_name, "switched": True})
+
+    return Response(
+        {
+            "timezone": profile.timezone_name,
+            "detected": proposition.detecte,
+            "offset_minutes": proposition.ecart_minutes,
+            "proposed": proposition.valide,
+            "line": proposition.line,
         }
     )
 
@@ -1107,6 +1247,10 @@ def open_season(request):
             modifier_key=request.data.get("modifier", ""),
             phantom_choice=request.data.get("phantom", "meilleure"),
             stake=max(0, int(request.data.get("stake", 0) or 0)),
+            # Le contrat est facultatif : refuser d'ouvrir tant que personne
+            # n'a signé transformerait le rituel en formulaire, et un
+            # formulaire se remplit sans le lire.
+            contract_sessions_per_week=max(0, int(request.data.get("contract", 0) or 0)),
         )
     except (ValueError, TypeError) as error:
         return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1120,6 +1264,11 @@ def open_season(request):
             "modifier": progression.season_modifier(saison),
             "boss": services.boss_payload(saison),
             "stake": saison.stake_shards,
+            "contract": {
+                "sessions_per_week": saison.contract_sessions_per_week,
+                "projects": saison.contract_projects,
+                "signed": saison.signed,
+            },
             "ends_on": saison.ends_on.isoformat(),
         },
         status=status.HTTP_201_CREATED,

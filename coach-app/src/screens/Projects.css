@@ -147,3 +147,59 @@
   word-break: break-all;
   user-select: all;
 }
+
+/* Le projet en attente déclarée (§13.5 étendu).
+ *
+ * La carte s'éteint sans disparaître : le projet garde sa place, exactement
+ * comme il garde son slot. Une carte masquée ou barrée dirait « rangé », ce
+ * qui est le frigo et pas l'attente. */
+.pcard--hold {
+  opacity: 0.78;
+}
+
+.pcard--hold .ring-mini__fill {
+  opacity: 0.5;
+}
+
+.hold {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.7rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.hold__open {
+  margin-top: 0.7rem;
+  font-size: 0.78rem;
+}
+
+.hold__field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.hold__field input {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.hold--active {
+  border-left: 2px solid var(--project, currentColor);
+}
+
+.hold__line {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.hold__refus {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--rose, #DE5F7E);
+}

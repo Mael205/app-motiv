@@ -20,6 +20,9 @@ import './BuddyReport.css'
 export function BuddyReport() {
   const [panel, setPanel] = useState<WeeklyPanel | null>(null)
   const [ouvert, setOuvert] = useState<string | null>(null)
+  const [remplacement, setRemplacement] = useState(false)
+  const [canal, setCanal] = useState('')
+  const [refus, setRefus] = useState('')
 
   useEffect(() => {
     api.weekly().then(setPanel).catch(() => setPanel(null))
@@ -51,15 +54,61 @@ export function BuddyReport() {
     setPanel(await api.weekly())
   }
 
+  async function remplacer() {
+    setRefus('')
+    try {
+      await api.replaceBuddy(canal)
+      setCanal('')
+      setRemplacement(false)
+      setPanel(await api.weekly())
+    } catch (error) {
+      setRefus(error instanceof Error ? error.message : 'Refusé.')
+    }
+  }
+
   return (
     <section className="buddy">
       <h3 className="buddy__titre label">Bilan hebdomadaire</h3>
 
-      {alerte && (
-        <p className="buddy__alerte">
-          {panel.non_lus} bilans partis sans être lus. Un contrôleur qui ne regarde pas ne contrôle
-          rien — change de destinataire.
-        </p>
+      {/* Le constat, et la suite. Avant, la phrase disait « change de
+          destinataire » sans qu'il existe le moindre endroit pour le faire —
+          un conseil qu'on ne peut pas suivre est pire qu'un silence. */}
+      {alerte && panel.remplacement && (
+        <div className="buddy__alerte">
+          <p>{panel.remplacement.line}</p>
+          {!remplacement && (
+            <button type="button" className="buddy__annuler" onClick={() => setRemplacement(true)}>
+              {panel.remplacement.action}
+            </button>
+          )}
+        </div>
+      )}
+
+      {remplacement && (
+        <div className="buddy__remplacer">
+          <label className="label" htmlFor="buddy-canal">
+            Nouveau destinataire
+          </label>
+          <input
+            id="buddy-canal"
+            value={canal}
+            onChange={(e) => setCanal(e.target.value)}
+            placeholder="https://…"
+          />
+          <p className="buddy__note muted">
+            Le changement prend effet tout de suite, et le destinataire actuel est
+            prévenu que le bilan part ailleurs.
+          </p>
+          <div className="row">
+            <button type="button" className="buddy__annuler" disabled={!canal.trim()} onClick={remplacer}>
+              Basculer
+            </button>
+            <button type="button" className="buddy__annuler" onClick={() => setRemplacement(false)}>
+              Annuler
+            </button>
+          </div>
+          {refus && <p className="buddy__refus">{refus}</p>}
+        </div>
       )}
 
       {panel.desactivation_effective_le && (

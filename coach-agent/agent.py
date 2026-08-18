@@ -41,6 +41,7 @@ import urllib.parse
 import urllib.request
 import adguard
 import blocage
+import gardien
 import profiles as profiles_module
 import toast
 from collections import defaultdict
@@ -245,6 +246,9 @@ class Suivi:
     def __init__(self) -> None:
         self.session_lancee: int | None = None
         self.notifications_vues: set[int] = set()
+        # Le gardien de secours ne se lève qu'une fois par journée du coach,
+        # comme celui du serveur.
+        self.gardien_leve: str | None = None
 
 
 def suivre_session(config: dict, etat: dict, suivi: Suivi, liste_blanche) -> None:
@@ -287,6 +291,27 @@ def suivre_session(config: dict, etat: dict, suivi: Suivi, liste_blanche) -> Non
             minutes = reponse.get("minutes", 0)
             print(f"  session fantôme close à {minutes} min réelles : {reponse.get('reason')}")
             toast.show("Session clôturée", f"Sans activité depuis un moment. {minutes} min comptées.")
+
+
+def lever_gardien_local(suivi: Suivi, *, now: datetime) -> None:
+    """Rejoue le gardien du soir quand le serveur ne répond pas.
+
+    Rien n'est décidé ici : l'heure, la tâche et l'état de la journée viennent
+    du dernier contact réussi. Si ce contact date d'hier, on se tait — mieux
+    vaut un gardien manquant qu'un gardien qui parle du mauvais soir.
+    """
+    consigne = gardien.charger()
+    if consigne is None:
+        return
+    if not gardien.a_lever(
+        consigne, now=now, jour_du_coach=consigne.day, deja_leve=suivi.gardien_leve
+    ):
+        return
+
+    titre, corps = gardien.message(consigne)
+    suivi.gardien_leve = consigne.day
+    toast.show(titre, corps)
+    print(f"  gardien de secours levé ({consigne.at.strftime('%H:%M')}) — serveur injoignable")
 
 
 def afficher_notifications(etat: dict, suivi: Suivi) -> None:
@@ -399,9 +424,15 @@ def cycle(
         etat = get_json(config, "/api/agent/state")
         if etat is None:
             print("Coach injoignable — les sondes continuent, rien n'est lancé ni affiché.")
+            # Sauf le gardien. Un gardien qui tombe le soir où il tombe n'est pas
+            # un gardien (§11.3), et c'est le seul endroit du produit où l'agent
+            # a le droit de parler sans le serveur — parce qu'il ne fait que
+            # rejouer une consigne que le serveur avait déjà écrite et datée.
+            lever_gardien_local(suivi, now=datetime.now().astimezone())
         else:
             suivre_session(config, etat, suivi, liste_blanche)
             afficher_notifications(etat, suivi)
+            gardien.memoriser(etat)
             ordre = blocage.synchroniser(etat)
             if verbose and ordre:
                 print(f"Blocage : {ordre}.")

@@ -4,6 +4,7 @@ import { api } from '../api'
 import { MomentumEmber } from '../components/MomentumEmber'
 import { PhantomRace } from '../components/PhantomRace'
 import { SkillTree } from '../components/SkillTree'
+import { Trace } from '../components/Trace'
 import { LootReveal } from '../components/LootReveal'
 import type { LootCardDrawn, Phantom, ProgressionPanel } from '../types'
 import './Character.css'
@@ -74,6 +75,8 @@ export function Character({
         {/* La course sur vingt-huit jours : une information de saison, donc de
             fiche. L'accueil n'en garde que la phrase du soir. */}
         {phantom?.available && <PhantomRace phantom={phantom} />}
+
+        <Trace compact />
 
         <section className="panel">
           <SkillTree branches={panel.skills.branches} tiers={panel.skills.tiers} />
@@ -224,6 +227,13 @@ function Showcase() {
           Rien n'a bougé derrière : les heures, les hauts faits et les cartes sont acquis.
         </p>
       </section>
+
+      {/* La trace reste ouverte, et c'est ici qu'elle sert. La vitrine ferme
+          les *récompenses* — on ne consulte pas ses trophées un soir où l'on
+          n'a rien fait. La trace n'est pas une récompense : c'est le relevé du
+          travail déjà accompli, et le fermer reviendrait à retirer des faits à
+          quelqu'un en guise de sanction. */}
+      <Trace />
     </div>
   )
 }

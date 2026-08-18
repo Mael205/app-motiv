@@ -261,6 +261,11 @@ function Opening({ offer, onOpened }: { offer: SeasonOffer; onOpened: () => void
     offer.phantoms.find((p) => p.available)?.key ?? 'meilleure',
   )
   const [stake, setStake] = useState(Math.min(100, offer.shards))
+  // Le contrat (§16 de la liste du 17 août). Il part à ce que valent déjà les
+  // engagements pris : une proposition qui reprend ce qu'on fait se signe sans
+  // négocier, et c'est la lecture des termes qui compte, pas le réglage.
+  const [contrat, setContrat] = useState(offer.contract.proposed)
+  const [signe, setSigne] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -270,7 +275,7 @@ function Opening({ offer, onOpened }: { offer: SeasonOffer; onOpened: () => void
     setBusy(true)
     setError('')
     try {
-      await api.openSeason({ modifier, phantom, stake })
+      await api.openSeason({ modifier, phantom, stake, contract: signe ? contrat : 0 })
       onOpened()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ouverture impossible.')
@@ -349,12 +354,68 @@ function Opening({ offer, onOpened }: { offer: SeasonOffer; onOpened: () => void
         </p>
       </section>
 
+      {/* Le contrat. Il ne bloque pas l'ouverture — refuser d'ouvrir tant que
+          personne n'a signé ferait du rituel un formulaire, et un formulaire se
+          remplit sans le lire. Les termes sont donc affichés **avant** la case,
+          et ils se recalculent quand le nombre bouge : signer sans avoir vu le
+          total sur la saison, c'est régler un curseur. */}
+      <section className="open__block open__block--contract">
+        <p className="label">Contrat — ce que tu t'engages à tenir</p>
+        <div className="open__row open__contract-row">
+          <input
+            className="open__contract-input"
+            type="number"
+            min={offer.contract.minimum}
+            max={offer.contract.maximum}
+            value={contrat}
+            onChange={(e) => {
+              setContrat(Number(e.target.value))
+              setSigne(false)
+            }}
+          />
+          <span className="muted">sessions par semaine</span>
+        </div>
+
+        <ul className="open__contract-terms">
+          {termesPour(offer, contrat).map((ligne) => (
+            <li key={ligne}>{ligne}</li>
+          ))}
+        </ul>
+
+        <label className="open__sign">
+          <input type="checkbox" checked={signe} onChange={(e) => setSigne(e.target.checked)} />
+          <span>Je signe ces termes pour {offer.contract.weeks} semaines.</span>
+        </label>
+        {!signe && (
+          <p className="section-hint">
+            Sans signature, la saison s'ouvre quand même — et la clôture n'aura
+            rien à relire.
+          </p>
+        )}
+      </section>
+
       {error && <p className="open__error">{error}</p>}
 
       <button className="cta" onClick={open} disabled={busy}>
         {busy ? 'Ouverture…' : `Ouvrir ${offer.name}`}
       </button>
     </div>
+  )
+}
+
+/** Les termes recalculés pour le nombre affiché.
+ *
+ * Le serveur en rend une version pour sa proposition d'origine ; dès que le
+ * nombre bouge, la seule ligne qui change est le total, et la recalculer ici
+ * évite un aller-retour par frappe au clavier. Les phrases, elles, viennent du
+ * serveur — c'est lui qui écrit ce qu'on signe.
+ */
+function termesPour(offer: SeasonOffer, parSemaine: number): string[] {
+  const total = Math.max(0, parSemaine) * offer.contract.weeks
+  return offer.contract.terms.map((ligne) =>
+    ligne
+      .replace(/^\d+ sessions par semaine/, `${parSemaine} sessions par semaine`)
+      .replace(/Soit \d+ sessions au total/, `Soit ${total} sessions au total`),
   )
 }
 

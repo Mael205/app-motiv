@@ -366,6 +366,77 @@ def annuler_desactivation(profile: Profile) -> None:
         profile.save(update_fields=["buddy_disable_requested_at"])
 
 
+def remplacer_destinataire(profile: Profile, canal: str, *, now: datetime | None = None) -> str:
+    """Change le destinataire du bilan. Immédiat, et c'est le sujet.
+
+    Le §4.7 fait payer vingt-quatre heures pour **arrêter** le bilan, et c'est
+    juste : couper le contrôle est une décision qu'on prend un soir précis —
+    celui où il va dire quelque chose de désagréable — et le délai suffit à ce
+    que ce ne soit plus le même soir.
+
+    Remplacer n'est pas arrêter. Le bilan continue de partir, à quelqu'un
+    d'autre. Faire payer le même prix aux deux gestes revient à décourager
+    celui qui sauve le mécanisme : au bout de trois semaines sans lecture
+    (§4.7), la bonne réponse est de changer de destinataire, et si elle coûte
+    un jour d'attente, personne ne la prend — on désarme, ou on garde un
+    contrôleur qui ne regarde plus, ce qui est pire que pas de contrôleur du
+    tout puisqu'on se croit surveillé.
+
+    **L'ancien destinataire est prévenu.** C'est ce qui empêche le
+    remplacement d'être un désarmement déguisé : personne ne peut basculer
+    vers un canal qu'il contrôle sans que le précédent l'apprenne. Le système
+    ne peut pas vérifier qui est au bout du fil ; il peut rendre le geste
+    visible, et c'est tout ce qui est honnête.
+
+    Un canal vide est refusé : ça, c'est un arrêt, et l'arrêt a son chemin.
+    """
+    now = now or timezone.now()
+    canal = (canal or "").strip()
+    if not canal:
+        raise ValueError(
+            "Un destinataire vide, c'est un arrêt — et l'arrêt passe par les "
+            "vingt-quatre heures du §4.7."
+        )
+    if canal == profile.buddy_channel:
+        raise ValueError("C'est déjà le destinataire actuel.")
+
+    ancien = profile.buddy_channel
+    if ancien:
+        _poster(
+            ancien,
+            "Ce bilan hebdomadaire part désormais à quelqu'un d'autre. "
+            "Tu ne recevras plus les suivants.",
+        )
+
+    profile.buddy_channel = canal
+    # Reprendre est immédiat (§4.7) : basculer vers un nouveau destinataire
+    # annule une demande d'arrêt en cours, comme le ferait une annulation.
+    profile.buddy_disable_requested_at = None
+    profile.save(update_fields=["buddy_channel", "buddy_disable_requested_at"])
+    return canal
+
+
+def proposition_de_remplacement(user, *, seuil: int = SEUIL_NON_LUS) -> dict | None:
+    """Ce qu'on propose quand le destinataire ne lit plus (§4.7).
+
+    Le manque était là : les trois semaines sans lecture étaient signalées, et
+    rien ne suivait. Un constat sans suite se lit deux fois puis s'ignore.
+    """
+    compte = non_lus(user, seuil=seuil)
+    if compte < seuil:
+        return None
+
+    return {
+        "non_lus": compte,
+        "line": (
+            f"{compte} bilans partis sans être ouverts. Un contrôleur qui ne "
+            "regarde pas ne contrôle rien, et se croire surveillé alors qu'on "
+            "ne l'est plus est pire que de savoir qu'on ne l'est pas."
+        ),
+        "action": "Changer de destinataire — immédiat, sans les 24 heures.",
+    }
+
+
 def non_lus(user, *, seuil: int = SEUIL_NON_LUS) -> int:
     """Combien de bilans consécutifs sont partis sans être lus.
 

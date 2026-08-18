@@ -148,7 +148,39 @@ class TestEtatDeLAgent:
         Profile.objects.create(user=user)
 
         etat = services.agent_state(user)
-        assert set(etat) == {"now", "day", "running_session", "notifications", "block_scroll"}
+        assert set(etat) == {
+            "now",
+            "day",
+            "running_session",
+            "notifications",
+            "block_scroll",
+            "guardian",
+        }
+
+    def test_la_consigne_du_gardien_ne_dit_rien_de_plus(self, django_user_model):
+        """Le gardien de secours a besoin d'une heure et d'une tâche, pas d'un dossier.
+
+        Ce que l'agent reçoit est exactement ce que la notification aurait
+        affiché sur cette même machine. Y ajouter les boucliers, le streak ou
+        l'historique ferait descendre une classe d'information nouvelle vers un
+        jeton de sonde qui peut fuir (§8).
+        """
+        from forge import services
+        from forge.models import Profile
+
+        user = django_user_model.objects.create_user(username="arthur", password="coach")
+        Profile.objects.create(user=user)
+
+        consigne = services.agent_state(user)["guardian"]
+        assert set(consigne) == {
+            "day",
+            "at",
+            "window_end",
+            "floor_minutes",
+            "validated",
+            "project",
+            "task",
+        }
 
     def test_l_armement_du_blocage_ne_dit_pas_pourquoi(self, django_user_model):
         """L'agent doit savoir **quand** bloquer, jamais qu'on a raté deux jours.

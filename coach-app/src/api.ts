@@ -11,12 +11,16 @@ import type {
   HomeState,
   JournalEntry,
   ProjectDetail,
+  ProjectHold,
   ProjectImportResult,
   ProjectPreview,
   RapportDeFuite,
   Revue,
   RoutineCheckResult,
   SessionResult,
+  StepCompleted,
+  TimezoneCheck,
+  TraceLongue,
   WeeklyPanel,
 } from './types'
 
@@ -113,11 +117,33 @@ export const api = {
       body: JSON.stringify({ early }),
     }),
 
-  openSeason: (body: { modifier: string; phantom: string; stake: number }) =>
+  openSeason: (body: { modifier: string; phantom: string; stake: number; contract: number }) =>
     request<{ index: number; name: string }>('/season/open', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  /** Change le destinataire du bilan. Immédiat : remplacer n'est pas arrêter,
+   *  et faire payer les 24 h du désarmement au geste qui sauve le mécanisme
+   *  reviendrait à le décourager (§4.7). */
+  replaceBuddy: (channel: string) =>
+    request<{ channel: string; actif: boolean; detail: string }>('/weekly/buddy', {
+      method: 'POST',
+      body: JSON.stringify({ channel }),
+    }),
+
+  /** Constate un écart de fuseau. Ne bascule rien : le POST est un autre geste. */
+  checkTimezone: (tz: string) =>
+    request<TimezoneCheck>(`/timezone?tz=${encodeURIComponent(tz)}`),
+
+  switchTimezone: (tz: string) =>
+    request<{ timezone: string; switched: boolean }>('/timezone', {
+      method: 'POST',
+      body: JSON.stringify({ tz }),
+    }),
+
+  /** Les compteurs qui ne redescendent jamais (§17 de la liste du 17 août). */
+  trace: () => request<TraceLongue>('/trace'),
 
   equipCard: (key: string) =>
     request<{ equipped: Record<string, string> }>(`/loot/${key}/equip`, { method: 'POST' }),
@@ -208,8 +234,24 @@ export const api = {
     request<{ status: string }>(`/sessions/${id}/abandon`, { method: 'POST' }),
 
   completeStep: (id: number) =>
-    request<{ id: number; state: string; boss_damage: number }>(`/steps/${id}/complete`, {
+    request<StepCompleted>(`/steps/${id}/complete`, {
       method: 'POST',
+    }),
+
+  /** Déclare une attente sur un projet bloqué par un tiers (§13.5 étendu).
+   *
+   * Le serveur refuse en 409 avec sa raison — rétroactive, trop longue, sans
+   * motif nommé. Le front ne recopie aucune de ces règles : les recopier, c'est
+   * les laisser diverger. */
+  holdProject: (id: number, endsOn: string, reason: string) =>
+    request<{ id: number; hold: ProjectHold | null }>(`/projects/${id}/hold`, {
+      method: 'POST',
+      body: JSON.stringify({ ends_on: endsOn, reason }),
+    }),
+
+  releaseProject: (id: number) =>
+    request<{ id: number; hold: null; ended: boolean }>(`/projects/${id}/hold`, {
+      method: 'DELETE',
     }),
 
   addIdea: (text: string) =>

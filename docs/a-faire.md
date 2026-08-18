@@ -93,65 +93,74 @@ Projets → Nouveau projet → Copier le prompt.
 
 ---
 
-## Décidé le 17 août 2026, à construire
+## Décidé le 17 août 2026 — tout est construit
 
-Dix-sept ajouts tranchés en une fois : du jeu, de la raison de revenir, et les
-situations que le système ne savait pas encaisser. L'ordre est celui de
-construction, pas d'importance égale.
+Les dix-sept ajouts tranchés ce jour-là sont faits, dans l'ordre où ils avaient
+été rangés : d'abord ce qui parait une situation sans issue, puis le jeu, puis
+les raisons de revenir. Le détail est plus bas.
 
-### Parer ce qui n'est pas couvert
+Ce qui reste ouvert dans ce fichier ne vient donc plus de cette liste. Ce sont
+les trois choses des sections précédentes — les roadmaps vides, les gestes que
+je ne peux pas faire à ta place, et J6 — et **le §16 : J1 attend toujours sa
+condition de passage, sept jours d'usage réel.** Ce qui manque maintenant n'est
+plus du code.
 
-1. **Le mode veille.** Une à quatre semaines déclarées : tout gèle, aucune
-   notification, aucun jour raté, aucune sanction. C'est le manque le plus
-   dangereux du lot — les jours off sont plafonnés à 2 par semaine, ce qui ne
-   couvre ni des vacances, ni une grippe, ni des partiels, et la seule issue
-   actuelle est la désinstallation.
-2. **Le gel de saison.** Le statut `paused` existe dans le modèle et ne sert
-   nulle part. Une absence longue suspend la saison au lieu de la laisser mourir.
-3. **Baisser un engagement à tout moment, le monter seulement le dimanche.**
-   Le dimanche protège de l'abandon impulsif, pas de l'ajustement honnête.
-4. **Le projet en attente déclarée.** Bloqué par un tiers ou du matériel : deux
-   semaines où la détection « projet mort » se tait sans libérer le slot.
-5. **Le gardien de secours local.** Serveur injoignable à 21h30 : l'agent
-   connaît l'heure et la dernière tâche, il lève le sien.
-6. **Le fuseau horaire.** Voyager casse silencieusement la fenêtre du soir et la
-   bascule de 4h. Détecter l'écart et proposer de basculer.
-7. **Le remplaçant de l'ami.** Trois semaines sans lecture sont signalées, mais
-   rien n'est proposé ensuite. Changer de destinataire ne doit pas coûter les
-   24 heures du désarmement.
+Deux questions ont été laissées ouvertes en construisant, et méritent d'être
+tranchées sur du vécu plutôt qu'au jugé :
 
-### Le jeu
+- **Les phases de boss ne changent que la mise en scène.** Nom, phrase,
+  intensité. Faut-il qu'une phase change aussi un *comportement* — régénérer
+  autrement, encaisser autrement ? Chacune de ces idées est une règle nouvelle,
+  donc une chose de plus à comprendre le soir où l'on n'a pas envie de
+  comprendre. À laisser dormir tant que les trois phases n'ont pas été vues en
+  vrai.
 
-8. **Les quêtes du jour et de la semaine (§4.4).** Spécifiées, jamais
-   construites : une quête plancher, une quête bonus contextuelle, une quête
-   hebdo posée le dimanche.
-9. **Le coup critique.** Une session sur dix rapporte le double, avec son effet.
-   Récompense variable posée sur du travail réel.
-10. **Les phases de boss.** À 50 % et 25 %, il change de nom et de
-    comportement. Aucune règle modifiée, de la mise en scène là où la saison
-    s'aplatit.
-11. **Le butin d'étape.** Terminer une étape lâche une carte garantie : c'est
-    l'action la plus structurante du système et la moins fêtée.
-12. **Le fantôme en direct.** Sa position à cette heure-ci, sur la jauge du
-    soir. Aujourd'hui la comparaison n'existe qu'en fin de journée.
-13. **Le dernier round.** Les trois derniers jours, la vie du boss s'affiche en
-    sessions restantes. Informatif seulement — un bonus de fin encouragerait le
-    sur-régime exactement là où il fait le plus de dégâts.
-
-### Revenir
-
-14. **La notification du matin.** L'amorce, à l'heure de ton choix : « ce soir,
-    brancher le raycast ». Le déclencheur le moins cher du lot.
-15. **« Il y a quatre semaines ».** Une entrée de journal d'il y a un mois,
-    ressortie dans la revue du dimanche.
-16. **Le contrat de saison signé.** Un engagement pris explicitement se tient
-    mieux qu'un réglage modifié en passant.
-17. **La trace longue.** Un écran des seuls compteurs qui ne redescendent
-    jamais, à consulter le soir où le streak vient de casser.
+- **Une étape longue vaut la même carte qu'une étape courte.** C'est volontaire
+  pour l'instant : le déclencheur est *terminer*, pas *avoir peiné*. Mais ça
+  demande de savoir ce que dure une étape en vrai, et personne ne le sait
+  encore.
 
 ---
 
 ## Fait depuis
+
+- **Le fuseau horaire, le remplaçant de l'ami, le gardien de secours local**
+  (18 août 2026). Trois pannes qui ne se voyaient pas. Voyager décalait la
+  fenêtre du soir et la bascule de 4h en silence : l'écart est maintenant
+  constaté sur le décalage effectif — deux noms au même décalage ne proposent
+  rien — et jamais appliqué tout seul. Un ami qui n'ouvre plus les bilans
+  laissait croire à une surveillance qui n'existait pas : changer de
+  destinataire est immédiat, sans les 24 heures du désarmement, et l'ancien est
+  prévenu — c'est ce qui empêche le remplacement d'être un désarmement déguisé.
+  Un serveur injoignable à 21h30 faisait disparaître le gardien : l'agent rejoue
+  la consigne datée qu'il avait reçue au dernier contact, sans rien décider
+  lui-même, et se tait si elle date d'hier.
+
+- **Le contrat de saison signé, la trace longue, « il y a quatre semaines »**
+  (18 août 2026). L'engagement hebdomadaire existait déjà ; ce qui manquait
+  était le geste. Le contrat écrit ses termes en toutes lettres avant qu'on
+  signe, se date, ne bouge plus, et se relit à la clôture comme un écart —
+  jamais comme une note. La trace ne rend que des compteurs qui ne peuvent pas
+  baisser, et reste ouverte quand la vitrine du §14 est fermée : la vitrine
+  ferme les récompenses, pas le relevé du travail fait. Et la revue du dimanche
+  ressort une note d'il y a un mois, telle quelle, sans commentaire.
+
+- **Le projet en attente déclarée** (18 août 2026). Un projet bloqué par
+  quelqu'un d'autre était lu comme un abandon : au dixième jour on proposait le
+  frigo, et l'engagement manqué faisait tomber la semaine, donc le rang. Deux
+  semaines au maximum, jamais rétroactive, une raison nommée — et surtout : le
+  slot **reste pris**. C'est ce qui la distingue du frigo, et si elle le
+  libérait, la déclarer coûterait une renégociation de slots, donc personne ne
+  la déclarerait.
+
+- **Le coup critique, les phases de boss, le butin d'étape, le fantôme en
+  direct, le dernier round** (17 août 2026). Du jeu ajouté sans toucher à la
+  mesure : le critique double l'XP et rien d'autre, les phases ne changent
+  aucune règle, le dernier round ne rend aucun multiplicateur — il change une
+  unité. Au passage, `complete_step` n'était pas idempotent : un double-clic
+  infligeait une heure de dégâts au boss pour du travail qui n'avait pas eu
+  lieu.
+
 
 - **Le bilan de saison comparé** (17 août 2026). Comparaison à toutes les
   saisons passées et non à la dernière, régressions dites en premier, et la date

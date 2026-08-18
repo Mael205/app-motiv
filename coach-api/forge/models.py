@@ -246,6 +246,13 @@ class Season(models.Model):
         default=rules_phantom.MEILLEURE,
     )
     final_score = models.PositiveIntegerField(default=0)
+    # Le contrat de saison (ajout du 17 août 2026). Signé à l'ouverture, figé
+    # ensuite : baisser un engagement en cours de semaine reste possible, mais
+    # le contrat garde ce qui a été signé. Sans ça, la clôture se comparerait à
+    # une cible déplacée en route, et la comparaison ne vaudrait rien.
+    contract_sessions_per_week = models.PositiveSmallIntegerField(default=0)
+    contract_projects = models.JSONField(default=list, blank=True)
+    contract_signed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ("user", "index")
@@ -259,6 +266,10 @@ class Season(models.Model):
 
     def days_left(self, day) -> int:
         return max(0, (self.ends_on - day).days)
+
+    @property
+    def signed(self) -> bool:
+        return self.contract_signed_at is not None
 
 
 class SeasonBoss(models.Model):
@@ -613,6 +624,58 @@ class Hiatus(models.Model):
     @property
     def days(self) -> int:
         return (self.ends_on - self.starts_on).days + 1
+
+
+class ProjectHold(models.Model):
+    """Un projet bloqué par un tiers ou du matériel (ajout du 17 août 2026).
+
+    Une réponse qu'on attend, une pièce qui n'arrive pas, un accès qu'on ne t'a
+    pas donné. Sans rien pour le dire, le système lisait ça comme un abandon :
+    au dixième jour la détection du §13.5 proposait le frigo, et l'engagement
+    manqué faisait tomber la semaine — donc le rang, qui mesure la fiabilité.
+    Être sanctionné pour l'inaction de quelqu'un d'autre est la meilleure façon
+    de perdre confiance en un système de discipline.
+
+    L'attente **ne libère pas le slot**, et c'est ce qui la distingue du frigo.
+    Le projet reste à sa place et la reprend intacte au retour.
+
+    Historisée comme la veille plutôt que rangée dans un champ du projet : le
+    rang se recalcule sur des semaines passées (§4.4), et une attente qu'on ne
+    connaîtrait qu'au présent ne pourrait pas lever la semaine où elle a eu lieu.
+    """
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="holds")
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    reason = models.CharField(max_length=200)
+    declared_at = models.DateTimeField(default=timezone.now)
+    # La sortie anticipée est une **journée du coach**, pas un horodatage. Un
+    # instant serré contre la bascule de 4h se rangerait du mauvais côté d'une
+    # journée, et l'attente s'arrêterait un jour trop tôt ou trop tard.
+    ended_on = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-starts_on",)
+
+    def __str__(self) -> str:
+        return f"{self.project.name} en attente jusqu'au {self.ends_on}"
+
+    @property
+    def effective_end(self):
+        """La fin réelle : la sortie anticipée l'emporte sur la date annoncée.
+
+        Le jour de la sortie n'est **pas** couvert, contrairement à la veille du
+        §11.5. La différence tient à ce que chacune protège : la veille rend des
+        journées neutres déjà entamées, alors qu'une attente n'a qu'un effet —
+        empêcher le projet d'être proposé. Sortir à 19h pour découvrir que le
+        projet reste absent de la soirée viderait la sortie de son sens.
+        """
+        if self.ended_on is None:
+            return self.ends_on
+        return min(self.ends_on, self.ended_on - timedelta(days=1))
+
+    def covers(self, day) -> bool:
+        return self.starts_on <= day <= self.effective_end
 
 
 class WeeklyReview(models.Model):

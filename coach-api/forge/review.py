@@ -183,6 +183,53 @@ def _blocs_deterministes(faits: dict, constats: list) -> dict:
 # Les chiffres
 # --------------------------------------------------------------------------
 
+# Quatre semaines : assez loin pour avoir oublié, assez près pour que le projet
+# existe encore. À trois mois, on relit quelqu'un d'autre.
+RECUL_RAPPEL = 28
+
+
+def il_y_a_quatre_semaines(user, *, semaine: date) -> dict | None:
+    """Une entrée de journal d'il y a un mois, ressortie dans la revue.
+
+    C'est le seul endroit du produit qui regarde en arrière **sans compter**.
+    Les bilans mesurent, les détections comparent, la trace additionne : tout
+    cela dit combien. Une note écrite il y a quatre semaines dit *ce qu'on
+    faisait*, et c'est la seule chose qui rende visible qu'un projet a avancé —
+    une roadmap à 60 % ne se souvient pas d'avoir été à 20 %.
+
+    Elle sort telle quelle, sans commentaire. Le §17 interdit au système de
+    juger, et « regarde le chemin parcouru » est un jugement, même flatteur.
+
+    L'entrée la plus proche du jour visé est choisie dans une fenêtre de trois
+    jours : la note d'il y a exactement 28 jours n'existe pas toujours, et
+    renoncer pour trois jours d'écart reviendrait à n'afficher ce bloc qu'une
+    semaine sur deux.
+    """
+    from .models import JournalEntry
+
+    vise = semaine - timedelta(days=RECUL_RAPPEL)
+    entrees = list(
+        JournalEntry.objects.filter(
+            session__user=user,
+            session__coach_day__gte=vise - timedelta(days=3),
+            session__coach_day__lte=vise + timedelta(days=3),
+        )
+        .exclude(raw_note="")
+        .select_related("session", "session__project")
+    )
+    if not entrees:
+        return None
+
+    entree = min(entrees, key=lambda e: abs((e.session.coach_day - vise).days))
+    return {
+        "day": entree.session.coach_day.isoformat(),
+        "project": entree.session.project.name,
+        "color": entree.session.project.color,
+        "note": entree.raw_note,
+        "next_action": entree.next_action,
+    }
+
+
 def _creneaux_manques(user, *, semaine: date) -> list[tuple[int, str]]:
     """Les rendez-vous fixes de la semaine sans session ce jour-là.
 

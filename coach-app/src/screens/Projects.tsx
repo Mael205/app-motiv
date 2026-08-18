@@ -31,6 +31,16 @@ export function Projects({ onChanged }: { onChanged: () => void }) {
     onChanged()
   }
 
+  async function toggleHold(project: ProjectDetail, endsOn: string, reason: string) {
+    // Le refus vient du serveur, avec sa phrase. Recopier ici les bornes —
+    // trois jours, quatorze jours, une raison nommée — les laisserait diverger
+    // de celles qui font foi.
+    if (project.hold) await api.releaseProject(project.id)
+    else await api.holdProject(project.id, endsOn, reason)
+    await load()
+    onChanged()
+  }
+
   async function addIdea() {
     if (!draft.trim()) return
     await api.addIdea(draft.trim())
@@ -52,7 +62,12 @@ export function Projects({ onChanged }: { onChanged: () => void }) {
         </p>
 
         {slots.map((project) => (
-          <ProjectCard key={project.id} project={project} onComplete={completeStep} />
+          <ProjectCard
+            key={project.id}
+            project={project}
+            onComplete={completeStep}
+            onHold={toggleHold}
+          />
         ))}
 
         <NewProject
@@ -140,15 +155,20 @@ function LienDeFrigo() {
 function ProjectCard({
   project,
   onComplete,
+  onHold,
 }: {
   project: ProjectDetail
   onComplete: (stepId: number) => void
+  onHold?: (project: ProjectDetail, endsOn: string, reason: string) => Promise<void>
 }) {
   const done = project.steps.filter((s) => s.state === 'done').length
   const percent = Math.round(project.completion * 100)
 
   return (
-    <article className="pcard" style={{ ['--project' as string]: project.color }}>
+    <article
+      className={`pcard${project.hold ? ' pcard--hold' : ''}`}
+      style={{ ['--project' as string]: project.color }}
+    >
       <header className="pcard__head">
         <ProgressRing percent={percent} emblem={project.emblem} />
 
@@ -168,9 +188,98 @@ function ProjectCard({
         </div>
       </header>
 
+      {onHold && <HoldPanel project={project} onHold={onHold} />}
+
       <Roadmap steps={project.steps} onComplete={onComplete} />
     </article>
   )
+}
+
+/** L'attente déclarée d'un projet bloqué par un tiers.
+ *
+ * Deux champs et un bouton, sur une seule ligne quand rien n'est en cours. La
+ * raison est obligatoire côté serveur, donc le bouton reste éteint tant qu'elle
+ * est vide — refuser tôt évite un aller-retour dont la réponse serait connue
+ * d'avance, et c'est la seule règle que le front ait le droit d'anticiper :
+ * « ce champ est vide » n'est pas une règle métier.
+ */
+function HoldPanel({
+  project,
+  onHold,
+}: {
+  project: ProjectDetail
+  onHold: (project: ProjectDetail, endsOn: string, reason: string) => Promise<void>
+}) {
+  const [ouvert, setOuvert] = useState(false)
+  const [fin, setFin] = useState(dansUneSemaine())
+  const [raison, setRaison] = useState('')
+  const [refus, setRefus] = useState('')
+
+  async function envoyer() {
+    setRefus('')
+    try {
+      await onHold(project, fin, raison)
+      setOuvert(false)
+      setRaison('')
+    } catch (error) {
+      setRefus(error instanceof Error ? error.message : 'Refusé.')
+    }
+  }
+
+  if (project.hold) {
+    return (
+      <div className="hold hold--active">
+        <p className="hold__line">{project.hold.line}</p>
+        <button className="ghost" onClick={envoyer}>
+          Ce n'est plus bloqué
+        </button>
+      </div>
+    )
+  }
+
+  if (!ouvert) {
+    return (
+      <button className="ghost hold__open" onClick={() => setOuvert(true)}>
+        Bloqué par autre chose que moi
+      </button>
+    )
+  }
+
+  return (
+    <div className="hold">
+      <label className="hold__field">
+        <span className="label">Ce qui bloque</span>
+        <input
+          value={raison}
+          onChange={(e) => setRaison(e.target.value)}
+          placeholder="j'attends l'accès au dépôt"
+        />
+      </label>
+      <label className="hold__field hold__field--date">
+        <span className="label">Jusqu'au</span>
+        <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+      </label>
+      <div className="row">
+        <button className="ghost" disabled={!raison.trim()} onClick={envoyer}>
+          Déclarer l'attente
+        </button>
+        <button className="ghost" onClick={() => setOuvert(false)}>
+          Annuler
+        </button>
+      </div>
+      <p className="section-hint">
+        Le slot reste pris. La détection « projet mort » se tait, et la semaine
+        ne compte pas contre le rang.
+      </p>
+      {refus && <p className="hold__refus">{refus}</p>}
+    </div>
+  )
+}
+
+function dansUneSemaine(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  return d.toISOString().slice(0, 10)
 }
 
 /** Anneau de complétion, avec l'emblème du projet au centre. */

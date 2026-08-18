@@ -1,0 +1,64 @@
+/* La trace longue. Sobre par construction.
+ *
+ * Elle s'affiche le soir où le streak vient de casser : tout ce qui brille y
+ * serait déplacé, et tout ce qui console y serait faux. Des nombres, alignés,
+ * dans la même graisse que partout ailleurs. */
+.trace__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.trace__depuis {
+  font-size: 0.74rem;
+}
+
+.trace__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.55rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trace__cell {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.trace__value {
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.trace__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  opacity: 0.62;
+}
+
+.trace__branches {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.trace__branches li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  padding-left: 0.55rem;
+  border-left: 2px solid var(--branch, currentColor);
+}
+
+.trace__titres {
+  margin: 0.9rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}

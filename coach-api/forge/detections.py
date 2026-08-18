@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from django.db.models import Count, Max, Sum
 from django.utils import timezone
 
+from . import services
 from .models import Commitment, Project, RoadmapStep, Session, Signal
 from .rules import derives
 from .rules.calendar import week_start
@@ -56,17 +57,23 @@ def _projets_morts(user, *, today: date) -> list[derives.Derive | None]:
         .values("project")
         .annotate(last=Max("coach_day"))
     }
+    # Un projet en attente déclarée ne peut pas être mort : quelqu'un d'autre le
+    # tient. La détection se tait pendant, et les jours d'attente sortent du
+    # décompte après — sans quoi un projet bloqué quatorze jours serait déclaré
+    # mort le lendemain de son déblocage, c'est-à-dire au seul moment où il
+    # redevient vivant.
+    en_attente = services.projects_on_hold(user, day=today)
+
     sortie = []
     for projet in Project.objects.filter(user=user, status=Project.ACTIVE):
+        if projet.id in en_attente:
+            continue
         derniere = dernieres.get(projet.id)
-        jours = (today - derniere).days if derniere else _age(projet, today=today)
-        sortie.append(derives.projet_mort(projet.name, jours))
+        debut = derniere or projet.created_at.date()
+        jours = (today - debut).days
+        jours -= services.hold_days_between(user, projet.id, since=debut, until=today)
+        sortie.append(derives.projet_mort(projet.name, max(0, jours)))
     return sortie
-
-
-def _age(projet: Project, *, today: date) -> int:
-    """Depuis combien de jours un projet sans aucune session existe."""
-    return (today - projet.created_at.date()).days
 
 
 def _etapes_figees(user, *, today: date) -> list[derives.Derive | None]:
@@ -86,8 +93,11 @@ def _etapes_figees(user, *, today: date) -> list[derives.Derive | None]:
 
 def _engagements(user, *, today: date) -> list[derives.Derive | None]:
     semaine = week_start(today)
+    en_attente = services.projects_on_hold(user, day=today)
     sortie = []
-    for projet in Project.objects.filter(user=user, status=Project.ACTIVE):
+    for projet in Project.objects.filter(user=user, status=Project.ACTIVE).exclude(
+        id__in=en_attente
+    ):
         historique = [
             (c.done_sessions, c.planned_sessions)
             for c in Commitment.objects.filter(project=projet, week_start__lt=semaine)[

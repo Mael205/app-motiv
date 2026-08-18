@@ -130,7 +130,11 @@ def plan_season(
     *,
     previous_score: int | None = None,
     used_keys: set[str] | None = None,
+    contract_sessions_per_week: int = 3,
 ) -> SeasonPlan:
+    """Le plan d'une saison. ``contract_sessions_per_week`` ne sert qu'à la
+    première : sans score précédent, la seule estimation honnête du volume à
+    venir est celle que quelqu'un vient d'annoncer en signant son contrat."""
     identity = pick_identity(index, used_keys)
     boss = BOSSES[index % len(BOSSES)]
     return SeasonPlan(
@@ -141,7 +145,7 @@ def plan_season(
         baseline=identity["baseline"],
         boss_key=boss["key"],
         boss_name=boss["name"],
-        boss_hp=boss_hp(previous_score),
+        boss_hp=boss_hp(previous_score, contract_sessions_per_week),
         modifier_key=propose_modifiers(index)[0]["key"],
         starts_on=starts_on,
         ends_on=starts_on + timedelta(days=SEASON_DAYS - 1),

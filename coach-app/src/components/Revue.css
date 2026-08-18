@@ -204,3 +204,31 @@
   .revue__q,
   .revue__bloc--seul { animation: none; }
 }
+
+/* « Il y a quatre semaines » : la seule chose de la revue qui ne compte rien.
+ *
+ * Volontairement sobre. Une note d'il y a un mois n'a pas besoin d'être mise en
+ * valeur — la mettre en valeur reviendrait à la commenter. */
+.rappel {
+  margin: 0.9rem 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 2px solid var(--project, currentColor);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.rappel__meta {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.74rem;
+}
+
+.rappel__note {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.rappel__suite {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+}

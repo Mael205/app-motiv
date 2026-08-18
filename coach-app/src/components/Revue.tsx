@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import type { Revue as RevueData } from '../types'
+import type { RappelDuMois, Revue as RevueData } from '../types'
 import './Revue.css'
 
 /** La revue du dimanche (§5.3, §13.3).
@@ -57,6 +57,10 @@ export function Revue() {
 
         {revue.report.note && <p className="revue__note">{revue.report.note}</p>}
 
+        {revue.il_y_a_quatre_semaines && (
+          <IlYAQuatreSemaines rappel={revue.il_y_a_quatre_semaines} />
+        )}
+
         <Contrat revue={revue} onApplied={setRevue} />
       </section>
     )
@@ -69,6 +73,10 @@ export function Revue() {
         Quatre questions, deux phrases chacune. Tu peux aussi n'en remplir aucune : la revue
         s'écrira quand même, en le disant.
       </p>
+
+      {revue.il_y_a_quatre_semaines && (
+        <IlYAQuatreSemaines rappel={revue.il_y_a_quatre_semaines} />
+      )}
 
       {revue.questions.map((q, index) => (
         <article key={q.question + index} className="revue__q">
@@ -97,6 +105,37 @@ export function Revue() {
         Écrire la revue{revue.answered === 0 ? ' sans réponses' : ''}
       </button>
     </section>
+  )
+}
+
+/** Une note d'il y a quatre semaines, ressortie telle quelle.
+ *
+ * C'est le seul bloc de la revue qui ne compte rien. Les bilans mesurent, les
+ * constats comparent, la trace additionne : tous disent *combien*. Une note
+ * écrite il y a un mois dit *ce qu'on faisait*, et c'est la seule chose qui
+ * rende visible qu'un projet a avancé — une roadmap à 60 % ne se souvient pas
+ * d'avoir été à 20 %.
+ *
+ * Sans commentaire, et ce n'est pas un oubli : « regarde le chemin parcouru »
+ * serait un jugement, même flatteur, et le §17 les interdit tous.
+ */
+function IlYAQuatreSemaines({ rappel }: { rappel: RappelDuMois }) {
+  const jour = new Date(rappel.day).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+  })
+
+  return (
+    <aside className="rappel" style={{ ['--project' as string]: rappel.color }}>
+      <span className="revue__etiquette label">Il y a quatre semaines</span>
+      <p className="rappel__meta muted">
+        {jour} · {rappel.project}
+      </p>
+      <p className="rappel__note">{rappel.note}</p>
+      {rappel.next_action && (
+        <p className="rappel__suite muted">Tu notais ensuite : {rappel.next_action}</p>
+      )}
+    </aside>
   )
 }
 

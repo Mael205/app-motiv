@@ -148,3 +148,38 @@
   .buddy__etat--lu { animation: none; }
   .buddy__ligne:active { transform: none; }
 }
+
+/* Le remplaçant de l'ami (§4.7 étendu).
+ *
+ * Rangé sous l'alerte des trois semaines sans lecture, parce que c'est là que
+ * la question se pose. Il n'a pas l'air d'un réglage : c'est un geste qu'on
+ * fait une fois, pas un champ qu'on ajuste. */
+.buddy__remplacer {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.buddy__remplacer input {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.buddy__note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.buddy__refus {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--rose, #DE5F7E);
+}

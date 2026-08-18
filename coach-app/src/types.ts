@@ -63,6 +63,33 @@ export interface RoadmapStepView {
   needs_split: boolean
 }
 
+/** Un projet bloqué par un tiers ou du matériel (§13.5 étendu).
+ *
+ * L'attente fait taire la détection « projet mort » et lève l'engagement de la
+ * semaine. Elle ne libère **pas** le slot : c'est ce qui la distingue du frigo,
+ * et le front ne doit jamais laisser croire l'inverse.
+ */
+export interface ProjectHold {
+  starts_on: string
+  ends_on: string
+  reason: string
+  days_left: number
+  line: string
+}
+
+/** Ce que rend la fin d'une étape. La carte est garantie (§12.6) — sauf sur une
+ *  étape déjà terminée, qui ne repaie rien. */
+export interface StepCompleted {
+  id: number
+  state: string
+  boss_damage: number
+  card: LootCardDrawn | null
+  boss_phase: BossPhaseCrossed | null
+  achievements: { key: string; label: string; description: string }[]
+  relics: RelicGranted[]
+  already_done: boolean
+}
+
 export interface ProjectDetail {
   id: number
   name: string
@@ -79,6 +106,7 @@ export interface ProjectDetail {
   completion: number
   weekly_commitment: number
   is_coach_project: boolean
+  hold: ProjectHold | null
   current_step: { id: number; label: string; needs_split: boolean } | null
   steps: RoadmapStepView[]
 }
@@ -105,6 +133,7 @@ export interface SeasonState {
   modifier: string
   stake: number
   stake_forfeited: number
+  contract: SeasonContract | null
 }
 
 export interface BossState {
@@ -449,6 +478,20 @@ export interface SeasonReport {
   }
 }
 
+/** Les compteurs qui ne redescendent jamais (§17 de la liste du 17 août).
+ *
+ * Aucun champ de ce type ne peut baisser, et c'est une contrainte de fond, pas
+ * une remarque : l'écran s'ouvre le soir où le streak vient de casser, et un
+ * seul compteur qui redescendrait suffirait à l'annuler.
+ */
+export interface TraceLongue {
+  since: string | null
+  days_since: number
+  compteurs: { label: string; value: number; unit: string }[]
+  branches: { key: string; label: string; color: string; hours: number; title: string }[]
+  titres: string[]
+}
+
 export interface SeasonOffer {
   index: number
   name: string
@@ -467,6 +510,35 @@ export interface SeasonOffer {
   }[]
   phantoms: { key: string; label: string; available: boolean; reference: string; hours: number }[]
   shards: number
+  contract: SeasonContractOffer
+}
+
+/** Ce qu'on propose de signer à l'ouverture (§16 de la liste du 17 août).
+ *
+ * `terms` vient du serveur : c'est lui qui écrit ce qu'on signe. Le front ne
+ * remplace que le nombre dedans quand le curseur bouge — signer sans avoir vu
+ * le total sur la saison entière, c'est régler un curseur, pas s'engager.
+ */
+export interface SeasonContractOffer {
+  proposed: number
+  minimum: number
+  maximum: number
+  weeks: number
+  total: number
+  projects: string[]
+  terms: string[]
+}
+
+/** Le contrat signé, et où il en est. `null` quand la saison n'a rien signé. */
+export interface SeasonContract {
+  sessions_per_week: number
+  projects: string[]
+  weeks: number
+  total: number
+  done: number
+  signed_on: string
+  terms: string[]
+  line: string
 }
 
 export interface SeasonState {
@@ -653,6 +725,20 @@ export interface Derive {
 }
 
 /** Ce qui est parti à l'ami, et ce qu'il en a fait (§4.7). */
+/** L'écart de fuseau constaté entre le profil et l'appareil (§1 étendu).
+ *
+ * `proposed` est faux quand il n'y a rien à faire — même fuseau, ou même
+ * décalage aujourd'hui. Le front n'a alors rien à afficher : proposer une
+ * bascule qui ne change rien ce soir serait du bruit.
+ */
+export interface TimezoneCheck {
+  timezone: string
+  detected: string
+  offset_minutes: number
+  proposed: boolean
+  line: string
+}
+
 export interface WeeklyPanel {
   actif: boolean
   destinataire_configure: boolean
@@ -660,6 +746,11 @@ export interface WeeklyPanel {
   desactivation_effective_le: string | null
   non_lus: number
   seuil_non_lus: number
+  /** Ce qu'on propose quand le destinataire ne lit plus (§4.7).
+   *
+   * Le constat des trois semaines existait déjà ; c'est la suite qui manquait,
+   * et un constat sans suite se lit deux fois puis s'ignore. */
+  remplacement: { non_lus: number; line: string; action: string } | null
   rapports: {
     week_start: string
     body: string
@@ -669,8 +760,22 @@ export interface WeeklyPanel {
 }
 
 /** La revue du dimanche (§5.3, §13.3). */
+/** Une entrée de journal d'il y a quatre semaines, ressortie dans la revue.
+ *
+ * Elle sort telle quelle, sans commentaire : le §17 interdit au système de
+ * juger, et « regarde le chemin parcouru » est un jugement même flatteur.
+ */
+export interface RappelDuMois {
+  day: string
+  project: string
+  color: string
+  note: string
+  next_action: string
+}
+
 export interface Revue {
   week_start: string
+  il_y_a_quatre_semaines: RappelDuMois | null
   questions: { fait: string; question: string; reponse: string }[]
   answered: number
   report: {
