@@ -24,6 +24,7 @@ from forge.rules import routines as rules_routines
 from forge.rules import signals as rules_signals
 from forge.rules import slots as rules_slots
 from forge.rules import verification as rules_verification
+from forge.rules import years as rules_years
 
 
 class Profile(models.Model):
@@ -270,6 +271,62 @@ class Season(models.Model):
     @property
     def signed(self) -> bool:
         return self.contract_signed_at is not None
+
+
+class Ascendance(models.Model):
+    """Une année accomplie : douze saisons closes, et la voie choisie ensuite.
+
+    L'XP et le niveau repartent de zéro à ce moment-là — non pas parce qu'ils
+    seraient mérités à moitié, mais parce qu'ils cessent de vouloir dire quelque
+    chose : entre le niveau 41 et le 42, il n'y a plus d'information.
+
+    **Rien n'est effacé.** Aucune session n'est touchée : c'est l'horizon du
+    calcul qui se déplace, l'XP courante se comptant depuis ``closed_on``. La
+    trace longue continue de porter le cumul de toujours, et le §17 est tenu —
+    il interdit de faire disparaître du travail réel, pas de changer d'échelle.
+
+    Le bilan de l'année est **figé ici**, à la clôture. Recalculé plus tard il
+    changerait : une session corrigée, une saison rejouée, et l'année deux ne
+    raconterait plus ce qu'on a lu le jour de l'ascendance.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ascendances"
+    )
+    year_index = models.PositiveSmallIntegerField(help_text="1 pour la première année")
+    closed_on = models.DateField(help_text="Journée du coach où l'année a été close")
+    closed_at = models.DateTimeField(default=timezone.now)
+    voie = models.CharField(
+        max_length=16,
+        blank=True,
+        choices=[(v.cle, v.label) for v in rules_years.CATALOGUE],
+        help_text="Choisie après la clôture. Vide tant que le choix n'est pas fait.",
+    )
+    title_awarded = models.CharField(max_length=120, blank=True)
+
+    # Le bilan figé de l'année.
+    seasons_closed = models.PositiveSmallIntegerField(default=0)
+    bosses_killed = models.PositiveSmallIntegerField(default=0)
+    minutes = models.PositiveIntegerField(default=0)
+    xp_at_reset = models.PositiveIntegerField(default=0)
+    level_at_reset = models.PositiveSmallIntegerField(default=1)
+    rank_at_reset = models.CharField(max_length=2, default="F")
+    # Les slots ouverts au moment de l'ascendance. Ils deviennent permanents :
+    # le rang repart de F, et le §4.3 interdit de reprendre un slot puisque
+    # « les projets ne sont pas supprimés ». Sans ce champ, une ascendance
+    # gèlerait deux projets en cours du jour au lendemain.
+    slots_engraved = models.PositiveSmallIntegerField(default=3)
+
+    class Meta:
+        unique_together = ("user", "year_index")
+        ordering = ("-year_index",)
+
+    def __str__(self) -> str:
+        return f"An {self.year_index} — {self.get_voie_display() or 'voie à choisir'}"
+
+    @property
+    def choisie(self) -> bool:
+        return bool(self.voie)
 
 
 class SeasonBoss(models.Model):

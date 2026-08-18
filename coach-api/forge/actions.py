@@ -959,7 +959,9 @@ def _jour_off(user, params, today):
     pris = DayOff.objects.filter(
         user=user, date__gte=semaine, date__lt=semaine + timedelta(days=7)
     ).count()
-    plafond = settings.COACH["MAX_DAYS_OFF_PER_WEEK"]
+    plafond = services.days_off_allowed(
+        user, today=today, season=services.current_season(user, today=today)
+    )
     if pris >= plafond:
         raise ActionRefusee(
             f"Déjà {pris} jour(s) off cette semaine-là, plafond à {plafond}. "

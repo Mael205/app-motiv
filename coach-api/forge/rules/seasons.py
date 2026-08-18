@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from . import years
+
 SEASON_DAYS = 28
 SEASON_PAUSE_DAYS = 2
 
@@ -42,7 +44,15 @@ SEASON_POOL: tuple[dict, ...] = (
      "baseline": "Tenir le poste. Rien de plus, rien de moins."},
 )
 
-# Modificateurs façon roguelike : trois sont proposés, un seul est choisi.
+# Modificateurs façon roguelike : trois sont proposés, un seul est choisi — cinq
+# après la voie « Écho » de l'ascendance. Douze entrées pour que deux saisons
+# consécutives ne se ressemblent pas : avec six, le tirage de trois recouvrait la
+# moitié du catalogue à chaque fois.
+#
+# **Aucun ne rend le jeu plus facile sans contrepartie.** Chacun déplace une
+# contrainte : ce qu'il donne d'un côté, il le reprend de l'autre. Un
+# modificateur purement favorable serait celui qu'on choisirait toujours, et le
+# choix du §12.5 n'existerait plus.
 MODIFIERS: tuple[dict, ...] = (
     {"key": "aube", "name": "Aube", "effet": "XP ×1,3 avant 20h, mais le gardien passe à 21h.",
      "params": {"early_multiplier": 1.3, "guardian_hour": 21}},
@@ -56,8 +66,27 @@ MODIFIERS: tuple[dict, ...] = (
      "params": {"days_off_allowed": 0, "starting_shields": 3}},
     {"key": "deux_fronts", "name": "Deux fronts", "effet": "La piste Corps inflige des dégâts doubles au boss.",
      "params": {"body_damage_multiplier": 2}},
+    {"key": "veille_haute", "name": "Veille haute", "effet": "Le gardien passe à 22h, mais le boss a 15 % de vie en plus.",
+     "params": {"guardian_hour": 22, "boss_hp_multiplier": 1.15}},
+    {"key": "premiere_lumiere", "name": "Première lumière", "effet": "XP ×1,5 avant 18h. Après 22h, plus rien ne compte.",
+     "params": {"early_multiplier": 1.5, "guardian_hour": 20}},
+    {"key": "austerite", "name": "Austérité", "effet": "Une seule session compte plein par jour, mais la mise est triplée.",
+     "params": {"full_xp_sessions": 1, "stake_multiplier": 3}},
+    {"key": "forge", "name": "Forge", "effet": "Sessions de 50 min ×1,3 et boss à 130 % de vie.",
+     "params": {"long_multiplier": 1.3, "boss_hp_multiplier": 1.3}},
+    {"key": "corde_raide", "name": "Corde raide", "effet": "Aucun bouclier au départ, mais le boss n'a que 80 % de vie.",
+     "params": {"starting_shields": 0, "boss_hp_multiplier": 0.8}},
+    {"key": "clemence", "name": "Clémence", "effet": "Trois jours off par semaine, et le mode dégradé disparaît.",
+     "params": {"days_off_allowed": 3, "degraded_enabled": False}},
 )
 
+# Douze boss pour douze saisons : chaque saison de l'année a le sien, et on ne
+# revoit pas le même adversaire deux fois en un an. Six suffisaient tant qu'une
+# année n'existait pas ; avec elle, ils seraient revenus tous les six mois.
+#
+# Chacun nomme une façon précise de ne pas travailler. C'est le point : un boss
+# qui s'appellerait « la Paresse » ne dirait rien, alors que « le Veilleur de
+# 23h » se reconnaît le soir même où on le rencontre.
 BOSSES: tuple[dict, ...] = (
     {"key": "procrastin", "name": "Procrastin, l'Ajourneur"},
     {"key": "scrollhydre", "name": "La Scroll-Hydre"},
@@ -65,6 +94,12 @@ BOSSES: tuple[dict, ...] = (
     {"key": "eparpilleur", "name": "L'Éparpilleur"},
     {"key": "jour_six", "name": "Jour Six"},
     {"key": "brouillard", "name": "Le Brouillard"},
+    {"key": "presque_pret", "name": "Presque Prêt"},
+    {"key": "grand_refacteur", "name": "Le Grand Refacteur"},
+    {"key": "onglet_trente", "name": "L'Onglet Trente"},
+    {"key": "demain_matin", "name": "Demain Matin"},
+    {"key": "collectionneur", "name": "Le Collectionneur de Débuts"},
+    {"key": "juste_un_episode", "name": "Juste Un Épisode"},
 )
 
 # Dégâts infligés au boss, en points. Une minute travaillée = un point ; une
@@ -93,12 +128,46 @@ class SeasonPlan:
     def days_total(self) -> int:
         return (self.ends_on - self.starts_on).days + 1
 
+    @property
+    def year(self) -> int:
+        return years.annee_de(self.index)
 
-def pick_identity(index: int, used_keys: set[str] | None = None) -> dict:
-    """Choisit une identité de saison sans répéter les précédentes trop vite."""
-    used = used_keys or set()
-    available = [s for s in SEASON_POOL if s["key"] not in used] or list(SEASON_POOL)
-    return available[index % len(available)]
+    @property
+    def rank_in_year(self) -> int:
+        return years.rang_dans_l_annee(self.index)
+
+    @property
+    def closes_the_year(self) -> bool:
+        return years.ferme_l_annee(self.index)
+
+
+def pick_identity(index: int) -> dict:
+    """L'identité d'une saison, décidée par sa place dans l'année.
+
+    Chaque identité sort **exactement une fois par an** : arrivé à la neuvième,
+    il en reste trois, et on les a toutes vues à la fin. La version précédente
+    écartait simplement les clés déjà utilisées, ce qui marchait tant qu'une
+    année n'existait pas — mais ne donnait aucun compte à rebours, et retombait
+    sur le catalogue entier une fois les douze épuisées.
+
+    L'ordre change d'une année à l'autre sans que rien ne soit stocké : il se
+    déduit du numéro d'année.
+    """
+    annee = years.annee_de(index)
+    ordre = years.ordre_des_identites(annee, len(SEASON_POOL))
+    return SEASON_POOL[ordre[years.rang_dans_l_annee(index) - 1]]
+
+
+def pick_boss(index: int) -> dict:
+    """Le boss d'une saison. Un par saison de l'année, jamais deux fois.
+
+    La permutation est décalée d'une année par rapport aux identités : sans ce
+    décalage, « Hellfest » affronterait Procrastin chaque année, et les deux
+    catalogues n'en formeraient plus qu'un.
+    """
+    annee = years.annee_de(index)
+    ordre = years.ordre_des_identites(annee + 1, len(BOSSES))
+    return BOSSES[ordre[years.rang_dans_l_annee(index) - 1]]
 
 
 def propose_modifiers(index: int, count: int = 3) -> list[dict]:
@@ -129,14 +198,13 @@ def plan_season(
     starts_on: date,
     *,
     previous_score: int | None = None,
-    used_keys: set[str] | None = None,
     contract_sessions_per_week: int = 3,
 ) -> SeasonPlan:
     """Le plan d'une saison. ``contract_sessions_per_week`` ne sert qu'à la
     première : sans score précédent, la seule estimation honnête du volume à
     venir est celle que quelqu'un vient d'annoncer en signant son contrat."""
-    identity = pick_identity(index, used_keys)
-    boss = BOSSES[index % len(BOSSES)]
+    identity = pick_identity(index)
+    boss = pick_boss(index)
     return SeasonPlan(
         index=index,
         key=identity["key"],

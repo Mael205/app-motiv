@@ -30,12 +30,14 @@ from django.db import transaction
 from django.db.models import Sum
 
 from . import progression, seasonreport, services
-from .models import Project, Season, Session
+from .models import Ascendance, Project, Season, Session
 from .rules import contract as contract_rules
 from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
 from .rules import phantom as phantom_rules
 from .rules import seasons as season_rules
+from .rules import xp as xp_rules
+from .rules import years as year_rules
 
 # Une saison est « réussie » quand le boss est tombé. C'est le seuil le plus
 # lisible : la barre de vie est visible en permanence (§12.4), donc chacun sait
@@ -107,7 +109,136 @@ def close_season(user, season: Season, *, today: date, rng: random.Random | None
     bilan = _bilan(user, season, today=today, deja=False)
     bilan["cards"] = cartes
     bilan["stake_delta"] = delta
+
+    # La douzième saison ferme l'année. L'ascendance est écrite ici, dans la
+    # même transaction : une année close dont l'ascendance manquerait laisserait
+    # la treizième saison s'ouvrir sur l'ancienne échelle d'XP.
+    if year_rules.ferme_l_annee(season.index):
+        bilan["annee"] = _clore_l_annee(user, season, today=today)
+
     return bilan
+
+
+def _clore_l_annee(user, season: Season, *, today: date) -> dict:
+    """Fige le bilan de l'année et ouvre le choix de la voie. Idempotent.
+
+    Le bilan est **figé** plutôt que recalculé à la lecture : une session
+    corrigée un mois plus tard, une saison rejouée, et l'année deux ne
+    raconterait plus ce qu'on a lu le jour de l'ascendance.
+
+    La voie, elle, reste vide. Elle se choisit après, en ayant lu le bilan —
+    choisir avant de savoir ce qu'on a fait de l'année n'aurait aucun sens.
+    """
+    annee = year_rules.annee_de(season.index)
+    existante = Ascendance.objects.filter(user=user, year_index=annee).first()
+    if existante:
+        return _payload_annee(user, existante)
+
+    saisons = Season.objects.filter(
+        user=user,
+        index__gt=(annee - 1) * year_rules.SAISONS_PAR_AN,
+        index__lte=annee * year_rules.SAISONS_PAR_AN,
+    ).select_related("boss")
+
+    abattus = sum(1 for s in saisons if hasattr(s, "boss") and s.boss.is_dead)
+    minutes = sum(season_score(user, s) for s in saisons)
+    xp = services.current_xp(user)
+    rang = services.rank_state(user, today=today)
+
+    ascendance = Ascendance.objects.create(
+        user=user,
+        year_index=annee,
+        closed_on=today,
+        seasons_closed=saisons.filter(status=Season.CLOSED).count(),
+        bosses_killed=abattus,
+        minutes=minutes,
+        xp_at_reset=xp,
+        level_at_reset=xp_rules.level_for(xp),
+        rank_at_reset=rang["code"],
+        # Gravés **avant** que le rang ne reparte : c'est la seule récompense de
+        # rang qui survive, et il faut la lire pendant qu'elle existe encore.
+        slots_engraved=rang["slots"],
+        title_awarded=year_rules.titre_de_l_annee(annee, abattus),
+    )
+    return _payload_annee(user, ascendance)
+
+
+def _payload_annee(user, ascendance) -> dict:
+    """L'année accomplie, et les voies encore ouvertes."""
+    prises = [a.voie for a in services.ascendances(user) if a.voie]
+    ouvertes = year_rules.voies_disponibles(
+        prises, slots_actuels=services.rank_state(user, today=ascendance.closed_on)["slots"]
+    )
+
+    return {
+        "year": ascendance.year_index,
+        "title": ascendance.title_awarded,
+        "seasons": ascendance.seasons_closed,
+        "bosses_killed": ascendance.bosses_killed,
+        "hours": round(ascendance.minutes / 60, 1),
+        "xp_at_reset": ascendance.xp_at_reset,
+        "level_at_reset": ascendance.level_at_reset,
+        "rank_at_reset": ascendance.rank_at_reset,
+        "slots_engraved": ascendance.slots_engraved,
+        "voie": ascendance.voie,
+        "voies": [
+            {
+                "key": v.cle,
+                "label": v.label,
+                "promesse": v.promesse,
+                "cout": v.cout,
+            }
+            for v in ouvertes
+        ],
+        # Dit en toutes lettres, parce que c'est la question qu'on se pose en
+        # lisant l'écran, et qu'un doute là-dessus vaut plus cher que l'écran.
+        "garde": (
+            f"L'XP, le niveau et le rang repartent — tu redescends en F et tu "
+            f"regravis. Tes {ascendance.slots_engraved} slots sont gravés : le "
+            "rang ne peut pas les reprendre, sinon des projets en cours se "
+            "retrouveraient gelés. L'arbre, les reliques, la collection et les "
+            "hauts faits ne bougent pas, et la trace longue garde tout."
+        ),
+    }
+
+
+def choisir_la_voie(user, cle: str) -> dict:
+    """Grave la voie d'une ascendance. Une seule fois, jamais reprise.
+
+    Le choix est définitif, et c'est ce qui en fait un choix. Une voie qu'on
+    pourrait échanger le mois suivant serait un réglage — et le produit a déjà
+    tranché ailleurs que les réglages qu'on modifie en passant ne se tiennent
+    pas (§16 de la liste du 17 août, le contrat de saison).
+    """
+    ascendance = (
+        Ascendance.objects.filter(user=user, voie="").order_by("year_index").first()
+    )
+    if ascendance is None:
+        raise ValueError("Aucune année en attente de voie.")
+
+    prises = [a.voie for a in services.ascendances(user) if a.voie]
+    ouvertes = {
+        v.cle
+        for v in year_rules.voies_disponibles(
+            prises, slots_actuels=services.rank_state(user, today=ascendance.closed_on)["slots"]
+        )
+    }
+    if cle not in ouvertes:
+        raise ValueError(
+            f"« {cle} » n'est pas ouverte. Restent : {', '.join(sorted(ouvertes)) or 'aucune'}."
+        )
+
+    ascendance.voie = cle
+    ascendance.save(update_fields=["voie"])
+    return _payload_annee(user, ascendance)
+
+
+def annee_en_attente(user) -> dict | None:
+    """L'ascendance dont la voie n'a pas encore été choisie, s'il y en a une."""
+    ascendance = (
+        Ascendance.objects.filter(user=user, voie="").order_by("year_index").first()
+    )
+    return _payload_annee(user, ascendance) if ascendance else None
 
 
 def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
@@ -179,15 +310,18 @@ def next_offer(user, *, today: date) -> dict:
     """
     precedente = Season.objects.filter(user=user).order_by("-index").first()
     index = (precedente.index + 1) if precedente else 1
-    utilisees = set(Season.objects.filter(user=user).values_list("key", flat=True))
 
     score_precedent = season_score(user, precedente) if precedente else None
     plan = season_rules.plan_season(
-        index, _next_start(precedente, today=today), previous_score=score_precedent, used_keys=utilisees
+        index, _next_start(precedente, today=today), previous_score=score_precedent
     )
 
+    # La voie « Écho » en propose cinq au lieu de trois. Un choix plus large,
+    # pas un meilleur modificateur : ils sortent du même catalogue, et un seul
+    # reste actif.
+    combien = services.ascendance_effects(user).modificateurs_proposes
     propositions = []
-    for entree in season_rules.propose_modifiers(index):
+    for entree in season_rules.propose_modifiers(index, combien):
         effets = modifier_rules.resolve(entree["key"])
         propositions.append(
             {

@@ -428,7 +428,10 @@ class TestVitrineEtSlots:
         # Le rang ouvre un quatrième slot, mais deux jours ratés le gèlent.
         from unittest.mock import patch
 
-        with patch.object(services, "rank_state", return_value={"slots": 4, "code": "B"}):
+        # Le faux rang est **complet** : le stock de boucliers et le plafond de
+        # jours off se lisent aussi là-dedans depuis qu'ils s'appliquent enfin.
+        rang = {"slots": 4, "code": "B", "extra_shields": 0, "extra_days_off": 0}
+        with patch.object(services, "rank_state", return_value=rang):
             assert services.free_slot(user, slot_rules.SAVOIR, today=today) is None
 
     def test_le_gel_ne_deloge_aucun_projet(self, user, today):

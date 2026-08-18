@@ -93,6 +93,79 @@ CATALOGUE: tuple[Relic, ...] = (
         achievement="polyvalent",
         emblem="✧",
     ),
+
+    # ---- Deuxième vague -------------------------------------------------
+    # Les valeurs restent dans la même fourchette que les cinq premières : rien
+    # au-dessus de 15 %, rien au-dessus d'un bouclier ou d'un jour off. Le §12.8
+    # dit « modéré », et le plafond de trois équipées ne protège de rien si
+    # chaque relique prise séparément est déjà forte.
+    Relic(
+        key="marteau_du_chirurgien",
+        label="Marteau du chirurgien",
+        lore="Dix étapes closes dans une seule saison. Ce sont les étapes qui font "
+             "avancer un projet, pas les heures.",
+        effect=DEGATS_BOSS,
+        value=0.10,
+        achievement="chirurgien",
+        emblem="⚒",
+    ),
+    Relic(
+        key="pierre_de_fondation",
+        label="Pierre de fondation",
+        lore="Un projet mené jusqu'à sa dernière étape. Il y en a peu.",
+        effect=ECLATS_BONUS,
+        value=0.15,
+        achievement="artisan",
+        emblem="◧",
+    ),
+    Relic(
+        key="serment_tenu",
+        label="Serment tenu",
+        lore="Douze semaines où tous les engagements ont été tenus. Le rang mesure "
+             "ça et rien d'autre.",
+        effect=BOUCLIER_SUPP,
+        value=1,
+        achievement="fidele",
+        emblem="◫",
+    ),
+    Relic(
+        key="souffle_long",
+        label="Souffle long",
+        lore="Cinquante sessions de cinquante minutes. Le corps finit par savoir "
+             "s'asseoir.",
+        effect=XP_MATINAL,
+        value=0.05,
+        achievement="longue_haleine",
+        emblem="≋",
+    ),
+    Relic(
+        key="pas_de_cote",
+        label="Pas de côté",
+        lore="Dix jours off déclarés la veille, jamais après coup. Prévenir n'est "
+             "pas renoncer.",
+        effect=JOUR_OFF_SUPP,
+        value=1,
+        achievement="honnete",
+        emblem="⌇",
+    ),
+    Relic(
+        key="tete_de_chasse",
+        label="Tête de chasse",
+        lore="Six boss abattus. Ils reviennent chaque saison, sous un autre nom.",
+        effect=DEGATS_BOSS,
+        value=0.10,
+        achievement="grand_chasseur",
+        emblem="☗",
+    ),
+    Relic(
+        key="anneau_des_douze",
+        label="Anneau des douze",
+        lore="Une année entière. Douze saisons, douze boss, douze noms.",
+        effect=ECLATS_BONUS,
+        value=0.15,
+        achievement="annaliste",
+        emblem="◯",
+    ),
 )
 
 PAR_CLE = {r.key: r for r in CATALOGUE}

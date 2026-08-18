@@ -32,6 +32,7 @@ from forge.models import (
 )
 from forge.rules import bossphases as phases
 from forge.rules import crit as crit_rules
+from forge.rules import achievements as achievement_rules
 from forge.rules import seasons as season_rules
 
 PARIS = ZoneInfo("Europe/Paris")
@@ -236,10 +237,11 @@ class TestLeButinDEtape:
 
         projet = Project.objects.get(user=user)
         obtenus = []
-        for i in range(services.CHIRURGIEN_STEPS):
+        seuil = achievement_rules.PAR_CLE["chirurgien"].seuil
+        for i in range(seuil):
             etape = RoadmapStep.objects.create(project=projet, label=f"Étape {i}", order=i)
             obtenus += services.complete_step(user, etape, today=aujourdhui)["achievements"]
-        assert [a["key"] for a in obtenus] == ["chirurgien"]
+        assert "chirurgien" in [a["key"] for a in obtenus]
 
 
 # --------------------------------------------------------------------------

@@ -26,6 +26,10 @@ from datetime import date
 from enum import Enum
 
 MAX_SHIELDS = 3          # +1 au rang D (SPEC §4.4), passé en argument par le service
+# Le stock de départ, avant tout bonus. Nommé plutôt que répété en littéral à
+# trois endroits : le service a besoin de le lire pour y ajouter le rang, la
+# relique et le modificateur.
+DEFAULT_SHIELDS = 2
 DAYS_PER_SHIELD = 5
 COMEBACK_MISSED_THRESHOLD = 3   # nombre de jours ratés qui déclenche le retour
 FLOOR_MINUTES = 25
@@ -89,7 +93,7 @@ class StreakEvent:
 class StreakState:
     current: int = 0
     best: int = 0
-    shields: int = 2                    # stock de départ
+    shields: int = DEFAULT_SHIELDS      # stock de départ
     consecutive_for_shield: int = 0
     last_validated: date | None = None
     missed_run: int = 0                 # jours ratés consécutifs en cours
@@ -113,7 +117,7 @@ class StreakState:
 
 
 def evaluate(
-    days: list[Day], *, starting_shields: int = 2, floor_minutes: int = FLOOR_MINUTES
+    days: list[Day], *, starting_shields: int = DEFAULT_SHIELDS, floor_minutes: int = FLOOR_MINUTES
 ) -> StreakState:
     """Rejoue l'historique complet et rend l'état du streak.
 

@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from . import (
+    achievements,
     assistant,
     coaching,
     daily,
@@ -1006,7 +1007,10 @@ def declare_day_off(request):
     taken = DayOff.objects.filter(
         user=request.user, date__gte=week, date__lt=week + timedelta(days=7)
     ).count()
-    if taken >= settings.COACH["MAX_DAYS_OFF_PER_WEEK"]:
+    plafond = services.days_off_allowed(
+        request.user, today=today, season=services.current_season(request.user, today=today)
+    )
+    if taken >= plafond:
         return Response(
             {"detail": f"Déjà {taken} jours off cette semaine-là. Le plafond est atteint."},
             status=status.HTTP_409_CONFLICT,
@@ -1220,6 +1224,21 @@ def progression_panel(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def forge_card(request, key: str):
+    """Fabrique une carte contre des Éclats (voie « Forge » de l'ascendance).
+
+    Le seul endroit du produit où des Éclats sortent. Le prix vaut six doublons
+    de la même rareté : forger reste le dernier recours, pas un contournement
+    du tirage.
+    """
+    try:
+        return Response(progression.forger(request.user, key))
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def equip_card(request, key: str):
     try:
         return Response({"equipped": progression.equip_card(request.user, key)})
@@ -1259,6 +1278,10 @@ def season_state(request):
         {
             "pending_close": bool(a_clore),
             "running": bool(courante and not a_clore),
+            # L'année close dont la voie n'a pas encore été choisie. Elle passe
+            # avant tout le reste à l'écran : ouvrir une treizième saison sans
+            # avoir tranché laisserait l'ascendance sans effet.
+            "annee": season_flow.annee_en_attente(request.user),
             # Proposée, jamais appliquée : la clôture anticipée du §14 demande
             # un geste, sinon c'est l'app qui déclare l'abandon.
             "exit_offer": season_flow.exit_offer(request.user, today=today),
@@ -1296,6 +1319,28 @@ def close_season(request):
     bilan = season_flow.close_season(request.user, saison, today=today)
     bilan["offer"] = season_flow.next_offer(request.user, today=today)
     return Response(bilan)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def choose_voie(request):
+    """Grave la voie d'une ascendance (§12.2 étendu).
+
+    Définitif, et c'est ce qui en fait un choix : une voie échangeable le mois
+    suivant serait un réglage, et le produit a déjà tranché ailleurs qu'un
+    réglage modifié en passant ne se tient pas.
+    """
+    try:
+        return Response(season_flow.choisir_la_voie(request.user, request.data.get("voie", "")))
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def achievements_panel(request):
+    """Les hauts faits obtenus, et les trois plus proches de tomber."""
+    return Response(achievements.panneau(request.user))
 
 
 @api_view(["POST"])

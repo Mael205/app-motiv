@@ -75,6 +75,16 @@ class Card:
 
 # Le catalogue. Chaque entrée est du cosmétique pur : un thème d'accent, un
 # emblème de projet, un cadre d'avatar, un titre, ou un effet de fin de session.
+# Le catalogue a doublé avec l'année de douze saisons. La raison n'est pas
+# décorative : à deux tirages par semaine, une collection de vingt-neuf cartes
+# se complète en six mois, et une collection complète cesse d'être un moteur —
+# chaque tirage devient alors un doublon, c'est-à-dire une conversion en Éclats,
+# c'est-à-dire une transaction. Soixante cartes tiennent une année pleine.
+#
+# La répartition par rareté est volontairement inégale entre emplacements. Un
+# thème d'accent se voit en permanence, un effet de fin de session dure deux
+# secondes : il y a donc plus de thèmes, et les légendaires y sont plus
+# nombreuses.
 CATALOGUE: tuple[Card, ...] = (
     # -- Thèmes d'accent (§12.2 : la saison surcharge l'accent, jamais le fond)
     Card("theme_braise", "Braise", COMMUN, "theme", "#E8843D"),
@@ -107,6 +117,60 @@ CATALOGUE: tuple[Card, ...] = (
     Card("fin_onde", "Onde de choc", RARE, "finisher", "shockwave"),
     Card("fin_fracture", "Fracture", EPIQUE, "finisher", "fracture"),
     Card("fin_ascension", "Ascension", LEGENDAIRE, "finisher", "ascension"),
+
+    # ================= Deuxième vague =================================
+    # -- Thèmes
+    Card("theme_ardoise", "Ardoise", COMMUN, "theme", "#7C8BA1"),
+    Card("theme_rouille", "Rouille", COMMUN, "theme", "#B4633A"),
+    Card("theme_lichen", "Lichen", COMMUN, "theme", "#8FA36B"),
+    Card("theme_prune", "Prune", COMMUN, "theme", "#8A5A78"),
+    Card("theme_sable", "Sable", COMMUN, "theme", "#C4A87C"),
+    Card("theme_cuivre", "Cuivre", RARE, "theme", "#C87D4A"),
+    Card("theme_abysse", "Abysse", RARE, "theme", "#3A6E8F"),
+    Card("theme_soufre", "Soufre", RARE, "theme", "#D9C22E"),
+    Card("theme_cendre", "Cendre", RARE, "theme", "#8E8A93"),
+    Card("theme_pourpre", "Pourpre", EPIQUE, "theme", "#9B2F52"),
+    Card("theme_jade", "Jade impérial", EPIQUE, "theme", "#2FA37A"),
+    Card("theme_orage", "Orage", EPIQUE, "theme", "#6A5ACD"),
+    Card("theme_aurore_boreale", "Aurore boréale", LEGENDAIRE, "theme", "#4FE0B0"),
+    Card("theme_fer_blanc", "Fer blanc", LEGENDAIRE, "theme", "#DCE4EC"),
+
+    # -- Emblèmes
+    Card("emb_triangle", "Triangle", COMMUN, "emblem", "▲"),
+    Card("emb_anneau", "Anneau", COMMUN, "emblem", "◎"),
+    Card("emb_clef", "Clef", COMMUN, "emblem", "⚿"),
+    Card("emb_ancre", "Ancre", COMMUN, "emblem", "⚓"),
+    Card("emb_eclair", "Éclair", RARE, "emblem", "⚡"),
+    Card("emb_enclume", "Enclume", RARE, "emblem", "⛭"),
+    Card("emb_faucille", "Faucille", RARE, "emblem", "☾"),
+    Card("emb_tour", "Tour", EPIQUE, "emblem", "♜"),
+    Card("emb_trident", "Trident", EPIQUE, "emblem", "♆"),
+    Card("emb_phenix", "Phénix", LEGENDAIRE, "emblem", "🜂"),
+
+    # -- Cadres
+    Card("cadre_cuir", "Cadre de cuir", COMMUN, "frame", "leather"),
+    Card("cadre_ardoise", "Cadre d'ardoise", COMMUN, "frame", "slate"),
+    Card("cadre_argent", "Cadre d'argent", RARE, "frame", "silver"),
+    Card("cadre_bois_brule", "Cadre de bois brûlé", RARE, "frame", "burnt"),
+    Card("cadre_vitrail", "Cadre de vitrail", EPIQUE, "frame", "stained"),
+    Card("cadre_meteore", "Cadre de météore", LEGENDAIRE, "frame", "meteor"),
+
+    # -- Titres. Ils se lisent comme un grade, jamais comme un compliment (§0.2).
+    Card("titre_matinal", "Matinal", COMMUN, "title", "Matinal"),
+    Card("titre_regulier", "Le Régulier", COMMUN, "title", "Le Régulier"),
+    Card("titre_tenace", "Tenace", RARE, "title", "Tenace"),
+    Card("titre_gardien", "Gardien du seuil", RARE, "title", "Gardien du seuil"),
+    Card("titre_increvable", "Increvable", EPIQUE, "title", "Increvable"),
+    Card("titre_dernier_debout", "Dernier debout", EPIQUE, "title", "Dernier debout"),
+    Card("titre_sans_ombre", "Sans ombre", LEGENDAIRE, "title", "Sans ombre"),
+
+    # -- Effets de fin de session
+    Card("fin_poussiere", "Poussière", COMMUN, "finisher", "dust"),
+    Card("fin_braise", "Braise", COMMUN, "finisher", "ember"),
+    Card("fin_givre", "Givre", RARE, "finisher", "frost"),
+    Card("fin_lame", "Coup de lame", RARE, "finisher", "slash"),
+    Card("fin_sceau", "Sceau apposé", EPIQUE, "finisher", "seal"),
+    Card("fin_eclipse", "Éclipse", LEGENDAIRE, "finisher", "eclipse"),
 )
 
 PAR_CLE = {c.key: c for c in CATALOGUE}
@@ -174,6 +238,51 @@ def shards_for(card: Card, *, duplicate: bool) -> int:
 
 
 # --------------------------------------------------------------------------
+# La Forge : dépenser des Éclats pour fabriquer une carte précise
+# --------------------------------------------------------------------------
+
+# Ouverte par la voie « Forge » de l'ascendance. Elle répond à un défaut qui ne
+# se voit qu'au bout de plusieurs mois : les Éclats ne se dépensaient **nulle
+# part**. Ils entraient par les doublons, les routines et les quêtes, et rien ne
+# les faisait sortir — la mise de saison n'est pas une dépense, c'est un pari
+# qu'on récupère doublé ou qu'on perd. Une monnaie qui ne descend jamais n'est
+# pas une monnaie, c'est un compteur.
+#
+# Le prix est **très au-dessus** de ce qu'un doublon rapporte : six fois, pour
+# être précis. Fabriquer reste donc le dernier recours — celui de la carte qu'on
+# veut vraiment et qui ne tombe pas — et pas une façon de contourner le tirage.
+# Si forger devenait rentable, l'ouverture d'une carte perdrait tout son sens et
+# le §12.6 avec, qui fait du loot un moteur d'envie et non un catalogue à
+# remplir.
+PRIX_FORGE = {
+    COMMUN: 30,
+    RARE: 90,
+    EPIQUE: 240,
+    LEGENDAIRE: 720,
+}
+
+
+def prix_de_forge(card: Card) -> int:
+    return PRIX_FORGE[card.rarity]
+
+
+def peut_forger(card: Card, *, eclats: int, possedee: bool) -> tuple[bool, str]:
+    """Peut-on forger cette carte ? Rend la réponse **et** son motif.
+
+    Une carte déjà possédée est refusée : la forger ne donnerait qu'un doublon,
+    c'est-à-dire une conversion en Éclats à perte. Le refus vaut mieux qu'une
+    transaction que personne n'aurait voulue en connaissance de cause.
+    """
+    if possedee:
+        return False, "Tu l'as déjà. La forger ne rendrait qu'un doublon, à perte."
+
+    prix = prix_de_forge(card)
+    if eclats < prix:
+        return False, f"{prix} Éclats demandés, tu en as {eclats}."
+    return True, ""
+
+
+# --------------------------------------------------------------------------
 # Ce qui déclenche un tirage
 # --------------------------------------------------------------------------
 
@@ -185,12 +294,16 @@ FIN_DE_SAISON = "saison"
 # fêtée : elle rendait 60 points de dégâts et rien d'autre. Une carte garantie
 # la met au niveau du passage de niveau, qui lui ne demande que du volume.
 ETAPE_TERMINEE = "etape"
+# Fabriquée à la Forge, pas tirée. Distinguée dans le journal parce que ce n'est
+# pas de la chance : c'est une dépense, et les deux ne se relisent pas pareil.
+FORGEE = "forgee"
 
 RAISONS = {
     MONTEE_DE_NIVEAU: "Passage de niveau",
     CLOTURE_DE_SEMAINE: "Semaine tenue",
     FIN_DE_SAISON: "Fin de saison",
     ETAPE_TERMINEE: "Étape terminée",
+    FORGEE: "Forgée",
 }
 
 

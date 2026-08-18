@@ -18,6 +18,7 @@ from django.utils.dateparse import parse_datetime
 
 from .models import (
     Achievement,
+    Ascendance,
     Commitment,
     DayOff,
     Garde,
@@ -39,7 +40,7 @@ from .models import (
     Signal,
     Track,
 )
-from . import filescan, gitscan, progression
+from . import achievements, filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
 from .rules import contract as contract_rules
 from .rules import crit as crit_rules
@@ -59,6 +60,7 @@ from .rules import slots as slot_rules
 from .rules import verification as verification_rules
 from .rules import streak as streak_rules
 from .rules import xp as xp_rules
+from .rules import years as year_rules
 from .rules.calendar import coach_day, day_bounds, evening_window, week_start
 
 FLOOR_MINUTES = streak_rules.FLOOR_MINUTES
@@ -245,9 +247,128 @@ def _season_pause_days(user, start: date, until: date) -> set[date]:
     return pauses
 
 
+# --------------------------------------------------------------------------
+# L'ascendance : l'année accomplie, et ce qu'elle ouvre (§12.2 étendu)
+# --------------------------------------------------------------------------
+
+def ascendances(user) -> list:
+    """Les années déjà accomplies, de la plus ancienne à la plus récente."""
+    return list(Ascendance.objects.filter(user=user).order_by("year_index"))
+
+
+def ascendance_effects(user) -> year_rules.Effets:
+    """Ce que les voies prises changent, cumulé.
+
+    Seules les ascendances dont la voie a été **choisie** comptent : une année
+    close dont on n'a pas encore tranché la voie n'ouvre rien, et c'est ce qui
+    rend le choix réel plutôt qu'une formalité à cliquer plus tard.
+    """
+    return year_rules.effets([a.voie for a in ascendances(user) if a.voie])
+
+
+def xp_horizon(user) -> date | None:
+    """Le jour depuis lequel l'XP courante se compte. ``None`` avant la première année.
+
+    C'est tout le mécanisme du reset, et il tient en une date. **Aucune session
+    n'est touchée** : l'XP cumulée de toujours reste lisible dans la trace
+    longue, et seule l'échelle affichée repart. Le §17 interdit de faire
+    disparaître du travail réel, pas de changer d'unité.
+    """
+    derniere = Ascendance.objects.filter(user=user).order_by("-year_index").first()
+    return derniere.closed_on if derniere else None
+
+
+def rank_horizon(user) -> date | None:
+    """Le lundi depuis lequel les semaines tenues se comptent.
+
+    Même mécanisme que pour l'XP, et pour la même raison : le rang repart de F
+    à l'ascendance, mais **aucune semaine n'est effacée**. C'est la fenêtre de
+    lecture qui avance, et le plus haut rang atteint reste lisible dans la
+    trace longue.
+    """
+    derniere = Ascendance.objects.filter(user=user).order_by("-year_index").first()
+    return week_start(derniere.closed_on) if derniere else None
+
+
+def slots_graves(user) -> int:
+    """Les slots rendus permanents par les ascendances passées.
+
+    Le rang les reprendrait en repartant de F, et le §4.3 l'interdit : « les
+    projets ne sont pas supprimés ». C'est la seule récompense de rang qui
+    survive à une ascendance — les boucliers, les jours off et le plancher se
+    regagnent.
+    """
+    derniere = Ascendance.objects.filter(user=user).order_by("-year_index").first()
+    return derniere.slots_engraved if derniere else slot_rules.BASE_SLOTS
+
+
+def current_xp(user, *, exclude_session=None) -> int:
+    """L'XP de l'année en cours, c'est-à-dire depuis la dernière ascendance."""
+    faites = Session.objects.filter(user=user, status=Session.DONE)
+    horizon = xp_horizon(user)
+    if horizon is not None:
+        faites = faites.filter(coach_day__gt=horizon)
+    if exclude_session is not None:
+        faites = faites.exclude(pk=exclude_session.pk)
+    return faites.aggregate(t=Sum("xp_awarded"))["t"] or 0
+
+
 def floor_minutes(user, *, today: date) -> int:
-    """Le plancher de la session normale, indexé sur le rang (§4.1, §4.4)."""
-    return streak_rules.floor_for(rank_state(user, today=today)["code"])
+    """Le plancher de la session normale, indexé sur le rang (§4.1, §4.4).
+
+    L'ascendance peut le relever définitivement : c'est la contrepartie de la
+    voie « Exigence », payée en Éclats — donc en monnaie cosmétique, la seule
+    que le système puisse donner sans fausser sa propre mesure.
+    """
+    base = streak_rules.floor_for(rank_state(user, today=today)["code"])
+    return base + ascendance_effects(user).plancher_bonus
+
+
+def starting_shields(user, *, today: date, season: Season | None = None) -> int:
+    """Le stock de boucliers de départ, toutes sources réunies.
+
+    **Cette fonction manquait**, et son absence rendait inertes trois mécaniques
+    qui s'affichaient pourtant à l'écran : le bouclier de rang du §4.4, la
+    relique « Cœur increvable » du §12.8, et le modificateur « Discipline » du
+    §12.5. Les trois étaient calculés, montrés, et jamais passés à l'évaluation
+    du streak — un bonus qu'on voit sans le recevoir est pire que pas de bonus,
+    parce qu'il fait douter de tout le reste.
+
+    Le modificateur **remplace** au lieu de s'ajouter : « Discipline » donne
+    trois boucliers au départ *et* interdit les jours off, c'est un échange, pas
+    un cumul. Le plafond du §4.2 s'applique en dernier, à tout le monde.
+    """
+    effets = modifier_rules.resolve(season.modifier_key if season else "")
+    if effets.starting_shields is not None:
+        depart = effets.starting_shields
+    else:
+        depart = (
+            streak_rules.DEFAULT_SHIELDS
+            + rank_state(user, today=today)["extra_shields"]
+            + progression.relic_bonuses(user).extra_shields
+        )
+    return min(depart, streak_rules.MAX_SHIELDS)
+
+
+def days_off_allowed(user, *, today: date, season: Season | None = None) -> int:
+    """Combien de jours off par semaine, toutes sources réunies (§11.5).
+
+    Même défaut que pour les boucliers : le jour off de rang et la relique
+    « Souffle du retour » étaient calculés et jamais appliqués. Ici encore le
+    modificateur remplace — « Discipline » descend à zéro, et il n'y a pas de
+    relique qui puisse le remonter, sinon le modificateur ne voudrait rien dire.
+    """
+    from django.conf import settings
+
+    effets = modifier_rules.resolve(season.modifier_key if season else "")
+    if effets.days_off_allowed is not None:
+        return effets.days_off_allowed
+
+    return (
+        settings.COACH["MAX_DAYS_OFF_PER_WEEK"]
+        + rank_state(user, today=today)["extra_days_off"]
+        + progression.relic_bonuses(user).extra_days_off
+    )
 
 
 def streak_state(user, track: Track, *, today: date) -> streak_rules.StreakState:
@@ -257,7 +378,13 @@ def streak_state(user, track: Track, *, today: date) -> streak_rules.StreakState
     pas ratée.
     """
     history = resolve_days(user, track, until=today - timedelta(days=1))
-    return streak_rules.evaluate(history, floor_minutes=floor_minutes(user, today=today))
+    return streak_rules.evaluate(
+        history,
+        floor_minutes=floor_minutes(user, today=today),
+        starting_shields=starting_shields(
+            user, today=today, season=current_season(user, today=today)
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -292,7 +419,6 @@ def open_season(
     """
     previous = Season.objects.filter(user=user).order_by("-index").first()
     index = (previous.index + 1) if previous else 1
-    used = set(Season.objects.filter(user=user).values_list("key", flat=True))
     previous_score = None
     if previous:
         previous_score = (
@@ -316,7 +442,6 @@ def open_season(
         index,
         starts_on,
         previous_score=previous_score,
-        used_keys=used,
         contract_sessions_per_week=contrat or 3,
     )
     retenu = modifier_key or plan.modifier_key
@@ -681,12 +806,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         .count()
     ) or 1
 
-    total_xp_before = (
-        Session.objects.filter(user=session.user, status=Session.DONE)
-        .exclude(pk=session.pk)
-        .aggregate(t=Sum("xp_awarded"))["t"]
-        or 0
-    )
+    total_xp_before = current_xp(session.user, exclude_session=session)
 
     local_hour = session.started_at.astimezone(ZoneInfo(profile.timezone_name)).hour
     is_first = not Session.objects.filter(
@@ -790,7 +910,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
 
     _update_commitment(session)
     _update_quests(session)
-    unlocked = _check_achievements(session.user, session)
+    unlocked = achievements.synchroniser(session.user)
 
     # Les quatre séquences de juice du §7 ont besoin de savoir **ce qui vient
     # de changer**, pas de l'état courant : c'est le franchissement qui se met
@@ -890,7 +1010,7 @@ def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
             }
 
     carte = progression.draw_card(user, reason=loot_rules.ETAPE_TERMINEE)
-    obtenus = _check_step_achievements(user, season=season)
+    obtenus = achievements.synchroniser(user)
     reliques = progression.grant_relics_for(user, [a["key"] for a in obtenus])
 
     return {
@@ -903,37 +1023,6 @@ def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
         "relics": reliques,
         "already_done": False,
     }
-
-
-CHIRURGIEN_STEPS = 10
-
-
-def _check_step_achievements(user, *, season: Season | None) -> list[dict]:
-    """« Chirurgien » : dix étapes terminées dans une même saison.
-
-    Le haut fait était déclaré depuis le début et n'avait jamais eu d'endroit
-    où se déclencher — il n'existait que dans la table. Il se compte ici parce
-    que c'est le seul point de passage d'une étape terminée.
-    """
-    if season is None:
-        return []
-
-    faites = RoadmapStep.objects.filter(
-        project__user=user,
-        state=RoadmapStep.DONE,
-        done_at__date__gte=season.starts_on,
-        done_at__date__lte=season.ends_on,
-    ).count()
-    if faites < CHIRURGIEN_STEPS:
-        return []
-
-    label, description = ACHIEVEMENTS["chirurgien"]
-    _, cree = Achievement.objects.get_or_create(
-        user=user, key="chirurgien", defaults={"label": label, "description": description}
-    )
-    if not cree:
-        return []
-    return [{"key": "chirurgien", "label": label, "description": description}]
 
 
 def _draws_since_crit(session: Session) -> int:
@@ -977,36 +1066,6 @@ def _update_quests(session: Session) -> None:
         if quest.done:
             quest.done_at = timezone.now()
         quest.save(update_fields=["progress", "done_at"])
-
-
-ACHIEVEMENTS = {
-    "premier_sang": ("Premier sang", "Ta première session enregistrée."),
-    "retour_du_neant": ("Retour du néant", "Reprendre après au moins trois jours d'arrêt."),
-    "increvable": ("Increvable", "Vingt-huit jours sans consommer de bouclier."),
-    "chirurgien": ("Chirurgien", "Dix étapes de roadmap terminées dans une saison."),
-}
-
-
-def _check_achievements(user, session: Session) -> list[dict]:
-    unlocked: list[dict] = []
-
-    def grant(key: str) -> None:
-        label, description = ACHIEVEMENTS[key]
-        obj, created = Achievement.objects.get_or_create(
-            user=user, key=key, defaults={"label": label, "description": description}
-        )
-        if created:
-            unlocked.append({"key": key, "label": label, "description": description})
-
-    if Session.objects.filter(user=user, status=Session.DONE).count() == 1:
-        grant("premier_sang")
-
-    history = resolve_days(user, session.project.track, until=session.coach_day - timedelta(days=1))
-    state = streak_rules.evaluate(history)
-    if state.missed_run >= streak_rules.COMEBACK_MISSED_THRESHOLD:
-        grant("retour_du_neant")
-
-    return unlocked
 
 
 # --------------------------------------------------------------------------
@@ -1139,7 +1198,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
     )
     minutes_today = sum(s.actual_minutes for s in sessions_today if s.status == Session.DONE)
 
-    total_xp = Session.objects.filter(user=user, status=Session.DONE).aggregate(t=Sum("xp_awarded"))["t"] or 0
+    total_xp = current_xp(user)
     running = next((s for s in sessions_today if s.status == Session.RUNNING), None)
 
     # Les deux écritures du §14, posées à la lecture de l'accueil. Comme la
@@ -1204,6 +1263,14 @@ def home_state(user, *, now: datetime | None = None) -> dict:
                 "stake": max(0, season.stake_shards - season.stake_forfeited),
                 "stake_forfeited": season.stake_forfeited,
                 "contract": season_contract(user, season),
+                # L'année : douze saisons, et le compte à rebours qui va avec.
+                # Sans lui, la douzième arrive sans prévenir, et une ascendance
+                # qu'on n'a pas vue venir n'est pas un événement.
+                "year": year_rules.annee_de(season.index),
+                "rank_in_year": year_rules.rang_dans_l_annee(season.index),
+                "seasons_per_year": year_rules.SAISONS_PAR_AN,
+                "seasons_left_in_year": year_rules.saisons_restantes(season.index),
+                "closes_the_year": year_rules.ferme_l_annee(season.index),
             }
             if season
             else None
@@ -1289,9 +1356,19 @@ def rank_state(user, *, today: date) -> dict:
     attentes = list(
         ProjectHold.objects.filter(project__user=user).select_related("project")
     )
+    # Les semaines antérieures à la dernière ascendance sortent du calcul : le
+    # rang repart de F et se regravit. Elles ne sont pas supprimées pour autant,
+    # et la trace longue continue de les compter.
+    engagements = Commitment.objects.filter(
+        project__user=user, week_start__lt=week_start(today)
+    )
+    horizon = rank_horizon(user)
+    if horizon is not None:
+        engagements = engagements.filter(week_start__gte=horizon)
+
     semaines = [
         (c.week_start, c.done_sessions >= c.planned_sessions)
-        for c in Commitment.objects.filter(project__user=user, week_start__lt=week_start(today))
+        for c in engagements
         if not any(
             a.project_id == c.project_id
             and hold_rules.leve_la_semaine(a.starts_on, a.effective_end, lundi=c.week_start)
@@ -1303,10 +1380,18 @@ def rank_state(user, *, today: date) -> dict:
     recompenses = rank_rules.rewards_for(code)
     suivant = rank_rules.next_rank(tenues)
 
+    # La voie « Ampleur » ouvre un slot de plus, plafonné par le §4.3. Ce n'est
+    # pas un avantage : le rang exige que *tous* les engagements d'une semaine
+    # soient tenus, donc un projet de plus est une chance de plus de la rater.
+    ouverts = min(
+        max(recompenses.slots, slots_graves(user)) + ascendance_effects(user).slots_bonus,
+        slot_rules.ABSOLUTE_MAX_SLOTS,
+    )
+
     return {
         "code": code,
         "weeks_kept": tenues,
-        "slots": recompenses.slots,
+        "slots": ouverts,
         "extra_shields": recompenses.extra_shields,
         "extra_days_off": recompenses.extra_days_off,
         "next": {"code": suivant[0], "weeks_left": suivant[1]} if suivant else None,

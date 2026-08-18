@@ -59,6 +59,36 @@ PHASES: dict[str, tuple[tuple[str, str], ...]] = {
         ("La Brume", "Ça se dégage. Pas beaucoup."),
         ("La Rosée", "Il ne reste que ce qu'il a déposé au sol."),
     ),
+    "presque_pret": (
+        ("Presque Prêt", "Encore deux ou trois choses avant de commencer."),
+        ("Prêt Dans Cinq Minutes", "Il a arrêté de préparer. Il annonce."),
+        ("Jamais Prêt", "Plus rien à préparer, et toujours pas commencé."),
+    ),
+    "grand_refacteur": (
+        ("Le Grand Refacteur", "Ça marchait. Il l'a réécrit."),
+        ("Le Refacteur Repenti", "Il a compris. Il refactorise quand même."),
+        ("Le Diff Vide", "Trois heures de travail, zéro ligne changée."),
+    ),
+    "onglet_trente": (
+        ("L'Onglet Trente", "Vingt-neuf choses à lire avant celle-ci."),
+        ("L'Onglet Sept", "Il a fermé les autres. Ceux-là sont importants."),
+        ("Le Dernier Onglet", "Il ne reste que celui sur lequel il fallait travailler."),
+    ),
+    "demain_matin": (
+        ("Demain Matin", "Frais et dispos, ça ira beaucoup plus vite."),
+        ("Demain Soir", "Le matin est passé. L'argument tient toujours."),
+        ("Ce Soir", "Il n'a plus de demain à proposer."),
+    ),
+    "collectionneur": (
+        ("Le Collectionneur de Débuts", "Onze projets commencés, aucun fini."),
+        ("Le Collectionneur Rangé", "Il a trié sa collection. Elle n'a pas diminué."),
+        ("Le Premier Fini", "Il en reste un, et il faudra bien le terminer."),
+    ),
+    "juste_un_episode": (
+        ("Juste Un Épisode", "Vingt-deux minutes. Ça n'engage à rien."),
+        ("Juste La Fin De La Saison", "Il négocie par blocs de six heures."),
+        ("Le Générique", "Plus rien à lancer. Il faut se lever."),
+    ),
 }
 
 # Gabarit pour un boss non décrit. Volontairement sobre : un gabarit qui essaie

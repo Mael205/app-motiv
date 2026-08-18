@@ -163,8 +163,14 @@ def _pity(user) -> tuple[int, int]:
     Recalculés et non stockés : un compteur qui dérive dérègle la pitié, donc
     produit exactement la sensation de triche qu'elle devait empêcher.
     """
+    # Les cartes **forgées** en sont exclues : un achat n'est pas un tirage, et
+    # l'y compter reviendrait à pouvoir acheter sa chance — payer une épique
+    # pour rapprocher la pitié de la suivante.
     recents = list(
-        LootDraw.objects.filter(user=user).order_by("-created_at").values_list("rarity", flat=True)[:60]
+        LootDraw.objects.filter(user=user)
+        .exclude(reason=loot_rules.FORGEE)
+        .order_by("-created_at")
+        .values_list("rarity", flat=True)[:60]
     )
 
     depuis_rare = next(
@@ -202,8 +208,14 @@ def draw_card(user, *, reason: str, rng: random.Random | None = None) -> dict:
         )
 
     if eclats:
+        from . import services
+
         profil = user.profile
-        bonus = relic_bonuses(user).shard_bonus
+        # Les deux primes s'additionnent : la relique du §12.8 et la voie
+        # « Exigence » de l'ascendance, qui paie en Éclats un plancher plus haut.
+        # Additives et non multiplicatives, comme partout ailleurs — deux bonus
+        # qui se multiplient produisent une combinaison que personne n'a calculée.
+        bonus = relic_bonuses(user).shard_bonus + services.ascendance_effects(user).eclats_bonus
         gagnes = round(eclats * (1 + bonus))
         profil.shards += gagnes
         profil.save(update_fields=["shards"])
@@ -230,6 +242,69 @@ def draw_card(user, *, reason: str, rng: random.Random | None = None) -> dict:
         "shards": eclats,
         "reason": reason,
         "reason_label": loot_rules.RAISONS.get(reason, ""),
+    }
+
+
+def forger(user, key: str) -> dict:
+    """Fabrique une carte précise contre des Éclats (voie « Forge »).
+
+    Le seul endroit du produit où des Éclats **sortent**. Jusqu'ici ils
+    n'entraient que : doublons, routines tenues, quêtes — et la mise de saison
+    n'est pas une dépense mais un pari qu'on récupère ou qu'on perd.
+
+    La carte forgée est marquée comme telle dans le journal des tirages, et
+    **n'entre pas dans la pitié** : la pitié existe pour que les tirages ne
+    partent pas en séries de communs, et un achat n'est pas un tirage. L'y
+    compter reviendrait à pouvoir acheter sa chance.
+    """
+    from . import services
+
+    carte = loot_rules.PAR_CLE.get(key)
+    if carte is None:
+        raise ValueError("Carte inconnue.")
+    if not services.ascendance_effects(user).forge_ouverte:
+        raise ValueError(
+            "La Forge n'est pas ouverte. Elle se débloque à une ascendance, "
+            "à la fin d'une année de douze saisons."
+        )
+
+    profil = user.profile
+    possedee = LootCard.objects.filter(user=user, key=key).exists()
+    ok, motif = loot_rules.peut_forger(carte, eclats=profil.shards, possedee=possedee)
+    if not ok:
+        raise ValueError(motif)
+
+    prix = loot_rules.prix_de_forge(carte)
+    profil.shards -= prix
+    profil.save(update_fields=["shards"])
+
+    LootCard.objects.create(
+        user=user, key=carte.key, rarity=carte.rarity, kind=carte.kind, reason=loot_rules.FORGEE
+    )
+    # ``shards`` compte ce qu'un tirage **rend**, et une forge ne rend rien :
+    # elle dépense. Le prix n'est pas perdu pour autant — il se retrouve depuis
+    # la rareté, qui est stockée, et ``prix_de_forge`` est une fonction pure.
+    LootDraw.objects.create(
+        user=user,
+        key=carte.key,
+        rarity=carte.rarity,
+        duplicate=False,
+        shards=0,
+        reason=loot_rules.FORGEE,
+    )
+
+    return {
+        "key": carte.key,
+        "label": carte.label,
+        "rarity": carte.rarity,
+        "rarity_label": loot_rules.RARETE_LABELS[carte.rarity],
+        "color": carte.color,
+        "kind": carte.kind,
+        "payload": carte.payload,
+        "duplicate": False,
+        "shards": -prix,
+        "reason": loot_rules.FORGEE,
+        "reason_label": loot_rules.RAISONS[loot_rules.FORGEE],
     }
 
 
@@ -261,12 +336,21 @@ def collection(user) -> dict:
             }
         )
 
+    from . import services
+
+    forge = services.ascendance_effects(user).forge_ouverte
+    if forge:
+        for cartes in par_emplacement.values():
+            for entree in cartes:
+                entree["forge_price"] = loot_rules.PRIX_FORGE[entree["rarity"]]
+
     return {
         "slots": par_emplacement,
         "owned": len(possedees),
         "total": len(loot_rules.CATALOGUE),
         "shards": user.profile.shards,
         "equipped": equipes,
+        "forge_open": forge,
     }
 
 

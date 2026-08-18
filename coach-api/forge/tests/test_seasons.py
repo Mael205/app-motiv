@@ -21,10 +21,19 @@ class TestIdentite:
             identity = pick_identity(i)
             assert identity["name"] and identity["accent"].startswith("#")
 
-    def test_les_saisons_recentes_ne_se_repetent_pas(self):
-        deja = {"hellfest", "ragnarok"}
-        for i in range(10):
-            assert pick_identity(i, deja)["key"] not in deja
+    def test_chaque_identite_sort_une_fois_par_an(self):
+        """Garantie plus forte que la précédente, qui écartait seulement les
+        clés déjà vues : arrivé à la neuvième saison, il en reste exactement
+        trois, et on les aura toutes vues à la fin de l'année."""
+        for annee in (1, 2, 3):
+            premier = (annee - 1) * 12 + 1
+            cles = [pick_identity(i)["key"] for i in range(premier, premier + 12)]
+            assert len(set(cles)) == 12
+
+    def test_deux_annees_ne_jouent_pas_le_meme_ordre(self):
+        an1 = [pick_identity(i)["key"] for i in range(1, 13)]
+        an2 = [pick_identity(i)["key"] for i in range(13, 25)]
+        assert an1 != an2
 
     def test_trois_modificateurs_proposes_et_distincts(self):
         propositions = propose_modifiers(0)
