@@ -203,22 +203,7 @@ def complete_step(request, step_id: int):
     step = RoadmapStep.objects.filter(project__user=request.user, id=step_id).first()
     if not step:
         return Response({"detail": "Étape introuvable."}, status=status.HTTP_404_NOT_FOUND)
-    step.state = RoadmapStep.DONE
-    step.done_at = timezone.now()
-    step.save(update_fields=["state", "done_at"])
-
-    profile = request.user.profile
-    today = coach_day(timezone.now(), profile.timezone_name, profile.day_rollover_hour)
-    season = services.current_season(request.user, today=today)
-    damage = 0
-    if season and hasattr(season, "boss"):
-        from .rules.seasons import damage_of
-
-        damage = damage_of(steps_done=1)
-        season.boss.damage_taken += damage
-        season.boss.save(update_fields=["damage_taken"])
-
-    return Response({"id": step.id, "state": step.state, "boss_damage": damage})
+    return Response(services.complete_step(request.user, step, today=_today(request)))
 
 
 @api_view(["POST"])

@@ -14,6 +14,7 @@ import './Ascension.css'
  */
 const CHARGES: Record<string, number> = {
   boss: 1000,
+  phase: 900,
   level: 820,
   branch: 680,
   relic: 760,
@@ -22,6 +23,7 @@ const CHARGES: Record<string, number> = {
 
 type Beat =
   | { kind: 'boss'; name: string; season: string; daysLeft: number }
+  | { kind: 'phase'; name: string; previous: string; line: string; index: number; final: boolean }
   | { kind: 'level'; level: number }
   | { kind: 'branch'; label: string; title: string; emblem: string; color: string; hours: number }
   | { kind: 'relic'; label: string; lore: string; emblem: string }
@@ -61,6 +63,20 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
         name: result.boss_killed.name,
         season: result.boss_killed.season,
         daysLeft: result.boss_killed.days_left,
+      })
+    }
+    // La phase de boss juste après sa mort — dans les faits jamais les deux le
+    // même soir, le serveur ne rend pas l'une quand il rend l'autre. Elle passe
+    // avant le niveau parce qu'elle raconte l'adversaire et non le joueur : le
+    // niveau se comprend mieux quand on sait à qui on a affaire maintenant.
+    if (result.boss_phase) {
+      list.push({
+        kind: 'phase',
+        name: result.boss_phase.name,
+        previous: result.boss_phase.previous_name,
+        line: result.boss_phase.line,
+        index: result.boss_phase.index,
+        final: result.boss_phase.final,
       })
     }
     if (result.levelled_up) list.push({ kind: 'level', level: result.level_after })
@@ -120,9 +136,11 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
         ? 1
         : beat.kind === 'level'
           ? 0.85
-          : beat.kind === 'branch'
-            ? 0.5
-            : 0.3,
+          : beat.kind === 'phase'
+            ? 0.7
+            : beat.kind === 'branch'
+              ? 0.5
+              : 0.3,
     )
 
     // Le son suit la même graduation, et **chaque temps a le sien**. Le palier
@@ -135,6 +153,7 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
     // son son de rareté. Deux sons superposés pour un seul événement
     // s'entendent comme un bug, pas comme une emphase.
     if (beat.kind === 'boss') sfx.bossKill()
+    else if (beat.kind === 'phase') sfx.bossPhase()
     else if (beat.kind === 'level') sfx.levelUp()
     else if (beat.kind === 'branch') sfx.branchTier()
     else if (beat.kind === 'relic') sfx.relic()
@@ -164,7 +183,7 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
       {/* L'onde de choc part du centre à chaque temps fort. Elle ne remplace
           pas la secousse : la secousse dit la force, l'onde dit d'où elle
           vient. Les deux ensemble donnent un point d'impact. */}
-      {!reduced && (beat.kind === 'boss' || beat.kind === 'level') && (
+      {!reduced && (beat.kind === 'boss' || beat.kind === 'phase' || beat.kind === 'level') && (
         <motion.span
           key={`onde-${step}`}
           className={`asc__onde${beat.kind === 'boss' ? ' asc__onde--boss' : ''}`}
@@ -189,7 +208,13 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
             >
               <span className="asc__charge-halo" aria-hidden />
               <span className="asc__charge-glyphe" aria-hidden>
-                {beat.kind === 'boss' ? '☠' : beat.kind === 'level' ? '▲' : beat.kind === 'branch' ? '◆' : '◈'}
+                {beat.kind === 'boss' || beat.kind === 'phase'
+                  ? '☠'
+                  : beat.kind === 'level'
+                    ? '▲'
+                    : beat.kind === 'branch'
+                      ? '◆'
+                      : '◈'}
               </span>
             </motion.div>
           )}
@@ -208,6 +233,29 @@ export function Ascension({ result, onDone }: { result: SessionResult; onDone: (
                 {beat.daysLeft > 1 ? 's' : ''}. La saison se clôt en avance.
               </p>
               <Burst count={44} color="#DE5F7E" spread={380} />
+            </motion.div>
+          )}
+
+          {!chargeEnCours && beat.kind === 'phase' && (
+            <motion.div key="phase" className="asc__beat asc__beat--phase" {...enterSlam(reduced)}>
+              <Rays count={14} color="var(--rose)" />
+              {/* Le nom d'avant est barré et celui d'après le remplace : c'est
+                  la transformation qu'on regarde, pas le nouvel état. Sans
+                  l'ancien nom à côté, la phase 2 se lit comme un autre boss. */}
+              <p className="label asc__over asc__over--boss" style={cascade(reduced, 0)}>
+                Phase {beat.index}
+                {beat.final ? ' · dernier quart' : ''}
+              </p>
+              <p className="asc__phase-avant" style={cascade(reduced, 1)}>
+                <s>{beat.previous}</s>
+              </p>
+              <h2 className="asc__boss display" style={cascade(reduced, 2)}>
+                {beat.name}
+              </h2>
+              <p className="asc__sub muted" style={cascade(reduced, 3)}>
+                {beat.line}
+              </p>
+              <Burst count={26} color="#DE5F7E" spread={280} />
             </motion.div>
           )}
 

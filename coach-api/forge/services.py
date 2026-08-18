@@ -39,6 +39,8 @@ from .models import (
     Track,
 )
 from . import filescan, gitscan, progression
+from .rules import bossphases as bossphase_rules
+from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
@@ -325,16 +327,52 @@ def open_season(
     return season
 
 
-def boss_payload(season: Season | None) -> dict | None:
+def boss_payload(season: Season | None, *, today: date | None = None) -> dict | None:
+    """L'état du boss, plus sa mise en scène : phase courante et dernier round.
+
+    Les deux sont calculés ici et pas côté client pour la raison habituelle : un
+    seuil recopié dans le front finit par diverger du seuil réel, et un boss qui
+    change de nom un cran trop tôt ne se rattrape plus.
+    """
     if not season or not hasattr(season, "boss"):
         return None
     boss = season.boss
+    phase = bossphase_rules.phase_for(boss.key, boss.name, boss.ratio)
+    round_final = (
+        season_rules.final_round(
+            days_left=season.days_left(today),
+            current_hp=boss.current_hp,
+            is_dead=boss.is_dead,
+        )
+        if today
+        else None
+    )
     return {
         "name": boss.name,
         "max_hp": boss.max_hp,
         "current_hp": boss.current_hp,
         "ratio": boss.ratio,
         "is_dead": boss.is_dead,
+        "phase": {
+            "index": phase.index,
+            "name": phase.name,
+            "line": phase.line,
+            "intensity": phase.intensity,
+            "final": phase.final,
+            "total": len(bossphase_rules.INTENSITES),
+        },
+        "final_round": (
+            {
+                "active": round_final.active,
+                "days_left": round_final.days_left,
+                "sessions_left": round_final.sessions_left,
+                "session_minutes": round_final.session_minutes,
+                "reachable": round_final.reachable,
+                "line": round_final.line,
+            }
+            if round_final and round_final.active
+            else None
+        ),
     }
 
 
@@ -615,7 +653,14 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         ),
         full_xp_sessions=effets.full_xp_sessions,
     )
-    session.xp_awarded = breakdown.total
+    # Le coup critique se tire **après** le barème et ne touche que l'XP : les
+    # minutes et les dégâts au boss restent la mesure du travail, et le §12.7
+    # compare des minutes. Gravé dans le détail plutôt que rejoué : une session
+    # close deux fois ne retire pas les dés.
+    critique = crit_rules.roll(
+        xp=breakdown.total, draws_since_crit=_draws_since_crit(session)
+    )
+    session.xp_awarded = critique.xp_after
     session.xp_breakdown = {
         "base": breakdown.base,
         "first_of_day": breakdown.first_of_day,
@@ -624,8 +669,13 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         "momentum_multiplier": breakdown.momentum_multiplier,
         "modifier_multiplier": breakdown.modifier_multiplier,
         "degressivity": breakdown.degressivity,
-        "total": breakdown.total,
-        "notes": breakdown.notes,
+        "base_total": breakdown.total,
+        "crit": critique.hit,
+        "crit_multiplier": critique.multiplier,
+        "crit_forced": critique.forced,
+        "crit_bonus": critique.bonus,
+        "total": critique.xp_after,
+        "notes": breakdown.notes + ([critique.line] if critique.hit else []),
     }
     session.save()
 
@@ -645,9 +695,11 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     # scène, pas l'état : sans cette comparaison avant/après, la séquence se
     # rejouerait à chaque session tant que la saison n'est pas close.
     boss_tue = None
+    phase_franchie = None
     if session.season and hasattr(session.season, "boss"):
         boss = session.season.boss
         vivant_avant = not boss.is_dead
+        ratio_avant = boss.ratio
         boss.damage_taken += damage
         boss.save(update_fields=["damage_taken"])
         boss.refresh_from_db()
@@ -658,6 +710,22 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
                 "season": session.season.name,
                 "days_left": session.season.days_left(session.coach_day),
             }
+        # La phase ne se met en scène qu'au franchissement, et jamais en même
+        # temps que la mort : deux cérémonies sur le même clic s'annulent.
+        phase = bossphase_rules.crossed(
+            boss.key, boss.name, before=ratio_avant, after=boss.ratio
+        )
+        if phase and not boss_tue:
+            phase_franchie = {
+                "index": phase.index,
+                "name": phase.name,
+                "line": phase.line,
+                "intensity": phase.intensity,
+                "final": phase.final,
+                "previous_name": bossphase_rules.phase_for(
+                    boss.key, boss.name, ratio_avant
+                ).name,
+            }
 
     _update_commitment(session)
     _update_quests(session)
@@ -667,7 +735,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     # de changer**, pas de l'état courant : c'est le franchissement qui se met
     # en scène. Tout ce qui suit est donc un delta, calculé une fois ici.
     niveau_avant = xp_rules.level_for(total_xp_before)
-    total_apres = total_xp_before + breakdown.total
+    total_apres = total_xp_before + session.xp_awarded
     niveau_apres = xp_rules.level_for(total_apres)
 
     cartes = []
@@ -678,8 +746,20 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     return {
         "session_id": session.id,
         "minutes": session.actual_minutes,
-        "xp": breakdown.total,
+        "xp": session.xp_awarded,
         "breakdown": session.xp_breakdown,
+        "crit": (
+            {
+                "hit": True,
+                "multiplier": critique.multiplier,
+                "bonus": critique.bonus,
+                "forced": critique.forced,
+                "label": crit_rules.LABEL,
+                "line": critique.line,
+            }
+            if critique.hit
+            else None
+        ),
         "boss_damage": damage,
         "achievements": unlocked,
         # -- de quoi jouer les séquences du §7 sans un second aller-retour
@@ -691,9 +771,130 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         "momentum": chaleur,
         "branch_tier": progression.branch_tier_crossed(session.user, session),
         "boss_killed": boss_tue,
+        "boss_phase": phase_franchie,
         "cards": cartes,
         "relics": reliques,
     }
+
+
+def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
+    """Termine une étape de roadmap, et lâche la carte qu'elle vaut.
+
+    **Idempotent.** Une étape déjà terminée ne repaie rien : ni dégâts, ni
+    carte. Avant, un second appel — un double-clic, un retour arrière, un
+    rejeu de requête — infligeait une heure de dégâts au boss pour du travail
+    qui n'avait pas eu lieu, ce que le §17 interdit précisément.
+
+    La carte est **garantie** parce que le déclencheur l'est aussi : terminer
+    une étape n'arrive pas trois fois par soirée, et la rareté du déclencheur
+    est ce qui autorise la certitude du tirage. C'est l'inverse du loot de
+    semaine, fréquent et donc probabiliste.
+    """
+    if step.state == RoadmapStep.DONE:
+        return {
+            "id": step.id,
+            "state": step.state,
+            "boss_damage": 0,
+            "card": None,
+            "boss_phase": None,
+            "achievements": [],
+            "relics": [],
+            "already_done": True,
+        }
+
+    step.state = RoadmapStep.DONE
+    step.done_at = timezone.now()
+    step.save(update_fields=["state", "done_at"])
+
+    season = current_season(user, today=today)
+    damage = 0
+    phase_franchie = None
+    if season and hasattr(season, "boss"):
+        boss = season.boss
+        ratio_avant = boss.ratio
+        damage = season_rules.damage_of(steps_done=1)
+        boss.damage_taken += damage
+        boss.save(update_fields=["damage_taken"])
+        boss.refresh_from_db()
+        phase = bossphase_rules.crossed(
+            boss.key, boss.name, before=ratio_avant, after=boss.ratio
+        )
+        if phase:
+            phase_franchie = {
+                "index": phase.index,
+                "name": phase.name,
+                "line": phase.line,
+                "intensity": phase.intensity,
+                "final": phase.final,
+            }
+
+    carte = progression.draw_card(user, reason=loot_rules.ETAPE_TERMINEE)
+    obtenus = _check_step_achievements(user, season=season)
+    reliques = progression.grant_relics_for(user, [a["key"] for a in obtenus])
+
+    return {
+        "id": step.id,
+        "state": step.state,
+        "boss_damage": damage,
+        "card": carte,
+        "boss_phase": phase_franchie,
+        "achievements": obtenus,
+        "relics": reliques,
+        "already_done": False,
+    }
+
+
+CHIRURGIEN_STEPS = 10
+
+
+def _check_step_achievements(user, *, season: Season | None) -> list[dict]:
+    """« Chirurgien » : dix étapes terminées dans une même saison.
+
+    Le haut fait était déclaré depuis le début et n'avait jamais eu d'endroit
+    où se déclencher — il n'existait que dans la table. Il se compte ici parce
+    que c'est le seul point de passage d'une étape terminée.
+    """
+    if season is None:
+        return []
+
+    faites = RoadmapStep.objects.filter(
+        project__user=user,
+        state=RoadmapStep.DONE,
+        done_at__date__gte=season.starts_on,
+        done_at__date__lte=season.ends_on,
+    ).count()
+    if faites < CHIRURGIEN_STEPS:
+        return []
+
+    label, description = ACHIEVEMENTS["chirurgien"]
+    _, cree = Achievement.objects.get_or_create(
+        user=user, key="chirurgien", defaults={"label": label, "description": description}
+    )
+    if not cree:
+        return []
+    return [{"key": "chirurgien", "label": label, "description": description}]
+
+
+def _draws_since_crit(session: Session) -> int:
+    """Combien de sessions payées depuis le dernier critique.
+
+    Recalculé depuis les sessions closes, jamais stocké : c'est la même règle
+    que la pitié du loot (§12.6), et pour la même raison — un compteur qui
+    dérive dérègle la pitié.
+
+    Les sessions à zéro XP sont exclues des deux côtés : elles n'ont pas tiré,
+    donc elles ne rapprochent pas du tirage garanti.
+    """
+    payees = (
+        Session.objects.filter(user=session.user, status=Session.DONE, xp_awarded__gt=0)
+        .exclude(pk=session.pk)
+        .order_by("-coach_day", "-id")
+        .values_list("xp_breakdown", flat=True)[: crit_rules.PITY + 1]
+    )
+    for rang, detail in enumerate(payees):
+        if (detail or {}).get("crit"):
+            return rang
+    return len(payees)
 
 
 def _update_commitment(session: Session) -> None:
@@ -904,7 +1105,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         "now": now.isoformat(),
         "momentum": progression.heat(user, today=today),
         "skills": progression.skill_tree(user)["branches"],
-        "phantom": progression.phantom_panel(user, today=today),
+        "phantom": progression.phantom_panel(user, today=today, now=now),
         "modifier": progression.season_modifier(season) if season else None,
         "validated_today": minutes_today >= DEGRADED_MINUTES,
         "required_minutes": state.required_minutes,
@@ -937,7 +1138,7 @@ def home_state(user, *, now: datetime | None = None) -> dict:
             if season
             else None
         ),
-        "boss": boss_payload(season),
+        "boss": boss_payload(season, today=today),
         "evening": {
             "start": window.start.isoformat(),
             "end": window.end.isoformat(),

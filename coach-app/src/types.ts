@@ -113,6 +113,35 @@ export interface BossState {
   current_hp: number
   ratio: number
   is_dead: boolean
+  /** La phase courante (§12.4). Le boss change de nom à 50 % et 25 % de vie.
+   *  Aucune règle ne change avec elle : `intensity` ne pilote que l'affichage. */
+  phase: BossPhase
+  /** Les trois derniers jours seulement, `null` le reste du temps. */
+  final_round: FinalRound | null
+}
+
+export interface BossPhase {
+  index: number
+  name: string
+  line: string
+  intensity: number
+  final: boolean
+  total: number
+}
+
+/** La vie du boss en sessions, les trois derniers jours (§12.4).
+ *
+ * Informatif et rien d'autre : le serveur n'y met aucun multiplicateur, et le
+ * front n'en invente pas. Un bonus de fin encouragerait le sur-régime du §0.2
+ * exactement là où il fait le plus de dégâts.
+ */
+export interface FinalRound {
+  active: boolean
+  days_left: number
+  sessions_left: number
+  session_minutes: number
+  reachable: boolean
+  line: string
 }
 
 export interface EveningBlock {
@@ -321,6 +350,11 @@ export interface SessionResult {
     streak_multiplier: number
     momentum_multiplier: number
     degressivity: number
+    /** L'XP avant le critique. Égale à `total` quand il n'y en a pas. */
+    base_total: number
+    crit: boolean
+    crit_multiplier: number
+    crit_bonus: number
     total: number
     notes: string[]
   }
@@ -340,8 +374,30 @@ export interface SessionResult {
   momentum: Momentum
   branch_tier: BranchTier | null
   boss_killed: BossKill | null
+  /** La phase de boss franchie par cette session, s'il y en a une. */
+  boss_phase: BossPhaseCrossed | null
+  /** Le coup critique (§12). `null` neuf fois sur dix. */
+  crit: Crit | null
   cards: LootCardDrawn[]
   relics: RelicGranted[]
+}
+
+export interface BossPhaseCrossed {
+  index: number
+  name: string
+  line: string
+  intensity: number
+  final: boolean
+  previous_name: string
+}
+
+export interface Crit {
+  hit: boolean
+  multiplier: number
+  bonus: number
+  forced: boolean
+  label: string
+  line: string
 }
 
 export interface SeasonReport {
@@ -421,8 +477,32 @@ export interface SeasonState {
   offer: SeasonOffer | null
 }
 
+/** Où en est le fantôme **à cette heure-ci** (§12.7).
+ *
+ * `measured` dit si la position vient de la répartition horaire réelle du
+ * travail passé ou du repli linéaire. Le front ne s'en sert pas pour changer
+ * le texte — le serveur l'a déjà écrit — mais pour ne pas dessiner un repère
+ * qui aurait l'air mesuré alors qu'il ne l'est pas.
+ */
+export interface PhantomLive {
+  available: boolean
+  line: string
+  ahead: boolean
+  delta: number
+  mine: number
+  theirs: number
+  /** Les deux mêmes, ramenés à aujourd'hui : la jauge du soir ne peut afficher
+   *  que des minutes de ce soir. */
+  mine_today: number
+  theirs_today: number
+  delta_today: number
+  share: number
+  measured: boolean
+}
+
 export interface Phantom {
   line: string
+  live: PhantomLive
   available: boolean
   ahead: boolean
   delta: number

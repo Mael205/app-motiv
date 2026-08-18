@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { motion } from 'motion/react'
-import type { BossState, Evening, HomeState } from '../types'
+import type { BossState, Evening, HomeState, PhantomLive } from '../types'
 import { EveningGauge } from './EveningGauge'
 import { Icon } from './art/Icons'
 import './NightHud.css'
@@ -15,12 +15,14 @@ import './NightHud.css'
 export const NightHud = memo(function NightHud({
   evening,
   boss,
+  phantom,
   minutesToday,
   requiredMinutes,
   validated,
 }: {
   evening: Evening
   boss: BossState | null
+  phantom?: PhantomLive | null
   minutesToday: number
   requiredMinutes: number
   validated: HomeState['validated_today']
@@ -29,7 +31,7 @@ export const NightHud = memo(function NightHud({
 
   return (
     <section className="hud">
-      <EveningGauge evening={evening} />
+      <EveningGauge evening={evening} phantom={phantom} />
 
       <div className="hud__split" />
 
@@ -66,7 +68,11 @@ export const NightHud = memo(function NightHud({
             <span className="hud__icon hud__icon--boss">
               <Icon.sword size={17} />
             </span>
-            <span className="hud__label">{boss.name}</span>
+            {/* Le nom de **phase**, pas le nom de base : à 40 % de vie, le
+                boss ne s'appelle plus pareil (§12.4). Un HUD qui garderait
+                l'ancien nom annulerait la bascule qu'on vient de mettre en
+                scène. */}
+            <span className="hud__label">{boss.phase?.name ?? boss.name}</span>
             <div className="minibar minibar--boss">
               <motion.div
                 className="minibar__fill"
@@ -80,8 +86,18 @@ export const NightHud = memo(function NightHud({
                 ))}
               </div>
             </div>
-            <span className="hud__value num">{Math.round(boss.ratio * 100)}%</span>
+            <span className="hud__value num">
+              {boss.final_round?.active
+                ? `${boss.final_round.sessions_left} sess.`
+                : `${Math.round(boss.ratio * 100)}%`}
+            </span>
           </div>
+        )}
+
+        {/* Le dernier round (§12.4). Les trois derniers jours seulement, et
+            informatif : aucun bonus n'y est attaché, ni côté serveur ni ici. */}
+        {boss?.final_round?.active && (
+          <p className="hud__final-round">{boss.final_round.line}</p>
         )}
       </div>
     </section>

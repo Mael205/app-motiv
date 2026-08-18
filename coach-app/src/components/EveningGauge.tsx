@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { motion } from 'motion/react'
 import { useReducedMotion } from '../juice'
 import { useNow } from '../hooks/useNow'
-import type { Evening } from '../types'
+import type { Evening, PhantomLive } from '../types'
 import './EveningGauge.css'
 
 /** L'élément signature (SPEC §7).
@@ -11,7 +11,13 @@ import './EveningGauge.css'
  * les blocs de session posés dessus et un curseur temps réel. Elle dit une
  * seule chose : voilà ce qu'il te reste ce soir.
  */
-export const EveningGauge = memo(function EveningGauge({ evening }: { evening: Evening }) {
+export const EveningGauge = memo(function EveningGauge({
+  evening,
+  phantom,
+}: {
+  evening: Evening
+  phantom?: PhantomLive | null
+}) {
   const now = useNow()
   const reduced = useReducedMotion()
   const start = new Date(evening.start)
@@ -33,6 +39,23 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
 
   const workedMinutes = evening.blocks.reduce((sum, b) => sum + b.minutes, 0)
   const remainingMinutes = Math.max(0, Math.round((1 - elapsed) * evening.total_minutes))
+
+  // Le fantôme en direct (§12.7). Deux barres dans la **même unité** — des
+  // minutes de ce soir — parce que c'est la seule comparaison qu'une jauge de
+  // soirée peut porter sans mentir : y dessiner un cumul de saison écraserait
+  // les blocs du soir contre le bord gauche.
+  //
+  // La barre du fantôme n'est jamais devant celle des blocs : elle vit sous la
+  // piste, en creux. Un adversaire dessiné par-dessus le travail réel se lirait
+  // comme une cible à atteindre, et le §12.7 dit qu'il rend un écart, pas un
+  // objectif.
+  const ghost = phantom?.available ? phantom : null
+  const ghostRatio = ghost
+    ? Math.min(1, ghost.theirs_today / Math.max(1, evening.total_minutes))
+    : 0
+  const mineRatio = ghost
+    ? Math.min(1, ghost.mine_today / Math.max(1, evening.total_minutes))
+    : 0
 
   return (
     <section className="gauge">
@@ -90,6 +113,16 @@ export const EveningGauge = memo(function EveningGauge({ evening }: { evening: E
           </div>
         </div>
       </div>
+
+      {ghost && (
+        <div className="gauge__ghost" title={ghost.line}>
+          <div className="gauge__ghost-track" aria-hidden>
+            <div className="gauge__ghost-fill" style={{ transform: `scaleX(${ghostRatio})` }} />
+            <div className="gauge__ghost-mine" style={{ transform: `scaleX(${mineRatio})` }} />
+          </div>
+          <p className="gauge__ghost-line muted">{ghost.line}</p>
+        </div>
+      )}
 
       <footer className="row row--between gauge__foot">
         <span className="muted gauge__hint">

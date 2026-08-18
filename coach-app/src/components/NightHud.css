@@ -90,3 +90,14 @@
 .hud__value .muted {
   font-size: 12px;
 }
+
+/* Le dernier round (§12.4). Une ligne, sous les deux barres.
+ *
+ * Elle n'a pas de couleur d'alerte et ne clignote pas : c'est une information
+ * de fin de saison, pas une sommation. Le §17 interdit au système de pousser. */
+.hud__final-round {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+  opacity: 0.72;
+}

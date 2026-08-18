@@ -37,7 +37,8 @@ const CARDS: LootCardDrawn[] = [
 const RESULT: SessionResult = {
   session_id: 1, minutes: 50, xp: 118,
   breakdown: { base: 50, first_of_day: 20, early: 10, streak_multiplier: 1.3,
-    momentum_multiplier: 1.25, degressivity: 1, total: 118, notes: [] },
+    momentum_multiplier: 1.25, degressivity: 1, base_total: 118, crit: false,
+    crit_multiplier: 1, crit_bonus: 0, total: 118, notes: [] },
   boss_damage: 62,
   achievements: [{ key: 'increvable', label: 'Increvable', description: '28 jours sans bouclier.' }],
   level_before: 11, level_after: 12, levelled_up: true, total_xp: 1218, rank: 'B',
@@ -48,6 +49,8 @@ const RESULT: SessionResult = {
   branch_tier: { branch: 'moteur_de_jeu', label: 'Moteur de jeu', color: '#8B6FE8',
     tier: 3, title: 'Machiniste', emblem: '◆', hours: 50 },
   boss_killed: null,
+  boss_phase: null,
+  crit: null,
   cards: [CARDS[0]],
   relics: [{ key: 'coeur_increvable', label: 'Cœur increvable',
     lore: 'Vingt-huit jours sans céder un bouclier. Le corps se souvient.',
@@ -79,6 +82,7 @@ function Bench() {
       <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
         <button className="ghost" onClick={() => setScene('asc')}>Ascension complète</button>
         <button className="ghost" onClick={() => setScene('boss')}>Mort du boss</button>
+        <button className="ghost" onClick={() => setScene('phase')}>Phase de boss</button>
         <button className="ghost" onClick={() => { setScene('entry'); setTimeout(() => setScene(''), 2600) }}>
           Entrée en session
         </button>
@@ -106,6 +110,30 @@ function Bench() {
             relics: [],
             cards: [],
             boss_killed: { name: 'La Scroll-Hydre', max_hp: 4200, season: 'Purgatoire', days_left: 6 },
+          }}
+          onDone={() => setScene('')}
+        />
+      )}
+
+      {/* La bascule de phase (§12.4) : elle se règle ici pour la même raison que
+          le reste — attendre d'avoir entamé un vrai boss de moitié prendrait
+          deux semaines. */}
+      {scene === 'phase' && (
+        <Ascension
+          result={{
+            ...RESULT,
+            levelled_up: false,
+            branch_tier: null,
+            relics: [],
+            cards: [],
+            boss_phase: {
+              index: 2,
+              name: 'La Scroll-Hydre décapitée',
+              previous_name: 'La Scroll-Hydre',
+              line: 'Les têtes repoussent moins vite qu\'avant.',
+              intensity: 1.35,
+              final: false,
+            },
           }}
           onDone={() => setScene('')}
         />

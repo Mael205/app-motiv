@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
 import { Ascension } from '../components/Ascension'
-import { Burst, CountUp, useTrauma } from '../juice'
+import { Burst, CountUp, sfx, useTrauma } from '../juice'
 import type { DebriefSuggestion, RunningSession, SessionResult } from '../types'
 import './SessionScreen.css'
 
@@ -224,11 +224,20 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
   const [xpDone, setXpDone] = useState(false)
   const [ascending, setAscending] = useState(false)
 
+  // Le coup critique se joue en **deux temps** : le compteur monte d'abord au
+  // total normal, puis repart et double. Afficher directement le total doublé
+  // reviendrait à ne rien montrer du tout — on ne saurait pas ce qui a doublé,
+  // seulement qu'un nombre est gros. C'est la même règle que partout ailleurs
+  // dans le §7 : ce qui se met en scène est le franchissement, pas l'état.
+  const crit = result.crit
+  const [critLance, setCritLance] = useState(false)
+
   const hasAscension =
     result.levelled_up ||
     !!result.branch_tier ||
     !!result.relics?.length ||
-    !!result.cards?.length
+    !!result.cards?.length ||
+    !!result.boss_phase
 
   // L'impact part au montage, calibré sur la taille de la session : une session
   // dégradée de dix minutes ne secoue pas comme une longue de cinquante.
@@ -257,8 +266,37 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         transition={{ duration: 0.5, times: [0, 0.6, 1], ease: 'easeOut' }}
       >
         <Burst count={22} spread={200} />
-        <CountUp to={result.xp} duration={1100} className="result__xp-value" onDone={() => setXpDone(true)} />
+        {crit && !critLance ? (
+          <CountUp
+            to={b.base_total}
+            duration={1100}
+            className="result__xp-value"
+            onDone={() => {
+              sfx.crit()
+              shake(0.6)
+              setCritLance(true)
+            }}
+          />
+        ) : (
+          <CountUp
+            to={result.xp}
+            from={crit ? b.base_total : 0}
+            duration={crit ? 620 : 1100}
+            className={`result__xp-value${crit ? ' result__xp-value--crit' : ''}`}
+            onDone={() => setXpDone(true)}
+          />
+        )}
         <span className="label">xp</span>
+        {crit && critLance && (
+          <motion.span
+            className="result__crit"
+            initial={{ opacity: 0, scale: 0.6, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 16 }}
+          >
+            {crit.label} ×{crit.multiplier}
+          </motion.span>
+        )}
       </motion.div>
 
       <ul className="result__lines">
@@ -294,6 +332,12 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
           <li className="result__cap">
             <span>Plafond de régime</span>
             <span className="num">×{b.degressivity}</span>
+          </li>
+        )}
+        {crit && (
+          <li className="result__crit-line">
+            <span>{crit.label}</span>
+            <span className="num">×{crit.multiplier}</span>
           </li>
         )}
         <li className="result__damage">

@@ -20,9 +20,11 @@ tirage.
 from __future__ import annotations
 
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.db.models import Count, F, Q, Sum
+from django.utils import timezone
 
 from .models import (
     Achievement,
@@ -457,7 +459,35 @@ def _season_curve(user, season) -> phantom_rules.Curve:
     )
 
 
-def phantom_panel(user, *, today: date) -> dict | None:
+def _minutes_by_hour(user) -> dict[int, int]:
+    """Les minutes travaillées par heure locale, toutes saisons confondues.
+
+    Chaque session est **étalée** sur les heures qu'elle traverse plutôt que
+    versée en bloc à son heure de début : une session de 50 minutes lancée à
+    21h50 a travaillé dix minutes à 21h et quarante à 22h, et l'attribuer
+    entièrement à 21h décalerait la courbe d'une demi-heure vers l'avant.
+    """
+    zone = ZoneInfo(user.profile.timezone_name)
+    par_heure: dict[int, int] = {}
+
+    for debut, minutes in Session.objects.filter(
+        user=user, status=Session.DONE
+    ).values_list("started_at", "actual_minutes"):
+        if not minutes:
+            continue
+        local = debut.astimezone(zone)
+        heure, position = local.hour, local.minute
+        restant = minutes
+        while restant > 0:
+            part = min(restant, 60 - position)
+            par_heure[heure] = par_heure.get(heure, 0) + part
+            restant -= part
+            heure, position = (heure + 1) % 24, 0
+
+    return par_heure
+
+
+def phantom_panel(user, *, today: date, now: datetime | None = None) -> dict | None:
     """La comparaison au fantôme, prête à afficher. ``None`` hors saison."""
     from .models import Season
 
@@ -485,9 +515,44 @@ def phantom_panel(user, *, today: date) -> dict | None:
     # lire le graphique comme une course.
     tracee = phantom_rules.Curve(mienne.label, mienne.points[: jour + 1])
 
+    # Le fantôme en direct : sa position à cette heure-ci, et non en fin de
+    # journée. C'est ce qui rend l'écart actionnable — la soirée est encore là.
+    instant = (now or timezone.now()).astimezone(ZoneInfo(user.profile.timezone_name))
+    repartition = phantom_rules.hourly_shares(
+        _minutes_by_hour(user), rollover_hour=user.profile.day_rollover_hour
+    )
+    part = phantom_rules.share_at(
+        repartition,
+        hour=instant.hour,
+        minute=instant.minute,
+        rollover_hour=user.profile.day_rollover_hour,
+    )
+    veille = mienne.at(jour - 1) if jour > 0 else 0
+    direct = phantom_rules.live(
+        mine_now=mienne.at(jour),
+        mine_today=mienne.at(jour) - veille,
+        phantom=fantome,
+        day_index=jour,
+        share=part,
+        hour_label=f"{instant.hour}h{instant.minute:02d}",
+    )
+
     return {
         "line": ecart.line,
         "available": ecart.available,
+        "live": {
+            "available": direct.available,
+            "line": direct.line,
+            "ahead": direct.ahead,
+            "delta": direct.delta,
+            "mine": direct.mine,
+            "theirs": direct.theirs,
+            "mine_today": direct.mine_today,
+            "theirs_today": direct.theirs_today,
+            "delta_today": direct.delta_today,
+            "share": direct.share,
+            "measured": repartition is not None,
+        },
         "ahead": ecart.ahead,
         "delta": ecart.delta,
         "mine": ecart.mine,

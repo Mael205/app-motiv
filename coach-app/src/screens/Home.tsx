@@ -117,6 +117,7 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
         <NightHud
           evening={state.evening}
           boss={state.boss}
+          phantom={locked ? null : state.phantom?.live}
           minutesToday={state.minutes_today}
           requiredMinutes={state.required_minutes}
           validated={state.validated_today}

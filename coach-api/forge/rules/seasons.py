@@ -153,6 +153,84 @@ def next_season_start(ends_on: date) -> date:
     return ends_on + timedelta(days=SEASON_PAUSE_DAYS + 1)
 
 
+# --------------------------------------------------------------------------
+# Le dernier round (ajout du 17 août 2026)
+# --------------------------------------------------------------------------
+
+FINAL_ROUND_DAYS = 3
+FINAL_ROUND_SESSION_MINUTES = 25
+
+
+@dataclass(frozen=True)
+class FinalRound:
+    """La vie du boss traduite en sessions, les trois derniers jours.
+
+    **Informatif seulement, et c'est la décision qui fait tout le reste.** Un
+    bonus de fin de saison — dégâts doublés, XP majorée, mise récupérable —
+    encouragerait trois soirées de rattrapage à quatre sessions, c'est-à-dire
+    exactement le sur-régime du §0.2, et il le ferait au pire moment : celui où
+    la saison suivante s'ouvre le lendemain. Ce module ne rend donc **aucun
+    multiplicateur**. Il change une unité, rien d'autre.
+
+    Le changement d'unité est tout ce qu'on peut honnêtement offrir. « 2 340
+    points de vie » ne se compare à rien ; « quatre sessions » se compare à une
+    soirée, et la comparaison se fait toute seule — on sait si on peut ou non,
+    et personne n'a eu besoin de le dire.
+    """
+
+    active: bool
+    days_left: int
+    sessions_left: int
+    minutes_left: int
+    session_minutes: int
+    reachable: bool
+    line: str
+
+
+def final_round(
+    *,
+    days_left: int,
+    current_hp: int,
+    is_dead: bool = False,
+    session_minutes: int = FINAL_ROUND_SESSION_MINUTES,
+    sessions_per_day: int = 3,
+) -> FinalRound:
+    """Traduit la vie restante en sessions, dans les trois derniers jours.
+
+    ``reachable`` compare le nombre de sessions nécessaires au plafond de régime
+    (§0.2) sur les jours qui restent : au-delà, le boss ne tombera pas, et le
+    dire est plus honnête que de laisser espérer. Ce n'est pas un reproche —
+    c'est la même information, avec sa borne.
+    """
+    par_session = max(1, session_minutes * DAMAGE_PER_MINUTE)
+    restantes = 0 if is_dead else -(-max(0, current_hp) // par_session)
+    possible = max(0, days_left) * max(1, sessions_per_day)
+
+    if is_dead:
+        ligne = "Dernier round — il est déjà tombé. Ce qui suit est du rab."
+    elif restantes <= possible:
+        pluriel = "s" if restantes > 1 else ""
+        ligne = (
+            f"Dernier round — {restantes} session{pluriel} de {session_minutes} min "
+            f"pour l'abattre, {days_left} jour{'s' if days_left > 1 else ''} devant."
+        )
+    else:
+        ligne = (
+            f"Dernier round — il faudrait {restantes} sessions en {days_left} "
+            f"jour{'s' if days_left > 1 else ''}. Il tiendra jusqu'au bout."
+        )
+
+    return FinalRound(
+        active=0 <= days_left <= FINAL_ROUND_DAYS,
+        days_left=max(0, days_left),
+        sessions_left=restantes,
+        minutes_left=0 if is_dead else max(0, current_hp) // max(1, DAMAGE_PER_MINUTE),
+        session_minutes=session_minutes,
+        reachable=is_dead or restantes <= possible,
+        line=ligne,
+    )
+
+
 def ghost_delta(day_index: int, mine: list[int], ghost: list[int]) -> int:
     """Écart au fantôme à un jour donné, en points cumulés (SPEC §12.7)."""
     def at(curve: list[int]) -> int:

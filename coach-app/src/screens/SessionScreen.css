@@ -200,3 +200,32 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+/* Le coup critique (§12, ajout du 17 août 2026).
+ *
+ * Le nombre change de couleur au moment où il double, et le mot arrive après.
+ * Rien ne clignote : un critique est une bonne nouvelle rare, pas une alarme,
+ * et ce qui clignote finit par se faire ignorer comme une alarme. */
+.result__xp-value--crit {
+  color: var(--or, #E8A33D);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--or, #E8A33D) 55%, transparent);
+}
+
+.result__crit {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--or, #E8A33D);
+}
+
+.result__crit-line span:last-child {
+  color: var(--or, #E8A33D);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result__xp-value--crit {
+    text-shadow: none;
+  }
+}

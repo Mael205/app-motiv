@@ -125,3 +125,45 @@
   color: var(--text);
 }
 
+
+/* Le fantôme en direct (§12.7, ajout du 17 août 2026).
+ *
+ * Sous la piste et non dessus : un adversaire dessiné par-dessus le travail
+ * réel se lit comme une cible à atteindre, et le fantôme rend un écart, pas un
+ * objectif. Les deux barres partagent la même unité — des minutes de ce soir. */
+.gauge__ghost {
+  margin-top: 0.55rem;
+}
+
+.gauge__ghost-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.gauge__ghost-fill,
+.gauge__ghost-mine {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  border-radius: 3px;
+}
+
+.gauge__ghost-fill {
+  background: color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.gauge__ghost-mine {
+  height: 2px;
+  top: auto;
+  bottom: 0;
+  background: var(--or, #E8A33D);
+}
+
+.gauge__ghost-line {
+  margin: 0.3rem 0 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}

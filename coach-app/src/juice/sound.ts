@@ -219,6 +219,36 @@ export const sfx = {
     accord([LA3, MI4, LA4], { duree: 1.1, gain: 0.12, type: 'sawtooth', ecart: 0.08, retard: 0.16 })
   },
 
+  /** Le coup critique : **deux fois le même son**, à 70 ms d'écart.
+   *
+   * C'est tout le sujet. Un critique double une valeur ; un son qui double
+   * l'annonce sans qu'on ait à lire le mot. Un timbre inédit aurait dit
+   * « autre chose s'est passé », alors qu'il ne s'est rien passé d'autre — la
+   * même session, comptée deux fois.
+   *
+   * La seconde frappe est plus haute d'une quinte et plus courte : c'est la
+   * répétition qui porte l'information, et une répétition identique
+   * s'entendrait comme un écho, donc comme un défaut.
+   */
+  crit() {
+    souffle({ duree: 0.05, gain: 0.1, coupure: 6000, q: 3 })
+    note({ freq: LA4, duree: 0.16, gain: 0.18, type: 'square', attaque: 0.003 })
+    note({ freq: MI5, duree: 0.12, gain: 0.16, type: 'square', attaque: 0.003, retard: 0.07 })
+    note({ freq: LA5, duree: 0.5, gain: 0.07, type: 'triangle', retard: 0.075, attaque: 0.02 })
+  },
+
+  /** Le boss change de phase (§12.4). Il ne gagne rien : il se réveille.
+   *
+   * Donc pas d'arpège montant — ce qui monte se lit comme un gain, et rien
+   * n'est gagné ici. Un grave qui **descend** sous un souffle qui s'ouvre : la
+   * même bête, plus près.
+   */
+  bossPhase() {
+    note({ freq: 130.81, duree: 0.9, gain: 0.22, type: 'sawtooth', vers: 98 })
+    souffle({ duree: 0.7, gain: 0.1, coupure: 300, vers: 2400 })
+    note({ freq: LA3, duree: 1.2, gain: 0.06, type: 'triangle', retard: 0.12, attaque: 0.09 })
+  },
+
   /** Fin de saison : un son long, le seul du lot. Il arrive une fois par mois. */
   seasonEnd() {
     note({ freq: 110, duree: 2.2, gain: 0.2, type: 'sine' })

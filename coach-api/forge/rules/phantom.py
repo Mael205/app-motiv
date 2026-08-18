@@ -161,6 +161,155 @@ def compare(mine: Curve, phantom: Curve | None, *, day_index: int) -> Comparison
     )
 
 
+# --------------------------------------------------------------------------
+# Le fantôme en direct (ajout du 17 août 2026)
+# --------------------------------------------------------------------------
+
+# En dessous, la répartition horaire n'est pas une répartition mais un
+# accident : trois soirées ne disent rien de l'heure à laquelle on travaille.
+ECHANTILLON_MINIMAL = 600
+
+
+@dataclass(frozen=True)
+class Live:
+    """Où en est le fantôme **à cette heure-ci**, et non en fin de journée.
+
+    C'est la seule chose qui manquait pour que le §12.7 se lise comme une
+    course. Comparé en fin de journée, l'écart arrive quand la soirée est finie
+    — c'est un bilan, et un bilan ne fait rien démarrer. Comparé à 21h40, il
+    porte sur la seule soirée sur laquelle on peut encore agir.
+
+    Le fantôme ne travaille pas à vitesse constante, et faire comme si serait
+    un mensonge commode : il le placerait à la moitié de sa journée à la moitié
+    de la fenêtre, donc systématiquement devant en début de soirée et derrière
+    à la fin. Sa position se calcule sur la **répartition horaire réelle** du
+    travail passé — les heures où l'on travaille vraiment.
+    """
+
+    available: bool
+    mine: int
+    theirs: int
+    # Les mêmes deux valeurs, ramenées à **aujourd'hui seulement**. La saison
+    # se compare en cumul, mais une jauge du soir ne peut afficher que des
+    # minutes de ce soir : y dessiner un cumul de vingt jours écraserait les
+    # blocs de la soirée contre le bord gauche.
+    mine_today: int
+    theirs_today: int
+    reference: str
+    share: float
+    hour_label: str
+
+    @property
+    def delta(self) -> int:
+        return self.mine - self.theirs
+
+    @property
+    def delta_today(self) -> int:
+        return self.mine_today - self.theirs_today
+
+    @property
+    def ahead(self) -> bool:
+        return self.delta >= 0
+
+    @property
+    def line(self) -> str:
+        if not self.available:
+            return ""
+
+        heures, minutes = divmod(abs(self.delta), 60)
+        ecart = f"{heures}h{minutes:02d}" if heures else f"{minutes} min"
+        if self.delta == 0:
+            return f"À {self.hour_label}, à égalité avec {self.reference}."
+        if self.ahead:
+            return f"À {self.hour_label}, +{ecart} sur {self.reference}."
+        return f"À {self.hour_label}, −{ecart} : {self.reference} est devant."
+
+
+def hourly_shares(
+    minutes_by_hour: dict[int, int], *, rollover_hour: int = 4
+) -> tuple[float, ...] | None:
+    """La part de la journée déjà faite à chaque heure, en 25 points.
+
+    Rendue ``None`` sous l'échantillon minimal : sans données, mieux vaut le
+    repli linéaire de l'appelant qu'une courbe inventée sur trois soirées, qui
+    se lirait comme une mesure alors qu'elle n'en est pas une.
+
+    Les heures sont réordonnées depuis la bascule du §1 : la journée du coach
+    commence à 4h, donc 2h du matin est la fin d'une journée, pas le début de
+    la suivante.
+    """
+    total = sum(max(0, m) for m in minutes_by_hour.values())
+    if total < ECHANTILLON_MINIMAL:
+        return None
+
+    cumul = 0
+    points = [0.0]
+    for decalage in range(24):
+        heure = (rollover_hour + decalage) % 24
+        cumul += max(0, minutes_by_hour.get(heure, 0))
+        points.append(round(cumul / total, 6))
+    return tuple(points)
+
+
+def share_at(
+    shares: tuple[float, ...] | None, *, hour: int, minute: int = 0, rollover_hour: int = 4
+) -> float:
+    """La part de journée écoulée à une heure donnée, interpolée dans l'heure.
+
+    Sans répartition, le repli est linéaire sur les vingt-quatre heures du
+    coach. Il est faux, et il est annoncé comme tel : c'est le cas d'une
+    première saison, où il n'y a de toute façon pas de fantôme.
+    """
+    decalage = (hour - rollover_hour) % 24
+    fraction = min(1.0, max(0.0, minute / 60))
+
+    if shares is None:
+        return round((decalage + fraction) / 24, 6)
+
+    debut, fin = shares[decalage], shares[decalage + 1]
+    return round(debut + (fin - debut) * fraction, 6)
+
+
+def live(
+    *,
+    mine_now: int,
+    mine_today: int,
+    phantom: Curve | None,
+    day_index: int,
+    share: float,
+    hour_label: str,
+) -> Live:
+    """La position du fantôme à cet instant, contre la mienne.
+
+    ``mine_now`` est un cumul **réel** — les minutes déjà travaillées cette
+    saison, celles de ce soir comprises. Rien n'y est extrapolé : on ne
+    projette pas le travail de quelqu'un sur sa soirée en cours, sans quoi la
+    ligne dirait qu'on est devant avant d'avoir commencé.
+    """
+    if phantom is None:
+        return Live(
+            available=False, mine=mine_now, theirs=0,
+            mine_today=mine_today, theirs_today=0, reference="",
+            share=share, hour_label=hour_label,
+        )
+
+    veille = phantom.at(day_index - 1) if day_index > 0 else 0
+    fin_de_jour = phantom.at(day_index)
+    part = max(0.0, min(1.0, share))
+    position = round(veille + (fin_de_jour - veille) * part)
+
+    return Live(
+        available=True,
+        mine=mine_now,
+        theirs=position,
+        mine_today=mine_today,
+        theirs_today=position - veille,
+        reference=phantom.label,
+        share=share,
+        hour_label=hour_label,
+    )
+
+
 def series(mine: Curve, phantom: Curve | None, *, days: int) -> list[dict]:
     """Les deux courbes jour par jour, pour le tracé.
 

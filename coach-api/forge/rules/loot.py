@@ -180,11 +180,17 @@ def shards_for(card: Card, *, duplicate: bool) -> int:
 MONTEE_DE_NIVEAU = "niveau"
 CLOTURE_DE_SEMAINE = "semaine"
 FIN_DE_SAISON = "saison"
+# Terminer une étape de roadmap est l'action la plus structurante du système —
+# c'est elle qui fait avancer un projet, pas les minutes — et c'était la moins
+# fêtée : elle rendait 60 points de dégâts et rien d'autre. Une carte garantie
+# la met au niveau du passage de niveau, qui lui ne demande que du volume.
+ETAPE_TERMINEE = "etape"
 
 RAISONS = {
     MONTEE_DE_NIVEAU: "Passage de niveau",
     CLOTURE_DE_SEMAINE: "Semaine tenue",
     FIN_DE_SAISON: "Fin de saison",
+    ETAPE_TERMINEE: "Étape terminée",
 }
 
 

@@ -295,3 +295,19 @@
   .asc__charge-halo { animation: none; }
   .asc__beat { will-change: auto; }
 }
+
+/* La bascule de phase du boss (§12.4).
+ *
+ * L'ancien nom est barré au-dessus du nouveau. Il n'est pas là pour décorer :
+ * sans lui, la phase 2 se lit comme un boss différent plutôt que comme le même
+ * qui a changé. */
+.asc__phase-avant {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  opacity: 0.45;
+}
+
+.asc__phase-avant s {
+  text-decoration-thickness: 1px;
+}
