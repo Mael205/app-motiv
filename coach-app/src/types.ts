@@ -185,6 +185,13 @@ export interface SeasonState {
    *  de couleurs, le sceau et la frise. */
   ambiance: string
   baseline: string
+  /** La ligne de la semaine, tirée du monde de la saison (§12.2 étendu).
+   *  Vide sur une saison d'archive dont la clé a quitté la trame — et le vide
+   *  est alors le bon résultat : une ligne empruntée à une autre saison dirait
+   *  le contraire de son décor. */
+  citation: string
+  /** La semaine de saison, de 1 à 4. Elle situe la ligne dans le mois. */
+  semaine: number
   acte: ActeDeSaison
   day_index: number
   days_total: number

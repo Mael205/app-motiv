@@ -55,3 +55,37 @@
 .fridge {
   gap: var(--s2);
 }
+
+/* La ligne de la semaine (§12.2 étendu).
+ *
+ * Sobre par construction. Ce n'est pas une accroche : c'est du décor, au même
+ * rang que le modificateur et le fantôme qui l'entourent, et elle porte donc
+ * le même traitement qu'eux. Une citation en grand, centrée, entre guillemets
+ * dorés, serait une affiche de motivation — précisément ce que le §5.2
+ * interdit.
+ *
+ * Le liseré prend la couleur d'atmosphère de la saison et non son accent : ce
+ * dernier appartient à ce qui décide — jauges, boutons, boss —, et une phrase
+ * de saveur ne doit pas se peindre comme une action. */
+.citation {
+  margin: 0;
+  padding: 10px 0 10px 12px;
+  border-left: 2px solid color-mix(in srgb, var(--accent2) 60%, transparent);
+}
+
+.citation__texte {
+  margin: 0;
+  font-size: var(--t-md);
+  font-style: italic;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.citation__source {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}

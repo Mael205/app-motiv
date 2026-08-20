@@ -111,6 +111,21 @@ export function Home({
             Entierement retire quand la vitrine est fermee. */}
         {!locked && (
           <div className="deck__consult">
+            {/* La ligne de la semaine. Elle est **ici** et pas dans le bandeau :
+                le bandeau a déjà été raccourci une fois parce qu'il poussait le
+                bouton « Démarrer » sous la ligne de flottaison du téléphone, et
+                ce bloc-ci est le seul qui passe après la décision sur petit
+                écran. Une phrase de décor ne se lit jamais avant ce qu'on est
+                venu faire. */}
+            {state.season?.citation && (
+              <figure className="citation">
+                <blockquote className="citation__texte">{state.season.citation}</blockquote>
+                <figcaption className="citation__source">
+                  {state.season.name} · semaine {state.season.semaine}
+                </figcaption>
+              </figure>
+            )}
+
             {state.modifier?.active && (
               <p className="modifier">
                 <span className="modifier__name">{state.modifier.name}</span>

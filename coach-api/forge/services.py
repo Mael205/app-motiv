@@ -63,6 +63,7 @@ from .rules import routines as routine_rules
 from .rules import sanctions as sanction_rules
 from .rules import hiatus as hiatus_rules
 from .rules import holds as hold_rules
+from .rules import citations
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -1986,6 +1987,11 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
                     season.voie or season_rules.VOIE_CIMES,
                     _position_dans_la_voie(user, season),
                 ),
+                # La ligne de la semaine (§12.2 etendu). Elle vient du serveur
+                # comme tout texte affiche : le §11.10 fait du ton une regle
+                # testee, et une phrase ecrite cote client y echapperait.
+                "citation": citations.citation_de(season.key, season.day_index(today)),
+                "semaine": citations.semaine_de(season.day_index(today)),
                 "day_index": season.day_index(today) + 1,
                 "days_total": season_rules.SEASON_DAYS,
                 "days_left": season.days_left(today),
