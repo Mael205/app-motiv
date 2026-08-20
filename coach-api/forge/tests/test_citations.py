@@ -8,6 +8,8 @@ rien, et le produit change de nature.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from forge.rules import citations
@@ -15,6 +17,46 @@ from forge.rules import seasons as season_rules
 
 
 CLES = [identite["key"] for identite in season_rules.SEASON_POOL]
+
+
+# Les adjectifs par lesquels une ligne cesserait de nommer une situation pour
+# noter celui qui la traverse. C'est de ça que le §5.2 protège, et de rien
+# d'autre : le tutoiement, lui, est demandé.
+QUALIFICATIFS = (
+    "capable",
+    "fort",
+    "faible",
+    "courageux",
+    "lache",
+    "lâche",
+    "paresseux",
+    "formidable",
+    "exceptionnel",
+    "nul",
+    "meilleur que",
+)
+
+# La copule à la deuxième personne. L'adjectif ne compte que s'il vient après
+# elle, dans la même proposition.
+COPULE = re.compile(r"\btu\s+(?:n['’]\s*)?(?:es|etais|étais|seras|deviens|resteras)\b")
+
+
+def qualification_du_lecteur(ligne: str) -> str:
+    """L'adjectif rattaché **au lecteur**, s'il y en a un. Vide sinon.
+
+    La présence seule ne suffit pas : dans « le courant paraît plus fort que
+    toi », l'adjectif qualifie le courant. On ne le cherche donc qu'après une
+    copule à la deuxième personne, et dans la même proposition qu'elle.
+    """
+    for proposition in re.split(r"[.!?;]", ligne.lower()):
+        copule = COPULE.search(proposition)
+        if copule is None:
+            continue
+        suite = proposition[copule.end() :]
+        for mot in QUALIFICATIFS:
+            if mot in suite:
+                return mot
+    return ""
 
 
 class TestCouverture:
@@ -35,6 +77,18 @@ class TestCouverture:
         toutes = [ligne for cle in CLES for ligne in citations.CITATIONS[cle]]
         doublons = {l for l in toutes if toutes.count(l) > 1}
         assert not doublons, f"lignes partagées entre saisons : {doublons}"
+
+    def test_aucune_ligne_ne_recopie_la_baseline_de_sa_saison(self):
+        """La baseline s'affiche déjà en grand à l'ouverture de la saison. Une
+        semaine qui la répète mot pour mot ne donne rien de neuf à lire — c'est
+        ce que la première version faisait sur quinze saisons sur vingt-quatre.
+        """
+        for identite in season_rules.SEASON_POOL:
+            baseline = identite["baseline"]
+            for semaine, ligne in enumerate(citations.CITATIONS[identite["key"]], start=1):
+                assert ligne != baseline, (
+                    f"{identite['key']}, semaine {semaine} recopie sa baseline"
+                )
 
 
 class TestLaSemaine:
@@ -99,15 +153,63 @@ class TestLeTon:
                 for mot in self.INTERDITS:
                     assert mot not in bas, f"« {mot} » dans {cle}, semaine {semaine} : {ligne}"
 
-    def test_aucune_ligne_ne_s_adresse_a_la_personne_pour_la_qualifier(self):
-        """Le tutoiement est autorisé — le §5.2 le demande même. Ce qui ne
-        l'est pas, c'est de commenter celui qui lit : le décor nomme la
-        situation, jamais la valeur de la personne qui la traverse."""
+    def test_aucune_ligne_ne_note_celui_qui_lit(self):
+        """Le tutoiement est autorisé — le §5.2 le demande même, et la
+        réécriture du 21 août 2026 s'y est alignée : les lignes tutoient et
+        poussent.
+
+        Ce qui reste interdit est de **qualifier** la personne. La garde a été
+        resserrée deux fois : elle refusait d'abord toute occurrence de
+        « tu es » et « tu as », donc aussi « ce que tu as monté » — un acte
+        accompli, qui ne note personne ; puis la simple présence d'un adjectif,
+        donc aussi « le courant paraît plus fort que toi », où l'adjectif
+        qualifie le courant. Elle porte maintenant sur l'adjectif **rattaché au
+        lecteur**, et sur rien d'autre.
+        """
         for cle in CLES:
             for ligne in citations.CITATIONS[cle]:
-                bas = ligne.lower()
-                assert "tu es " not in bas, f"« {ligne} » qualifie la personne ({cle})"
-                assert "tu as " not in bas, f"« {ligne} » qualifie la personne ({cle})"
+                faute = qualification_du_lecteur(ligne)
+                assert not faute, f"« {ligne} » note la personne ({cle}) : {faute}"
+
+    def test_la_garde_attrape_ce_qu_elle_pretend_attraper(self):
+        """Le test du test, et il n'est pas superflu.
+
+        Une version intermédiaire de cette garde ne renvoyait jamais rien : les
+        vingt-quatre saisons passaient au vert alors que « Tu es capable de le
+        faire » serait passé aussi. Une garde qu'on ne met pas à l'épreuve est
+        une garde qu'on croit avoir.
+        """
+        assert qualification_du_lecteur("Tu es capable de le faire.") == "capable"
+        assert qualification_du_lecteur("Tu n'es pas nul, continue.") == "nul"
+        assert qualification_du_lecteur("Tu deviens paresseux.") == "paresseux"
+
+        # Ce qui doit passer : l'adjectif porte sur autre chose que le lecteur,
+        # ou la phrase constate un acte au lieu de noter une personne.
+        assert qualification_du_lecteur("Le courant paraît plus fort que toi.") == ""
+        assert qualification_du_lecteur("Ce que tu as monté ne se redescend pas.") == ""
+        assert qualification_du_lecteur("Tu tiens le fond. Prends appui dessus.") == ""
+
+    def test_les_lignes_tutoient_vraiment(self):
+        """La réécriture du 21 août avait un objet mesurable : vingt-deux lignes
+        sur quatre-vingt-seize employaient le « l'on » littéraire et trois
+        seulement tutoyaient, alors que le §5.2 demande « français, tutoiement,
+        direct ». C'est ce qui les faisait sonner traduites.
+        """
+        tutoyantes = [
+            ligne
+            for cle in CLES
+            for ligne in citations.CITATIONS[cle]
+            if re.search(r"\b(tu|te|toi|ton|ta|tes)\b", ligne.lower())
+            or re.search(r"\b\w+(?:e|s|ds)\b[ .!]", ligne)  # impératif : « avance. », « prends »
+        ]
+        assert len(tutoyantes) >= 72, f"seulement {len(tutoyantes)} lignes sur 96 s'adressent au lecteur"
+
+    def test_plus_aucune_ligne_n_emploie_le_on_litteraire(self):
+        for cle in CLES:
+            for semaine, ligne in enumerate(citations.CITATIONS[cle], start=1):
+                assert "l'on" not in ligne.lower(), (
+                    f"« l'on » dans {cle}, semaine {semaine} : {ligne}"
+                )
 
     def test_les_lignes_restent_courtes(self):
         """Une phrase de décor se lit d'un coup d'œil, à côté d'une décision.
