@@ -64,12 +64,12 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
         "Deux portes. Prends celle qui coûte quelque chose.",
         "Le songe et le fait ont la même forme au départ. Choisis le fait.",
         "La mauvaise porte se reconnaît : elle s'ouvre toute seule.",
-        "Franchis-la. Ce qui passe le seuil ne se rêve plus.",
+        "Franchis-la. Ce que tu as fait ce mois-ci ne se rêve plus.",
     ),
     "sanctuaire": (
         "Défends un lieu, pas une humeur.",
         "Les murs tiennent parce que tu les relèves. Relève-les.",
-        "Garde la place vide cette semaine. Elle t'attend.",
+        "Ton créneau est le mur. C'est lui qu'on attaque cette semaine.",
         "Ce que tu défends quatre semaines devient à toi.",
     ),
     "elysion": (
@@ -87,24 +87,24 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
     "valhalla": (
         "La salle est pleine de gens qui ont fini. Fais-toi une place.",
         "On n'entre pas ici pour avoir essayé. Termine.",
-        "La table est longue, et la place se prend. Prends-la.",
+        "Une étape finie vaut mieux que trois commencées. Finis-en une.",
         "Ce qui s'assied là a été terminé. Assieds-toi.",
     ),
     "ragnarok": (
         "Tout finit. Bâtis avant.",
         "Le compte à rebours ne se négocie pas. Sers-t'en.",
-        "Le ciel se fend cette semaine. Continue.",
+        "Tout va sembler s'écrouler cette semaine. Fais ta session quand même.",
         "Ce qui reste debout après, c'est ce que tu as fait.",
     ),
     "couronne_solaire": (
         "Ta lumière ne se voit que dans l'ombre. Entre dedans.",
-        "La plus grande est cachée par la plus proche. Écarte la proche.",
-        "Sept jours d'ombre. C'est là qu'elle apparaît. Tiens.",
-        "Ce qui brille au bord était là depuis le début. Prends-le.",
+        "Le plus urgent cache le plus important. Écarte l'urgent.",
+        "Sept jours sans rien voir venir. C'est là que ça se joue.",
+        "Ce qui compte était déjà là au premier jour. Tu le vois maintenant.",
     ),
     "heavens_paradise": (
         "Monte, ou regarde monter. Choisis maintenant.",
-        "Cette semaine sépare les deux. Choisis encore.",
+        "Une session faite, ou une soirée regardée. Cette semaine tranche.",
         "Il n'y a pas de place assise à mi-hauteur. Continue.",
         "Vingt-huit jours plus haut. Regarde d'où tu viens.",
     ),
@@ -115,7 +115,7 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
         "Ce que tu poses jour après jour ne se retire pas.",
     ),
     "empyree": (
-        "Le ciel de feu. Il n'y a rien au-dessus. Tiens-toi droit.",
+        "Plus haut que ce mois-ci, tu n'es jamais allé. Tiens-toi dessus.",
         "Arrivé en haut, la seule direction est de tenir. Tiens.",
         "La hauteur ne protège de rien. Elle t'expose. Reste.",
         "Ce que tu termines ici ne se refera pas à l'identique.",
@@ -124,17 +124,17 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
     "chute": (
         "La chute a eu lieu. À toi de décider où elle s'arrête.",
         "Tu ne remonteras pas en niant que tu es tombé. Regarde, puis pousse.",
-        "Le fond n'est pas encore là. Continue de descendre, tu remonteras après.",
+        "Tu n'as pas encore touché le fond. Une session ce soir, et tu n'iras pas plus bas.",
         "Tu tiens le fond. Prends appui dessus.",
     ),
     "nadir": (
         "Le point le plus bas est un point de départ. C'est le tien.",
         "D'ici, toutes les directions montent. Prends-en une.",
-        "Le fond est plat. C'est ce qui le rend habitable. Pose-toi et repars.",
+        "Le fond est plat : on s'y tient debout. Repars de là, pas d'ailleurs.",
         "Repars d'où tu es, pas d'où tu aurais voulu être.",
     ),
     "styx": (
-        "Un seul passage. Entre dans l'eau.",
+        "Une seule traversée, et elle commence ce soir.",
         "L'autre rive ne se voit pas d'ici. Nage quand même.",
         "Le courant paraît plus fort que toi cette semaine. Il ne l'est pas.",
         "Traversé une fois, il n'est plus devant toi. Jamais.",
@@ -148,7 +148,7 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
     "solstice_noir": (
         "La nuit la plus longue se travaille. Commence.",
         "L'obscurité ne s'arrête pas parce que tu la regardes. Traverse-la.",
-        "C'est la semaine la plus courte en lumière. Allume la tienne.",
+        "Vingt-cinq minutes suffisent à percer une nuit. Pose-les.",
         "Après la plus longue nuit, les jours rallongent. Tu y es.",
     ),
     "cendres": (
@@ -160,7 +160,7 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
     "hellfest": (
         "Quatre semaines. Le feu ne demande pas la permission, toi non plus.",
         "Tu n'éteindras pas ça en fermant les yeux. Ouvre-les et avance.",
-        "Cette semaine, la chaleur devient une habitude. Prends-la.",
+        "À la troisième semaine, le rythme devient une habitude. Ne la lâche pas.",
         "Ce qui traverse le feu ne craint plus la chaleur. Tu traverses.",
     ),
     "inferno": (
@@ -173,12 +173,12 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
         "Le bruit arrive après. Frappe d'abord.",
         "Ce qui frappe est déjà passé quand tu l'entends. Devance-le.",
         "Le ciel gronde sans tomber cette semaine. Ne t'arrête pas pour ça.",
-        "Compte les secondes entre l'éclair et le bruit. Elles se réduisent.",
+        "L'écart entre ce que tu prévois et ce que tu fais se réduit. Continue.",
     ),
     "dernier_rempart": (
         "Ils passeront par toi. Tiens la ligne.",
         "Un mur tient par ce que tu remets dessus chaque jour. Remets-en.",
-        "La brèche s'ouvre cette semaine. Bouche-la.",
+        "C'est la semaine où tu vas sauter une soirée. N'en saute pas deux.",
         "Ce qui n'est pas tombé en vingt-huit jours ne tombera pas ce soir.",
     ),
     "derniere_forge": (
@@ -190,7 +190,7 @@ CITATIONS: dict[str, tuple[str, str, str, str]] = {
     "phenix": (
         "Il ne revient pas malgré le feu. Il revient par lui. Toi aussi.",
         "Rien ne renaît sans avoir brûlé entièrement. Laisse brûler.",
-        "Cette semaine tu n'es ni la cendre ni l'oiseau. Continue quand même.",
+        "Ni là où tu étais, ni là où tu vas. Fais ta session quand même.",
         "Ce qui repart n'est pas ce qui était. C'est mieux.",
     ),
 }
