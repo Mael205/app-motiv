@@ -6,7 +6,7 @@
   gap: 0.75rem;
   padding: 1rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  clip-path: var(--clip-sm);
   background: var(--panel);
 }
 
@@ -61,7 +61,7 @@
 .interview__error {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--danger, #d9534f);
+  color: var(--danger);
 }
 
 .interview__open {

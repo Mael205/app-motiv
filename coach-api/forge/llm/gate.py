@@ -125,6 +125,12 @@ LONGUEUR_MAXIMALE_BILAN = 200
 MIN_ETAPES = 4
 MAX_ETAPES = 12
 
+# Le plancher du parcours. Il ne dit pas qu'un bon plan fait trois blocs : il dit
+# qu'un plan d'un seul bloc n'est pas un parcours, c'est le premier palier. Le
+# §4.5 veut tenir quelqu'un sur des mois, et un modèle laissé libre rend
+# volontiers un plan court parce qu'il se prouve plus vite.
+MIN_BLOCS = 3
+
 # Au-delà, ce n'est plus une question mais un questionnaire. Deux sont tolérés
 # parce qu'une question française en contient souvent une seconde de précision
 # — « c'est quoi, et pourquoi maintenant ? » se répond d'un bloc.
@@ -367,6 +373,100 @@ def check_debrief(payload: dict) -> dict:
     }
 
 
+def check_decoupage(payload: dict) -> dict:
+    """Valide l'ouverture d'un bloc du parcours (§4.5).
+
+    Les mêmes exigences que l'entretien sur les étapes, et pour une raison de
+    fond : ce sont les mêmes soirées. Une roadmap qui deviendrait plus floue au
+    bloc 4 qu'au bloc 1 tromperait exactement au moment où la motivation initiale
+    est retombée et où le système est censé prendre le relais.
+
+    ``probleme`` est la sortie honnête : la ressource a disparu, ou elle est
+    devenue payante au-delà du budget. Mieux vaut le dire que découper dix
+    soirées sur un cours qui n'existe plus — l'utilisateur ne s'en apercevrait
+    qu'en ouvrant le lien, un soir où il comptait travailler.
+    """
+    probleme = _texte(payload, "probleme")
+    etapes = payload.get("etapes")
+    if not isinstance(etapes, list):
+        etapes = []
+
+    if probleme and not etapes:
+        raise QualityGateFailed(probleme, payload)
+
+    check_etapes(etapes, payload)
+    return {"etapes": etapes, "probleme": probleme}
+
+
+def check_etapes(etapes: list, payload: dict) -> None:
+    """Les contraintes du §4.5 sur une liste d'étapes. Lève, ou ne dit rien.
+
+    Partagée par l'entretien — qui écrit les étapes du premier bloc — et par
+    le découpage, qui écrit celles de tous les suivants. Deux copies de ces
+    règles auraient divergé au premier ajustement, et la roadmap se serait
+    mise à changer de qualité au milieu du parcours sans que rien ne le dise.
+    """
+    if len(etapes) < MIN_ETAPES:
+        raise QualityGateFailed(
+            f"{len(etapes)} étape(s) seulement. Découpe-les en au moins "
+            f"{MIN_ETAPES} étapes de 1 à 3 sessions chacune (§4.5)",
+            payload,
+        )
+    if len(etapes) > MAX_ETAPES:
+        raise QualityGateFailed(
+            f"{len(etapes)} étapes, maximum {MAX_ETAPES}. Ne garde QUE le premier "
+            f"jalon livrable et supprime le reste — rends au plus {MAX_ETAPES} "
+            "étapes. La suite sera ajoutée quand ce jalon sera fini (§4.5)",
+            payload,
+        )
+
+    ouvertes = [e for e in etapes if e.get("etat") != "done"]
+    if not ouvertes:
+        raise QualityGateFailed(
+            "toutes les étapes sont faites. Laisse au moins une étape en « todo » "
+            "ou « doing » : un projet actif doit avoir par quoi commencer (§4.5)",
+            payload,
+        )
+
+    en_cours = [e for e in etapes if e.get("etat") == "doing"]
+    if len(en_cours) > 1:
+        raise QualityGateFailed(
+            f"{len(en_cours)} étapes en « doing ». Une seule étape courante rend "
+            "la proposition du soir nette (§4.5)",
+            payload,
+        )
+
+    # Le point qui compte le plus, et le seul qu'un schéma ne sait pas exprimer.
+    # Une étape floue se relit tous les soirs pendant des semaines, et c'est le
+    # soir où l'on ne sait pas quoi faire qu'on fait autre chose.
+    for etape in etapes:
+        libelle = str(etape.get("libelle") or "").strip()
+        if len(libelle) < LONGUEUR_MINIMALE:
+            raise QualityGateFailed(
+                f"l'étape « {libelle} » est trop courte pour être exécutable. "
+                "Nomme le fichier, l'écran ou la fonction concernée (§4.5)",
+                payload,
+            )
+        bas = libelle.lower()
+        for flou in VERBES_FLOUS:
+            if bas.startswith(flou) or f" {flou} " in bas:
+                raise QualityGateFailed(
+                    f"l'étape « {libelle} » est floue : « {flou} » décrit une "
+                    "intention, pas une action. Réécris-la avec un verbe concret "
+                    "et l'objet précis, fichier ou écran nommé (§4.5)",
+                    payload,
+                )
+
+        if not str(etape.get("critere_sortie") or "").strip():
+            raise QualityGateFailed(
+                f"l'étape « {libelle} » n'a pas de critère de sortie. Écris ce "
+                "qui autorise à passer à la suite, et qu'on puisse constater "
+                "sans se juger soi-même (§4.5)",
+                payload,
+            )
+
+
+
 def check_entretien(payload: dict) -> dict:
     """Valide un tour d'entretien de projet (§4.5).
 
@@ -424,6 +524,44 @@ def check_entretien(payload: dict) -> dict:
     if not projet:
         raise QualityGateFailed("entretien déclaré fini sans projet", payload)
 
+    return {"fini": True, "question": "", **check_projet(projet, payload, exigeant=True)}
+
+
+def check_import(payload: dict) -> dict:
+    """Valide la relecture d'un markdown collé (§4.5).
+
+    **La porte est volontairement plus basse que celle de l'entretien.** Là-bas
+    le modèle *écrit* la roadmap, et on a le droit d'exiger qu'elle soit bonne :
+    un parcours creux se refuse, une étape floue se refuse. Ici il **transcrit**
+    un document que quelqu'un a déjà écrit, et refuser la transcription parce
+    que l'original est perfectible reviendrait à refuser le document — alors que
+    le seul chemin de secours est justement celui-là.
+
+    Ce qui est contrôlé, c'est donc la forme : des énumérations valides, une
+    vérification cohérente avec le chemin de dépôt, un markdown qui se relit. Le
+    reste — étapes trop grosses, roadmap déjà finie — devient un avertissement à
+    l'écran de confirmation, où la personne le voit et décide.
+    """
+    if not payload.get("lisible", True):
+        raise QualityGateFailed(
+            _texte(payload, "probleme") or "le document ne contient pas de quoi faire un projet",
+            payload,
+        )
+
+    projet = payload.get("projet")
+    if not isinstance(projet, dict):
+        raise QualityGateFailed("document déclaré lisible sans projet", payload)
+
+    return check_projet(projet, payload, exigeant=False)
+
+
+def check_projet(projet: dict, payload: dict, *, exigeant: bool) -> dict:
+    """Le contrôle commun aux deux chemins qui produisent un projet.
+
+    ``exigeant`` sépare ce qui relève de la **forme** — vrai partout — de ce qui
+    relève du **niveau de qualité** attendu d'une roadmap que le modèle a
+    écrite lui-même. Voir ``check_import`` pour la raison de cette séparation.
+    """
     from ..rules import roadmap_import, slots, verification
 
     nom = str(projet.get("nom") or "").strip()
@@ -461,56 +599,64 @@ def check_entretien(payload: dict) -> dict:
     if not isinstance(etapes, list):
         etapes = []
 
-    if len(etapes) < MIN_ETAPES:
-        raise QualityGateFailed(
-            f"{len(etapes)} étape(s) seulement. Découpe-les en au moins "
-            f"{MIN_ETAPES} étapes de 1 à 3 sessions chacune (§4.5)",
-            payload,
-        )
-    if len(etapes) > MAX_ETAPES:
-        raise QualityGateFailed(
-            f"{len(etapes)} étapes, maximum {MAX_ETAPES}. Ne garde QUE le premier "
-            f"jalon livrable et supprime le reste — rends au plus {MAX_ETAPES} "
-            "étapes. La suite sera ajoutée quand ce jalon sera fini (§4.5)",
-            payload,
-        )
-
-    ouvertes = [e for e in etapes if e.get("etat") != "done"]
-    if not ouvertes:
-        raise QualityGateFailed(
-            "toutes les étapes sont faites. Laisse au moins une étape en « todo » "
-            "ou « doing » : un projet actif doit avoir par quoi commencer (§4.5)",
-            payload,
-        )
-
-    en_cours = [e for e in etapes if e.get("etat") == "doing"]
-    if len(en_cours) > 1:
-        raise QualityGateFailed(
-            f"{len(en_cours)} étapes en « doing ». Une seule étape courante rend "
-            "la proposition du soir nette (§4.5)",
-            payload,
-        )
-
-    # Le point qui compte le plus, et le seul qu'un schéma ne sait pas exprimer.
-    # Une étape floue se relit tous les soirs pendant des semaines, et c'est le
-    # soir où l'on ne sait pas quoi faire qu'on fait autre chose.
-    for etape in etapes:
-        libelle = str(etape.get("libelle") or "").strip()
-        if len(libelle) < LONGUEUR_MINIMALE:
+    if not exigeant:
+        # Un document collé n'a qu'une obligation : contenir un projet.
+        if not etapes:
             raise QualityGateFailed(
-                f"l'étape « {libelle} » est trop courte pour être exécutable. "
-                "Nomme le fichier, l'écran ou la fonction concernée (§4.5)",
+                "aucune étape trouvée dans le document. Un projet a besoin d'au "
+                "moins une chose à faire",
                 payload,
             )
-        bas = libelle.lower()
-        for flou in VERBES_FLOUS:
-            if bas.startswith(flou) or f" {flou} " in bas:
+        markdown = roadmap_import.render(projet)
+        relu = roadmap_import.parse(markdown)
+        if not relu.valid:
+            raise QualityGateFailed(
+                "le markdown rendu n'est pas relisible : " + " ; ".join(relu.warnings),
+                payload,
+            )
+        return {"markdown": markdown, "parsed": relu}
+
+    check_etapes(etapes, payload)
+
+    # Le parcours. Un schéma sait exiger trois blocs ; il ne sait pas exiger que
+    # ces trois blocs disent quelque chose. Un parcours dont les blocs n'ont ni
+    # ressource ni critère est une table des matières : il donne l'impression
+    # d'un plan long sans en porter aucun.
+    parcours = projet.get("parcours")
+    if not isinstance(parcours, list):
+        parcours = []
+
+    if len(parcours) < MIN_BLOCS:
+        raise QualityGateFailed(
+            f"{len(parcours)} bloc(s) de parcours. Va jusqu'au bout de l'objectif "
+            f"annoncé : au moins {MIN_BLOCS} blocs ordonnés, chacun avec sa "
+            "ressource, sa charge et son critère de sortie. Un parcours court "
+            "réduit l'ambition de la personne à ce qui se prouve vite (§4.5)",
+            payload,
+        )
+
+    for bloc in parcours:
+        nom_bloc = str(bloc.get("nom") or "").strip() or "sans nom"
+        for champ, quoi in (("ressource", "ressource principale"), ("critere_sortie", "critère de sortie")):
+            if not str(bloc.get(champ) or "").strip():
                 raise QualityGateFailed(
-                    f"l'étape « {libelle} » est floue : « {flou} » décrit une "
-                    "intention, pas une action. Réécris-la avec un verbe concret "
-                    "et l'objet précis, fichier ou écran nommé (§4.5)",
+                    f"le bloc « {nom_bloc} » n'a pas de {quoi}. Un bloc sans "
+                    f"{quoi} n'est pas un plan, c'est un titre (§4.5)",
                     payload,
                 )
+
+    # L'adresse n'est pas exigée partout : une ressource peut être un livre, un
+    # club, un professeur. Elle est exigée de la **majorité** des blocs, parce
+    # qu'un parcours dont aucune ressource n'est joignable a été écrit de
+    # mémoire — et c'est précisément ce qu'on cherche à éviter.
+    avec_url = sum(1 for bloc in parcours if str(bloc.get("url") or "").strip())
+    if avec_url * 2 < len(parcours):
+        raise QualityGateFailed(
+            f"{avec_url} bloc(s) sur {len(parcours)} portent une adresse. Donne "
+            "l'adresse de chaque ressource qui en a une, vérifiée : une "
+            "ressource qu'on ne peut pas ouvrir ne se commence pas ce soir",
+            payload,
+        )
 
     markdown = roadmap_import.render(projet)
 
@@ -524,7 +670,7 @@ def check_entretien(payload: dict) -> dict:
             payload,
         )
 
-    return {"fini": True, "question": "", "markdown": markdown, "parsed": relu}
+    return {"markdown": markdown, "parsed": relu}
 
 
 # Ce qu'un assistant dit quand il croit avoir agi. C'est le mode de
@@ -623,6 +769,10 @@ def gate(task: Task, payload: dict, **contexte) -> dict:
         return check_debrief(payload)
     if task is Task.ENTRETIEN_PROJET:
         return check_entretien(payload)
+    if task is Task.IMPORT_MARKDOWN:
+        return check_import(payload)
+    if task is Task.DECOUPAGE:
+        return check_decoupage(payload)
     if task is Task.ASSISTANT:
         return check_assistant(payload, cles_connues=contexte["cles_connues"])
     return payload

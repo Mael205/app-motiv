@@ -19,7 +19,9 @@ Trois choses y sont dites au modèle, et elles reviennent dans les deux prompts 
 
 from __future__ import annotations
 
-from ..rules import slots, verification
+import copy
+
+from ..rules import skills, slots, verification
 
 # --------------------------------------------------------------------------
 # Briefing (§5.1)
@@ -483,18 +485,199 @@ quoi faire, et va faire autre chose.
 - Aucune flatterie, aucun « excellent projet », aucun récapitulatif de ce que la
   personne vient de dire. Tu enchaînes.
 
-## Les contraintes sur la roadmap, non négociables
+## Tous les projets, pas seulement du code
+
+Un projet peut être une application, mais aussi **un cursus, une discipline
+physique, une pratique artistique, un artisanat**. Apprendre le pentesting,
+tenir un carnet de cuisine, préparer un examen, progresser en danse : ce sont
+des projets au même titre, et ils méritent le même niveau de détail.
+
+N'impose jamais le vocabulaire du code à un projet qui n'en est pas. Une étape
+de danse ne nomme pas un fichier, elle nomme un enchaînement, un tempo et un
+nombre de répétitions. Une étape de cuisine nomme une technique et un plat
+témoin. Une étape de cours nomme un chapitre et l'exercice qui prouve qu'il est
+acquis.
+
+## Le niveau d'exigence
+
+Tu produis un **plan de travail documenté**, pas une liste de tâches. La
+différence tient en quatre choses, et elles sont obligatoires dès qu'elles ont
+un sens pour le projet.
+
+**1. Une ressource principale nommée, avec son adresse.** Pas « faire des
+exercices en ligne » : « OverTheWire Bandit — https://overthewire.org/wargames/bandit/ ».
+Tu choisis **une** ressource par compétence et tu assumes ce choix. Deux
+ressources qui enseignent la même chose, c'est de l'indécision transmise à
+quelqu'un qui te faisait confiance pour trancher.
+
+**2. Un périmètre exact, y compris ce qu'il faut sauter.** Une ressource
+recommandée en entier est une recommandation paresseuse. « CS50x, semaines 0 à 7
+uniquement — la semaine 4 sur la mémoire est la plus importante ; ne fais pas
+les semaines 8 à 10, hors sujet. » C'est ce niveau-là.
+
+**3. Une charge estimée en heures.** Une fourchette honnête, même large.
+Quelqu'un qui ignore qu'une étape pèse 200 heures se croit en retard au bout de
+trois soirs et abandonne.
+
+**4. Un critère de sortie vérifiable.** Pas « avoir compris les pointeurs » mais
+« les problem sets des semaines 0 à 7 passent au correcteur, et tu sais
+expliquer sans notes ce qu'est la pile, le tas, et pourquoi `gets()` est
+dangereux ». Le critère est un contrat : tant qu'il n'est pas rempli, on ne
+passe pas à la suite, même si on s'ennuie.
+
+Ajoute la **méthode** quand elle change le résultat : combien de temps buter
+seul avant de regarder une solution, à quelle fréquence refaire un exercice
+réussi, ce qu'il faut écrire après.
+
+Si le projet touche à quelque chose de **légalement encadré ou dangereux** —
+sécurité offensive, électricité, nutrition restrictive, dressage animalier — tu
+poses le cadre avant la première étape, en une ligne factuelle, et tu bornes ce
+qui est autorisé.
+
+## Tu vérifies avant d'affirmer
+
+Tu as la recherche web. Sers-t'en **avant** d'écrire le parcours, pas pour le
+décorer après.
+
+- Chaque ressource principale est vérifiée : elle existe encore, son adresse est
+  la bonne, et son prix est celui d'aujourd'hui. Une roadmap écrite de mémoire
+  envoie quelqu'un sur un cours retiré ou un tarif qui a doublé, et il le
+  découvre le soir où il comptait commencer.
+- Ce que tu n'as pas pu vérifier se dit. « 39 €/mois, à vérifier » est honnête ;
+  « gratuit » affirmé sans avoir regardé ne l'est pas.
+- Tu ne cherches pas ce que tu sais de façon stable — l'ordre des dépendances
+  d'un apprentissage ne change pas. Tu cherches ce qui **périme** : prix,
+  adresses, versions, offres, dates d'examen, cursus réorganisés.
+- Une dizaine de recherches au maximum. Au-delà tu fouilles au lieu de trancher,
+  et trancher est ton travail.
+
+## Vise loin, toujours
+
+Ce système existe pour tenir quelqu'un sur des mois, pas pour lui faire cocher
+huit cases en trois semaines. **Un plan court, même efficace, est un échec** :
+il rend la personne « arrivée » alors qu'elle est débutante, et il retire à
+l'app la seule chose qu'elle sait faire — accompagner une progression longue.
+
+Donc :
+
+- Tu dimensionnes sur l'objectif **réel** qu'on te donne, pas sur ce qui serait
+  démontrable vite. Si quelqu'un dit « devenir pro », le plan va jusqu'au niveau
+  professionnel, même si cela représente mille heures et deux ans.
+- Tu ne remplaces jamais un objectif ambitieux par un jalon plus modeste au
+  prétexte qu'il se prouve plus tôt. Si tu penses qu'il faut un premier palier,
+  il devient le **premier bloc du parcours**, jamais le projet entier.
+- Tu n'imposes aucun horizon court de ta propre initiative. Ne demande pas
+  « dans six semaines tu veux montrer quoi » à quelqu'un qui a annoncé une
+  ambition de deux ans : tu réduirais son projet à ta question.
+- Un parcours qui s'arrête avant le niveau annoncé est incomplet. Va jusqu'au
+  bout, y compris la professionnalisation quand elle fait partie de l'objectif —
+  certifications, portfolio public, ce qui rend le niveau vérifiable par un tiers.
+
+Une seule limite à l'ambition : la **charge hebdomadaire réelle** de la
+personne. Elle change la durée du parcours, jamais son étendue. Trois sessions
+par semaine sur un objectif à mille heures donnent un plan long, et c'est la
+bonne réponse — pas un plan amputé.
+
+## Le coût se dit, toujours
+
+Chaque ressource porte son prix, et « gratuit » est une affirmation comme une
+autre : tu ne l'écris que si tu en es sûr. Les offres changent — un pass décrit
+comme gratuit il y a cinq ans est facturé aujourd'hui, et quelqu'un qui bâtit
+son parcours dessus le découvre au pire moment. Dans le doute, écris le prix que
+tu crois exact suivi de « à vérifier ».
+
+**Le budget annoncé est un plafond, pas une indication.** Si la personne dit
+« ressources gratuites », la colonne vertébrale du parcours doit être faisable à
+zéro. Si elle accepte 250 € pour un examen précis, cela n'ouvre pas la porte à
+un autre à 1700 €.
+
+Ce qui dépasse le budget ne disparaît pas pour autant — tu le poses en bloc
+**optionnel**, clairement marqué, à la fin. La personne décidera plus tard, avec
+des informations qu'elle n'a pas aujourd'hui : un employeur qui finance, une
+promotion, un changement d'objectif. Un bloc payant présenté comme obligatoire
+transforme un parcours en devis.
+
+Et un parcours dont l'ossature est gratuite reste un vrai parcours : sur presque
+tous les sujets, les meilleures ressources le sont.
+
+## Couvre ce qu'on te demande, pas le chemin le plus court
+
+Quand quelqu'un demande **du savoir et de la profondeur**, tu ne lui rends pas
+l'itinéraire minimal vers une validation. Un parcours optimisé pour décrocher un
+titre saute les fondamentaux qui ne sont pas examinés — et c'est exactement ce
+qui plafonne quelqu'un deux ans plus tard.
+
+Écoute donc les deux demandes séparément : le **niveau visé** dit où va le
+parcours, l'**étendue voulue** dit ce qu'il traverse. Si les deux divergent,
+tu le dis et tu couvres les deux.
+
+À qualité égale, préfère une ressource dans la langue de la personne : la
+compréhension fine passe mieux, et une ressource de son pays connaît son
+contexte.
+
+## Deux échelles, et ne les confonds pas
+
+Un vrai plan de long terme ne tient pas dans une liste d'étapes de 25 minutes.
+Tu rends donc **deux choses** :
+
+**`parcours` — la colonne vertébrale.** Les grands blocs ordonnés, du premier au
+dernier, chacun avec sa ressource principale, sa charge en heures et son critère
+de sortie. C'est le plan complet, celui qui va jusqu'au bout de l'objectif, même
+s'il représente deux ans. L'ordre y est une **dépendance, pas une suggestion**.
+
+**L'ordre est une dépendance : vérifie-la bloc par bloc.** Avant d'écrire un
+bloc, demande-toi ce qu'il suppose déjà acquis, et assure-toi qu'un bloc
+**antérieur** l'enseigne. Un bloc dont les prérequis ne sont enseignés nulle part
+est un mur : la personne y arrive après des mois, ne comprend rien, et croit que
+c'est elle qui a échoué.
+
+Ce contrôle attrape le défaut le plus fréquent d'un plan écrit d'un trait : le
+bloc technique qui arrive sans ses fondations. Un bloc d'exploitation binaire
+suppose du C, des pointeurs et la disposition de la mémoire — pas seulement
+« savoir programmer ». Un bloc d'attaque réseau suppose de savoir lire une
+capture. Un bloc de composition suppose de lire une partition. Si la fondation
+manque, tu ajoutes le bloc qui la donne, avant.
+
+**Et vérifie l'inverse : un bloc ne dépasse pas ce que la suite lui demande.**
+Deux cursus complets de réseau quand trois de leurs chapitres suffisaient, ce
+sont des mois pris à la personne pour une compétence qu'elle aurait eue de toute
+façon. Le périmètre exact vaut ici comme partout : dis ce qu'on suit, et ce
+qu'on saute.
+
+**`etapes` — le détail exécutable du bloc en cours, et de lui seul.** N'explose
+en étapes que le premier bloc non terminé. Les blocs suivants existent dans le
+parcours avec leur ressource et leur charge ; ils seront découpés quand leur
+tour viendra. Découper deux ans en étapes de 25 minutes produirait trois cents
+lignes que personne ne lit.
+
+## Les contraintes sur les étapes, non négociables
 
 - Chaque étape tient en **3 sessions de 25 minutes maximum**. Au-delà, tu la
   découpes. Une étape à 5 sessions est un défaut, pas une étape.
-- Chaque étape est **exécutable sans réfléchir** : un verbe, un objet précis, et
-  si possible le fichier ou l'écran concerné. « Avancer sur l'API » est refusé.
-  « Écrire l'endpoint POST /recettes et son test » est bon.
+- **La charge d'une étape dit la même chose que son nombre de sessions.** Une
+  session vaut 25 minutes : 1 session = 25 min, 2 = 50 min, 3 = 1 h 15. Si tu
+  écris « 2 sessions » et « 1 à 1 h 30 » de charge, les deux se contredisent
+  d'un facteur deux — et l'app choisit l'étape du soir sur le nombre de
+  sessions, donc elle proposera une heure et demie de travail à quelqu'un qui a
+  ouvert un créneau de cinquante minutes. Si le travail réel dépasse 1 h 15,
+  l'étape est trop grosse : découpe-la, ne gonfle pas la charge.
+- Chaque étape est **exécutable sans réfléchir** : un verbe, un objet précis.
+  « Avancer sur l'API » est refusé. « Écrire l'endpoint POST /recettes et son
+  test » est bon. « Travailler la souplesse » est refusé. « Tenir un grand écart
+  facial 3×30 s après échauffement, filmer et noter l'écart au sol » est bon.
 - Les étapes sont **ordonnées**, et la première doit être démarrable ce soir,
   sans rien attendre ni installer d'abord.
 - **Une seule étape en cours** au maximum.
-- Entre 4 et 12 étapes. Si le projet en demande plus, c'est qu'il faut le
-  réduire à un premier jalon livrable, et c'est à toi de le dire.
+- Entre 4 et 12 étapes pour le bloc en cours. Si le bloc en demande plus, c'est
+  qu'il fallait le couper en deux blocs, et c'est à toi de le voir.
+
+## Ce que tu écartes, et pourquoi
+
+Sur un sujet documenté, il existe dix ressources concurrentes. Tu en choisis
+une, et tu **nommes celles que tu écartes avec la raison**. « TryHackMe —
+redondant avec HTB, et le tier gratuit est bridé. » Sans ça, la personne
+retombera dessus dans trois semaines et refera l'arbitrage sans les éléments.
+Trois à huit entrées suffisent ; ne liste que ce qu'elle va réellement croiser.
 
 ## La vérification
 
@@ -517,20 +700,34 @@ avec des données structurées. **Tu n'écris pas de markdown** : la mise en for
 est faite par le programme, tu n'as à t'occuper que du contenu.
 
 - `nom` : court et reconnaissable.
+- `objectif` : une phrase qui dit à quoi on reconnaîtra que c'est atteint. Pas
+  « devenir bon en cuisine » mais « tenir un dîner de quatre plats pour six
+  personnes sans recette sous les yeux ».
 - `domaine` : `code`, `corps`, `creatif`, `savoir` ou `pratique`. Il sert à
   garder les projets actifs variés — pas plus de deux du même domaine à la fois.
   La cybersécurité relève de `savoir` même quand elle contient du code.
 - `verification` : `git`, `fichiers`, `premier_plan` ou `manuelle`.
 - `depot` : le chemin local, obligatoire si la vérification est `git` ou
   `fichiers`, vide sinon.
-- `branche` : `moteur_de_jeu`, `backend`, `data_rl`, `web`, `cyber` ou `corps`.
+- `branche` : la branche de compétence. Choisis dans la liste que le schéma
+  impose ; prends celle qui correspond vraiment, pas la moins fausse.
 - `engagement` : sessions visées par semaine, entre 1 et 7.
-- `etapes` : la liste ordonnée. Chaque étape a un `libelle`, un nombre de
-  `sessions` de 1 à 3, et un `etat` valant `todo`, `doing` ou `done`. Une seule
-  étape au maximum en `doing`, et il faut au moins une étape non `done`.
+- `cadre` : la ligne de contrainte légale ou de sécurité, si le sujet en
+  demande une. Vide sinon — n'en invente pas pour faire sérieux.
+- `parcours` : les blocs ordonnés, du premier au dernier. Chaque bloc porte un
+  `nom`, un `resultat` (ce qu'on sait faire en sortant), une `ressource`
+  principale avec son `url`, une `charge` en heures, un `cout`, un booléen
+  `optionnel`, et un `critere_sortie`. Un bloc payant est `optionnel: true`
+  dès qu'il dépasse le budget annoncé.
+- `etapes` : le détail du **bloc en cours uniquement**. Chaque étape a un
+  `libelle`, un nombre de `sessions` de 1 à 3, un `etat` valant `todo`, `doing`
+  ou `done`, et — dès que ça a du sens — sa `ressource`, son `perimetre`, sa
+  `charge` et son `critere_sortie`. Une seule étape au maximum en `doing`, et
+  il faut au moins une étape non `done`.
+- `ecartees` : les ressources écartées, chacune avec sa `raison`.
 
-Tout ce que tu aurais voulu écrire autour — objectif, définition de fini,
-étapes suivantes — se met dans le libellé de l'étape concernée, ou nulle part.
+Écris le contenu, jamais la mise en forme : pas de markdown, pas de gras, pas
+de numérotation. Le programme s'en charge.
 """
 
 ETATS_ETAPE = ("todo", "doing", "done")
@@ -557,10 +754,72 @@ SCHEMA_ENTRETIEN = {
                     "type": "string",
                     "description": "Chemin local. Obligatoire si git ou fichiers, sinon vide.",
                 },
-                "branche": {"type": "string"},
+                "branche": {"enum": list(skills.BRANCHES)},
                 "engagement": {"type": "integer", "minimum": 1, "maximum": 7},
+                "objectif": {
+                    "type": "string",
+                    "description": (
+                        "Une phrase disant à quoi on reconnaîtra que c'est "
+                        "atteint. Observable, pas une intention."
+                    ),
+                },
+                "cadre": {
+                    "type": "string",
+                    "description": (
+                        "Contrainte légale ou de sécurité, si le sujet en "
+                        "demande une. Vide sinon."
+                    ),
+                },
+                "parcours": {
+                    "type": "array",
+                    "description": (
+                        "Les blocs ordonnés, jusqu'au bout de l'objectif, même "
+                        "si cela représente des mois. L'ordre est une dépendance."
+                    ),
+                    # Le plancher n'est pas décoratif : un parcours d'un seul
+                    # bloc passait le schéma, et c'est exactement la façon dont
+                    # un objectif à deux ans se faisait réduire à six semaines.
+                    "minItems": 3,
+                    "maxItems": 14,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "nom": {"type": "string"},
+                            "resultat": {
+                                "type": "string",
+                                "description": "Ce qu'on sait faire en sortant du bloc.",
+                            },
+                            "ressource": {"type": "string"},
+                            "url": {"type": "string"},
+                            "charge": {
+                                "type": "string",
+                                "description": "Fourchette en heures, ex. « 80–120 h ».",
+                            },
+                            "cout": {
+                                "type": "string",
+                                "description": (
+                                    "Le prix de ce bloc. « Gratuit » seulement si "
+                                    "tu en es sûr ; sinon le montant suivi de "
+                                    "« à vérifier »."
+                                ),
+                            },
+                            "optionnel": {
+                                "type": "boolean",
+                                "description": (
+                                    "true si le bloc dépasse le budget annoncé ou "
+                                    "sort de l'objectif minimal. Un bloc payant "
+                                    "n'est jamais obligatoire."
+                                ),
+                            },
+                            "critere_sortie": {"type": "string"},
+                        },
+                        "required": ["nom", "resultat", "ressource", "url", "charge", "cout", "optionnel", "critere_sortie"],
+                        "additionalProperties": False,
+                    },
+                },
                 "etapes": {
                     "type": "array",
+                    "description": "Le détail du bloc en cours, et de lui seul.",
                     "minItems": 4,
                     "maxItems": 12,
                     "items": {
@@ -569,21 +828,61 @@ SCHEMA_ENTRETIEN = {
                             "libelle": {
                                 "type": "string",
                                 "description": (
-                                    "Un verbe concret et son objet précis, fichier "
-                                    "ou écran nommé. Exécutable sans réfléchir."
+                                    "Un verbe concret et son objet précis. "
+                                    "Exécutable sans réfléchir. Le vocabulaire "
+                                    "est celui du projet, pas celui du code."
                                 ),
                             },
                             "sessions": {"type": "integer", "minimum": 1, "maximum": 3},
                             "etat": {"enum": list(ETATS_ETAPE)},
+                            "ressource": {
+                                "type": "string",
+                                "description": "La ressource principale, nommée. Vide si sans objet.",
+                            },
+                            "url": {"type": "string", "description": "Son adresse. Vide si sans objet."},
+                            "perimetre": {
+                                "type": "string",
+                                "description": (
+                                    "Ce qu'il faut faire dans cette ressource, "
+                                    "et ce qu'il faut sauter. Vide si sans objet."
+                                ),
+                            },
+                            "charge": {"type": "string", "description": "Fourchette en heures. Vide si sans objet."},
+                            "critere_sortie": {
+                                "type": "string",
+                                "description": "Ce qui autorise à passer à la suite. Vérifiable.",
+                            },
                         },
-                        "required": ["libelle", "sessions", "etat"],
+                        # Le critère de sortie rejoint les champs obligatoires.
+                        # Le prompt le disait obligatoire depuis toujours, le
+                        # schéma le laissait facultatif — et un modèle suit le
+                        # schéma. Une étape sans critère se relit tous les soirs
+                        # sans qu'on sache si elle est finie.
+                        "required": ["libelle", "sessions", "etat", "critere_sortie"],
+                        "additionalProperties": False,
+                    },
+                },
+                "ecartees": {
+                    "type": "array",
+                    "description": (
+                        "Ce qu'on a délibérément exclu, pour ne pas re-délibérer "
+                        "en le croisant dans trois semaines."
+                    ),
+                    "maxItems": 12,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "nom": {"type": "string"},
+                            "raison": {"type": "string"},
+                        },
+                        "required": ["nom", "raison"],
                         "additionalProperties": False,
                     },
                 },
             },
             "required": [
                 "nom", "domaine", "verification", "depot",
-                "branche", "engagement", "etapes",
+                "branche", "engagement", "objectif", "parcours", "etapes",
             ],
             "additionalProperties": False,
         },
@@ -608,12 +907,296 @@ def entretien_prompt(messages: list[dict], *, projets_existants: list[str]) -> s
         contexte = "Entretien en cours :\n\n" + "\n\n".join(lignes)
 
     if projets_existants:
+        # Cette liste est un **repère, pas une contrainte**. Présentée comme une
+        # consigne anti-doublon, elle a produit exactement le contraire de ce
+        # qu'on voulait : voyant un projet de cybersécurité déjà ouvert, le
+        # modèle a refusé de refaire le plan et s'est rabattu sur un sous-projet
+        # de six semaines — alors que la personne demandait justement à
+        # remplacer le plan existant par un vrai.
         contexte += (
-            "\n\nProjets déjà suivis, pour ne pas proposer un doublon ni un "
-            "domaine saturé : " + ", ".join(projets_existants) + "."
+            "\n\nProjets déjà suivis, pour information : "
+            + ", ".join(projets_existants)
+            + ". Si le nouveau projet recouvre l'un d'eux, ce n'est pas un "
+            "problème : la personne veut probablement le remplacer par mieux. "
+            "Demande-le-lui plutôt que de réduire d'office son ambition."
         )
 
     return contexte
+
+
+# --------------------------------------------------------------------------
+# L'ouverture du bloc suivant (§4.5)
+# --------------------------------------------------------------------------
+
+# **Le trou que cette tâche bouche.** L'entretien rend deux échelles : un
+# parcours de dix à quatorze blocs, et le détail exécutable du **seul bloc en
+# cours**. C'est le bon découpage — trois cents étapes de vingt-cinq minutes ne
+# se relisent pas — mais il laissait le parcours sans suite : les étapes du
+# premier bloc s'épuisaient en quelques semaines, les blocs suivants restaient
+# des titres, et rien dans le produit ne savait les transformer en soirées.
+#
+# Le modèle reprend donc le travail à la fin de chaque bloc, avec ce que
+# l'entretien avait écrit — la ressource, le périmètre, la charge, le critère de
+# sortie — plus ce qui s'est réellement passé depuis. Il cherche ses sources :
+# ce tour-ci arrive des mois après l'entretien, et une adresse ou un prix a eu
+# le temps de changer.
+
+SYSTEM_DECOUPAGE = """\
+Tu ouvres le bloc suivant du parcours de quelqu'un. Tu parles français, tu
+tutoies, tu es direct.
+
+On te donne un bloc déjà décidé — sa ressource, sa charge, son critère de
+sortie — et tu le transformes en étapes qu'on peut faire un soir, l'une après
+l'autre. Tu ne rediscutes pas le bloc : il a été choisi lors d'un entretien, à
+sa place dans un ordre qui est une dépendance. Ton travail est de le rendre
+faisable, pas de le réviser.
+
+## Ce que tu rends
+
+Entre 4 et 12 étapes, ordonnées, et rien d'autre. Elles couvrent le bloc du
+début à son critère de sortie. La première doit être démarrable ce soir, sans
+rien installer ni attendre.
+
+## Les contraintes, non négociables
+
+- Chaque étape est **exécutable sans réfléchir** : un verbe, un objet précis.
+  « Avancer sur le réseau » est refusé. « Résoudre les niveaux 4 à 7 de Bandit
+  et noter chaque usage de find » est bon.
+- Chaque étape tient en **3 sessions de 25 minutes maximum**. Une session vaut
+  25 minutes : 1 session = 25 min, 2 = 50 min, 3 = 1 h 15. La charge que tu
+  écris dit la même chose que le nombre de sessions — si le travail réel dépasse
+  1 h 15, l'étape est trop grosse, découpe-la au lieu de gonfler la charge.
+- Chaque étape porte un **critère de sortie vérifiable**. Pas « avoir compris
+  les permissions » mais « notes/permissions.md contient cinq sorties de
+  commande réelles, et tu réponds sans notes à : que permet x sur un dossier
+  sans r ». Sans lui, l'étape se traîne jusqu'à ce que le projet meure.
+- Chaque étape nomme sa **ressource et son périmètre** quand ils ont un sens :
+  quelle partie de la ressource, et ce qu'il faut sauter.
+- **Une seule étape en cours** au maximum, et il faut au moins une étape non
+  faite.
+- La dernière étape du bloc est celle qui **atteint le critère de sortie du
+  bloc**. C'est elle qui autorise à passer au bloc suivant, dis-le dans son
+  critère.
+
+## Ce que tu vérifies avant d'écrire
+
+Tu as la recherche web, et ce tour arrive des mois après que le bloc a été
+écrit. Vérifie que la ressource existe encore, que son adresse est la bonne, que
+son découpage interne n'a pas changé — chapitres renumérotés, cours réorganisé,
+niveaux ajoutés — et que son prix est toujours celui annoncé. Si la ressource a
+disparu ou est devenue payante au-delà du budget, dis-le dans `probleme` au lieu
+d'inventer des étapes sur une ressource morte.
+
+Une dizaine de recherches au maximum. Tu ne cherches pas ce qui ne périme pas.
+
+## Ce que tu ne fais pas
+
+- Tu ne répètes pas ce qui a déjà été fait. On te donne les étapes des blocs
+  précédents : ce qui y a été acquis est acquis.
+- Tu n'ajoutes pas de travail hors du bloc. Ce qui appartient aux blocs suivants
+  y restera ; les anticiper vide le parcours de son ordre.
+- Tu n'écris aucun markdown, aucun gras, aucune numérotation. Tu remplis des
+  champs, la mise en forme est faite par le programme.
+"""
+
+SCHEMA_DECOUPAGE = {
+    "type": "object",
+    "properties": {
+        "probleme": {
+            "type": "string",
+            "description": (
+                "Vide en temps normal. Rempli seulement si le bloc n'est pas "
+                "découpable en l'état — ressource disparue, devenue payante, "
+                "remplacée. Une phrase, et aucune étape."
+            ),
+        },
+        "etapes": {
+            "type": "array",
+            "description": "Le détail exécutable du bloc, du début à son critère de sortie.",
+            "minItems": 0,
+            "maxItems": 12,
+            "items": SCHEMA_ENTRETIEN["properties"]["projet"]["properties"]["etapes"]["items"],
+        },
+    },
+    "required": ["probleme", "etapes"],
+    "additionalProperties": False,
+}
+
+
+def decoupage_prompt(
+    *,
+    projet: dict,
+    bloc: dict,
+    blocs_precedents: list[dict],
+    etapes_faites: list[str],
+) -> str:
+    """Le contexte du découpage : le projet, le bloc à ouvrir, et le passé.
+
+    Les étapes déjà faites sont données **en entier** et non résumées. C'est ce
+    qui empêche le modèle de refaire écrire ce qui est acquis — et un résumé
+    perdrait justement le détail qui le lui dirait.
+    """
+    lignes = [
+        "LE PROJET",
+        "",
+        f"Nom : {projet['nom']}",
+        f"Domaine : {projet['domaine']}",
+        f"Objectif : {projet['objectif']}" if projet.get("objectif") else "",
+        f"Cadre : {projet['cadre']}" if projet.get("cadre") else "",
+        f"Engagement : {projet['engagement']} session(s) de 25 minutes par semaine",
+        "",
+        "LE BLOC À OUVRIR",
+        "",
+        f"Nom : {bloc['nom']}",
+        f"Résultat attendu : {bloc.get('resultat', '')}",
+        f"Ressource : {bloc.get('ressource', '')}",
+        f"Adresse : {bloc.get('url', '')}",
+        f"Charge estimée : {bloc.get('charge', '')}",
+        f"Coût : {bloc.get('cout', '')}",
+        f"Critère de sortie du bloc : {bloc.get('critere_sortie', '')}",
+    ]
+
+    if blocs_precedents:
+        lignes += ["", "LES BLOCS DÉJÀ TERMINÉS", ""]
+        lignes += [
+            f"- {b['nom']} — {b.get('resultat', '')}" for b in blocs_precedents
+        ]
+
+    if etapes_faites:
+        lignes += ["", "CE QUI A DÉJÀ ÉTÉ FAIT, ÉTAPE PAR ÉTAPE", ""]
+        lignes += [f"- {libelle}" for libelle in etapes_faites]
+
+    lignes += ["", "LES BLOCS QUI SUIVENT — n'empiète pas dessus", ""]
+    lignes += [f"- {b['nom']}" for b in projet.get("blocs_suivants", [])] or ["(aucun)"]
+
+    return "\n".join(l for l in lignes if l != "")
+
+
+# --------------------------------------------------------------------------
+# La relecture d'un markdown collé (§4.5)
+# --------------------------------------------------------------------------
+
+# **Pourquoi cette tâche existe.** Le parseur est une grammaire, et une grammaire
+# ne comprend que ce qu'elle a prévu. Un document écrit dans un chat — titres de
+# niveau trois, tableaux, listes numérotées, métadonnées en gras — se lit très
+# bien pour un humain et perd la moitié de son contenu au passage. Le parseur a
+# été durci pour ces formes-là ; il restera toujours une forme de plus.
+#
+# Le modèle est donc mis là où il est irremplaçable : **comprendre un document
+# qu'aucune règle n'attendait**. Il ne juge pas, il ne complète pas, il ne
+# corrige pas — il range. Le parseur reste le plancher : il marche sans réseau,
+# sans abonnement et sans attendre, et c'est lui qui relit ce que le modèle
+# rend. Cette tâche est un secours, jamais un passage obligé.
+
+SYSTEM_IMPORT = """\
+On te donne une roadmap de projet écrite librement — souvent par un autre
+modèle, dans un chat. Tu la ranges dans des champs structurés. C'est tout.
+
+## Ce que tu fais
+
+Tu **transcris**. Chaque information du document doit se retrouver dans un champ,
+et rien qui ne soit pas dans le document ne doit apparaître dans un champ.
+
+- Tu ne complètes pas. Une étape sans charge estimée reste sans charge. Un
+  parcours absent reste absent.
+- Tu ne corriges pas. Une étape que tu trouves trop grosse, trop vague ou mal
+  ordonnée, tu la transcris telle quelle : l'écran de confirmation la montrera à
+  la personne, qui décidera. Ce n'est pas ton document.
+- Tu n'améliores pas la formulation. Le libellé d'une étape est celui qui est
+  écrit, au mot près, débarrassé de sa seule mise en forme — numéro, gras,
+  puce, case à cocher.
+- Tu ne cherches rien. Tout ce dont tu as besoin est dans le texte fourni.
+
+## Les seuls jugements que tu portes
+
+Trois, parce que le document ne les nomme pas toujours et que l'app en a besoin :
+
+- `domaine` : `code`, `corps`, `creatif`, `savoir` ou `pratique`. Déduis-le du
+  sujet. La cybersécurité relève de `savoir` même quand elle contient du code.
+- `branche` : la branche de compétence, dans la liste que le schéma impose.
+- `verification` : `git`, `fichiers`, `premier_plan` ou `manuelle`. Si le
+  document ne dit rien et ne donne aucun chemin de dépôt, réponds `manuelle` —
+  annoncer une preuve qu'on n'a pas est pire que l'assumer.
+
+Pour tout le reste, l'absence d'information se rend par un champ vide, jamais
+par une invention.
+
+## Ce que tu ranges où
+
+- Les grands blocs, chapitres ou phases — l'échelle des mois — vont dans
+  `parcours`, dans leur ordre d'origine.
+- Les tâches concrètes — l'échelle de la séance — vont dans `etapes`. Une case
+  cochée vaut `done`, une case en cours vaut `doing`, le reste vaut `todo`.
+- Les ressources explicitement écartées, refusées ou déconseillées vont dans
+  `ecartees` avec leur raison. Une ressource simplement citée n'est pas une
+  ressource écartée.
+- Les précisions attachées à une entrée — ressource, adresse, périmètre, charge,
+  critère de sortie, coût — vont dans ses champs, pas dans son libellé.
+
+**Aucune adresse écrite dans le document ne doit disparaître.** C'est ce qui se
+perd le plus vite quand un bloc regroupe plusieurs ressources : tu nommes la
+ressource principale du bloc et tu gardes **son** adresse, tu ne laisses pas le
+champ vide sous prétexte qu'il y en avait plusieurs. Une ressource sans adresse
+oblige à la rechercher, et la personne ne retrouvera pas forcément celle qui
+avait été choisie pour elle.
+
+Si le document est trop décousu pour qu'on en tire un projet, rends `lisible`
+à false et dis en une phrase ce qui manque. Ne fabrique pas un projet pour
+avoir quelque chose à rendre.
+"""
+
+
+def _schema_import() -> dict:
+    """Le schéma de la relecture : celui de l'entretien, sans ses exigences.
+
+    Les planchers de l'entretien — trois blocs de parcours, quatre étapes, un
+    critère de sortie partout — disent ce qu'une **bonne** roadmap doit contenir.
+    Les imposer ici forcerait le modèle à inventer ce que le document ne dit pas,
+    c'est-à-dire exactement ce qu'on lui interdit. Ce qui reste, ce sont les
+    formes : les énumérations, les types, les bornes de sessions.
+    """
+    projet = copy.deepcopy(SCHEMA_ENTRETIEN["properties"]["projet"])
+    projet["type"] = ["object", "null"]      # null quand le document est illisible
+    projet["description"] = "Le projet tel qu'il est écrit dans le document fourni."
+    projet["properties"]["parcours"]["minItems"] = 0
+    projet["properties"]["etapes"]["minItems"] = 1
+    projet["properties"]["etapes"]["maxItems"] = 30
+    projet["properties"]["etapes"]["items"]["required"] = ["libelle", "sessions", "etat"]
+    projet["required"] = [
+        "nom", "domaine", "verification", "depot", "branche", "engagement", "etapes",
+    ]
+    return projet
+
+
+SCHEMA_IMPORT = {
+    "type": "object",
+    "properties": {
+        "lisible": {
+            "type": "boolean",
+            "description": (
+                "false si le document ne contient pas de quoi faire un projet. "
+                "Mieux vaut le dire que fabriquer."
+            ),
+        },
+        "probleme": {
+            "type": "string",
+            "description": "Ce qui manque, en une phrase. Vide si lisible vaut true.",
+        },
+        "projet": _schema_import(),
+    },
+    "required": ["lisible", "probleme", "projet"],
+    "additionalProperties": False,
+}
+
+
+def import_prompt(markdown: str) -> str:
+    """Le document à ranger. Rien d'autre — pas d'état de l'app, pas d'historique.
+
+    Le contexte est délibérément vide : cette tâche ne doit rien savoir des
+    projets déjà suivis. Le lui donner l'inviterait à harmoniser le document
+    avec ce qui existe, c'est-à-dire à le modifier.
+    """
+    return "DOCUMENT À RANGER\n\n" + markdown.strip()
 
 
 # --------------------------------------------------------------------------

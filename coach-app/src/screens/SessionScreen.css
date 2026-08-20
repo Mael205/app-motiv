@@ -79,6 +79,28 @@
   50% { opacity: 0.55; }
 }
 
+/* L'objectif annoncé, sous l'anneau. Petit, gris, et toujours là : c'est un
+   rappel de ce qu'on a promis, pas une seconde horloge. */
+.session__objectif {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.session__objectif .num {
+  color: var(--text);
+}
+
+/* Prolonger est **subordonné** à « terminer ». La hiérarchie est la même que
+   celle des durées au démarrage : l'action principale domine, les autres
+   restent accessibles sans se disputer l'œil. Le §11.1 vaut aussi ici — un
+   écran de session ne porte qu'une décision, continuer ou clôturer. */
+.session__extend {
+  align-self: center;
+  font-size: 13px;
+}
+
 .session__abandon {
   align-self: center;
 }
@@ -91,21 +113,9 @@
   gap: 6px;
 }
 
-.field textarea {
-  padding: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--line);
-  outline: none;
-  resize: vertical;
-}
-
-.field textarea:focus {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-}
+/* Le champ vient de theme.css — c'était le troisième `textarea` du dépôt à
+   redéclarer son fond, sa bordure et son focus, chacun avec des valeurs
+   légèrement différentes. */
 
 .session__error {
   font-size: 13px;
@@ -125,6 +135,15 @@
   line-height: 1;
   color: var(--gold);
   text-shadow: 0 0 40px rgba(232, 163, 61, 0.55);
+}
+
+/* L'objectif relu à la clôture. Deux nombres et un verbe : le §17 interdit le
+   jugement, et « seulement » ou « déjà » sont des jugements. */
+.result__objectif {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
 }
 
 .result__lines {
@@ -207,8 +226,8 @@
  * Rien ne clignote : un critique est une bonne nouvelle rare, pas une alarme,
  * et ce qui clignote finit par se faire ignorer comme une alarme. */
 .result__xp-value--crit {
-  color: var(--or, #E8A33D);
-  text-shadow: 0 0 24px color-mix(in srgb, var(--or, #E8A33D) 55%, transparent);
+  color: var(--or);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--or) 55%, transparent);
 }
 
 .result__crit {
@@ -217,15 +236,56 @@
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--or, #E8A33D);
+  color: var(--or);
 }
 
 .result__crit-line span:last-child {
-  color: var(--or, #E8A33D);
+  color: var(--or);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .result__xp-value--crit {
     text-shadow: none;
   }
+}
+
+/* La difficulté ressentie : la seule question du système qui porte sur la
+   qualité. Trois boutons, pas d'échelle numérique — « 7 sur 10 » demande de
+   réfléchir à une note, et à ce moment-là de la soirée personne ne réfléchit. */
+.difficulte {
+  display: grid;
+  gap: 6px;
+}
+
+.difficulte__choix {
+  display: flex;
+  gap: 8px;
+}
+
+.difficulte__bouton {
+  flex: 1 1 0;
+  padding: 9px 6px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.difficulte__bouton--actif {
+  border-color: color-mix(in srgb, var(--project) 60%, transparent);
+  color: var(--text);
+  background: color-mix(in srgb, var(--project) 10%, transparent);
+}
+
+/* La phrase qui rend la réponse honnête possible. Elle a l'air d'un détail et
+   c'est le cœur de la mécanique : une déclaration qui coûte quelque chose est
+   une déclaration qu'on optimise. */
+.difficulte__note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  opacity: 0.75;
 }

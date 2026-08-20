@@ -25,9 +25,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Les cinq branches du §12.9. Les clés sont celles du champ ``Project.branch``,
-# et le lien entre un projet et sa branche est une donnée du projet, pas une
-# déduction depuis son nom.
+# Les branches techniques du §12.9. Les clés sont celles du champ
+# ``Project.branch``, et le lien entre un projet et sa branche est une donnée du
+# projet, pas une déduction depuis son nom.
 MOTEUR_DE_JEU = "moteur_de_jeu"
 CYBER = "cyber"
 BACKEND = "backend"
@@ -35,7 +35,21 @@ DATA_RL = "data_rl"
 CORPS = "corps"
 WEB = "web"
 
-BRANCHES = (MOTEUR_DE_JEU, CYBER, BACKEND, DATA_RL, WEB, CORPS)
+# Les branches non techniques. L'arbre ne couvrait que du code et du corps, ce
+# qui forçait un projet de cuisine ou de danse à se déclarer « backend » pour
+# exister. Une branche fausse fausse tout ce qui en dérive — les heures
+# cumulées, le palier, le titre —, et le §12.9 veut que quarante heures
+# dispersées sur trois projets d'une même discipline restent quarante heures de
+# cette discipline. Trois entrées suffisent : elles couvrent ce qui ne rentrait
+# nulle part sans ouvrir un catalogue que personne ne maintiendrait.
+SAVOIR = "savoir"          # cursus, cours, révisions, langues
+ARTISANAT = "artisanat"    # cuisine, travail manuel, réparation
+SCENE = "scene"            # danse, musique, jeu, prise de parole
+
+BRANCHES = (
+    MOTEUR_DE_JEU, CYBER, BACKEND, DATA_RL, WEB, CORPS,
+    SAVOIR, ARTISANAT, SCENE,
+)
 
 BRANCH_LABELS = {
     MOTEUR_DE_JEU: "Moteur de jeu",
@@ -44,6 +58,9 @@ BRANCH_LABELS = {
     DATA_RL: "Data & RL",
     WEB: "Web & interface",
     CORPS: "Corps",
+    SAVOIR: "Savoir & cursus",
+    ARTISANAT: "Artisanat & cuisine",
+    SCENE: "Scène & interprétation",
 }
 
 # Chaque branche porte une couleur pour que l'arbre se lise d'un coup d'œil,
@@ -55,6 +72,9 @@ BRANCH_COLORS = {
     DATA_RL: "#5FA8DE",
     WEB: "#DE5F7E",
     CORPS: "#7ED08C",
+    SAVOIR: "#C9A227",
+    ARTISANAT: "#D2764A",
+    SCENE: "#B06FD0",
 }
 
 # Les paliers du §12.9, en heures cumulées. La progression est délibérément
@@ -72,6 +92,9 @@ TITLES: dict[str, tuple[str, ...]] = {
     DATA_RL: ("Observateur", "Statisticien", "Dresseur", "Modeleur", "Théoricien", "Oracle"),
     WEB: ("Maquettiste", "Façonneur", "Compositeur", "Metteur en scène", "Styliste du réel", "Vitrail"),
     CORPS: ("Debout", "Régulier", "Endurant", "Aguerri", "Increvable", "Airain"),
+    SAVOIR: ("Lecteur", "Étudiant", "Praticien", "Érudit", "Spécialiste", "Autorité"),
+    ARTISANAT: ("Apprenti", "Tourne-main", "Façonnier", "Compagnon", "Maître d'œuvre", "Main sûre"),
+    SCENE: ("Débutant", "Répétiteur", "Exécutant", "Interprète", "Soliste", "Présence"),
 }
 
 # Un emblème par palier, commun à toutes les branches : la forme dit le niveau,

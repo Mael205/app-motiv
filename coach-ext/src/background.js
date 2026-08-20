@@ -26,12 +26,44 @@ import { redirection, surfaceMasquee } from './blocking.js'
 const api = globalThis.browser ?? globalThis.chrome
 
 const FLUSH_ALARM = 'coach-flush'
-const FLUSH_MINUTES = 5
+// Une minute, pas cinq. C'est le minimum qu'acceptent les alarmes, et
+// l'attente n'achetait rien : le tampon vit maintenant dans le stockage, donc
+// rien ne se perd entre deux envois. Cinq minutes rendaient surtout le
+// diagnostic impossible — on ne sait pas si ça ne marche pas ou si ça n'a pas
+// encore eu lieu.
+const FLUSH_MINUTES = 1
 const IDLE_SECONDS = 120
+
+/* La mesure vit dans le stockage, pas en mémoire.
+ *
+ * **Le défaut que ça corrige.** En manifeste V3, le script de fond est une
+ * page d'événements : le navigateur la suspend dès qu'elle ne fait rien, et la
+ * relance au prochain événement. Toutes les variables de module repartent
+ * alors de zéro. Le tampon des minutes se vidait donc régulièrement **avant**
+ * l'alarme des cinq minutes, et l'envoi ne partait jamais — sans erreur, sans
+ * trace, puisqu'il n'y avait plus rien à envoyer.
+ *
+ * Les trois valeurs sont donc relues avant chaque usage et réécrites après
+ * chaque modification. Le coût est négligeable — quelques écritures par minute
+ * — et c'est la seule façon de survivre à une suspension.
+ */
+const ETAT_MESURE = 'coach-mesure'
 
 let current = { category: AUTRE, since: Date.now() }
 let buffer = {}
 let bufferSince = Date.now()
+
+async function chargerMesure() {
+  const stocke = (await api.storage.local.get(ETAT_MESURE))[ETAT_MESURE]
+  if (!stocke) return
+  buffer = stocke.buffer || {}
+  bufferSince = stocke.bufferSince || Date.now()
+  current = stocke.current || { category: AUTRE, since: Date.now() }
+}
+
+async function sauverMesure() {
+  await api.storage.local.set({ [ETAT_MESURE]: { buffer, bufferSince, current } })
+}
 
 async function settings() {
   const stored = await api.storage.local.get(['apiUrl', 'token', 'rules'])
@@ -43,16 +75,19 @@ async function settings() {
 }
 
 /** Ferme la tranche en cours et en ouvre une nouvelle. */
-function accumulate(nextCategory) {
+async function accumulate(nextCategory) {
   const now = Date.now()
   const elapsed = now - current.since
   if (elapsed > 0 && current.category !== AUTRE) {
     buffer[current.category] = (buffer[current.category] || 0) + elapsed
   }
   current = { category: nextCategory, since: now }
+  await sauverMesure()
 }
 
 async function refresh() {
+  await chargerMesure()
+
   const state = await api.idle.queryState(IDLE_SECONDS)
   if (state !== 'active') return accumulate(AUTRE)
 
@@ -60,11 +95,18 @@ async function refresh() {
   if (!tab || !tab.url) return accumulate(AUTRE)
 
   const { rules } = await settings()
-  accumulate(categoryOf(tab.url, rules))
+  await accumulate(categoryOf(tab.url, rules))
+
+  // Dès qu'une minute pleine existe, elle part. L'attente n'apportait rien —
+  // le serveur reçoit de toute façon une fenêtre horaire, pas un instant — et
+  // elle coûtait cher : tant qu'aucun envoi n'a eu lieu, il est impossible de
+  // distinguer « ça ne marche pas » de « ça n'a pas encore eu lieu ».
+  if (toEntries(buffer).length > 0) await flush()
 }
 
 async function flush() {
-  accumulate(current.category)          // ferme la tranche sans changer d'état
+  await chargerMesure()
+  await accumulate(current.category)    // ferme la tranche sans changer d'état
   const entries = toEntries(buffer)
   if (entries.length === 0) return
 
@@ -92,6 +134,7 @@ async function flush() {
     if (!response.ok) return             // on garde le tampon pour le prochain envoi
     buffer = {}
     bufferSince = Date.now()
+    await sauverMesure()
     await api.storage.local.set({ lastFlush: new Date().toISOString(), lastError: '' })
   } catch {
     // Serveur éteint : le tampon reste, rien n'est perdu.
@@ -154,6 +197,19 @@ async function bloqueMaintenant() {
 api.runtime.onMessage.addListener((message, _sender, repondre) => {
   if (!message) return false
 
+  if (message.type === 'coach-envoyer') {
+    // Le bouton du panneau. Il ne sert pas qu'au confort : sans lui, vérifier
+    // qu'une sonde fonctionne demande d'attendre sans savoir combien de temps,
+    // ce qui est la pire façon de diagnostiquer quoi que ce soit.
+    refresh()
+      .then(() => flush())
+      .then(async () => {
+        const { lastFlush, lastError } = await api.storage.local.get(['lastFlush', 'lastError'])
+        repondre({ lastFlush: lastFlush || '', lastError: lastError || '' })
+      })
+    return true
+  }
+
   if (message.type === 'coach-etat') {
     // Le panneau demande l'état pour l'afficher : il ne parle d'aucune page.
     bloqueMaintenant().then((arme) => repondre({ arme }))
@@ -184,3 +240,31 @@ api.runtime.onStartup.addListener(() => {
   api.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
 })
 api.alarms.onAlarm.addListener((alarm) => alarm.name === FLUSH_ALARM && flush())
+
+/** Pose l'alarme **seulement si elle n'existe pas déjà.**
+ *
+ * Le test d'existence n'est pas une précaution, c'est la correction d'un défaut
+ * qui empêchait tout envoi. `alarms.create` **remplace** l'alarme du même nom
+ * et remet son minuteur à zéro. Or la page d'événements se réveille à chaque
+ * message du panneau ou d'un onglet, soit toutes les une ou deux minutes : une
+ * alarme recréée à chaque réveil n'atteignait jamais son échéance, et ne
+ * sonnait donc jamais.
+ *
+ * Poser l'alarme au chargement reste nécessaire — `onInstalled` et `onStartup`
+ * ne repassent jamais après une suspension. Il fallait les deux : la poser, et
+ * ne pas la reposer.
+ */
+async function assurerLAlarme() {
+  const existante = await api.alarms.get(FLUSH_ALARM)
+  if (!existante) api.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_MINUTES })
+}
+
+assurerLAlarme()
+
+/* `refresh()` au chargement. Sans lui, la catégorie courante reste « autre »
+ * jusqu'au premier changement d'onglet : rester une heure sur la même page de
+ * documentation ne comptait rien du tout. C'est le cas le plus fréquent quand
+ * on travaille, et celui qu'on ne remarque jamais — il ne produit pas une
+ * mesure fausse mais une absence de mesure.
+ */
+refresh()

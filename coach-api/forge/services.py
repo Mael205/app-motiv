@@ -7,11 +7,12 @@ règles, et d'écrire le résultat.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+import random
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import Count, F, Max, Sum, Value
+from django.db.models import Count, F, Max, Min, Sum, Value
 from django.db.models.functions import Greatest
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -21,11 +22,14 @@ from .models import (
     Ascendance,
     Commitment,
     DayOff,
+    DiscardedResource,
     Garde,
     GardeDay,
     JournalEntry,
     Profile,
+    Preuve,
     Project,
+    ProjectBloc,
     ProjectHold,
     ProjectRepo,
     Quest,
@@ -38,16 +42,20 @@ from .models import (
     SeasonBoss,
     Session,
     Signal,
+    TimeSlot,
     Track,
 )
 from . import achievements, filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
 from .rules import contract as contract_rules
+from .rules import capacite as capacite_rules
 from .rules import corps as corps_rules
+from .rules import creneau as creneau_rules
 from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
+from .rules import sommeil as sommeil_rules
 from .rules import modifiers as modifier_rules
 from .rules import ranks as rank_rules
 from .rules import roadmap_import
@@ -66,6 +74,17 @@ from .rules.calendar import coach_day, day_bounds, evening_window, week_start
 
 FLOOR_MINUTES = streak_rules.FLOOR_MINUTES
 DEGRADED_MINUTES = 10
+
+# Ce qu'un « +15 min » ajoute à l'objectif d'une séance en cours (§4.1).
+EXTENSION_MINUTES = 15
+
+# Le plafond dur d'une séance. Il n'est **pas** un jugement sur la durée : c'est
+# le garde-fou du §8.7 pour le cas que la sonde ne couvre pas. Une session
+# oubliée toute une nuit et clôturée au matin ne doit pas créditer huit heures
+# de travail — le §17 interdit de récompenser du temps qui n'a pas été
+# travaillé, et c'est la seule faute que ce module puisse commettre en silence.
+# Quatre heures : au-delà, ce n'est plus une séance, c'est un oubli.
+MAX_SESSION_MINUTES = 240
 
 
 # --------------------------------------------------------------------------
@@ -392,6 +411,63 @@ def streak_state(user, track: Track, *, today: date) -> streak_rules.StreakState
 # Saison
 # --------------------------------------------------------------------------
 
+def _position_dans_la_voie(user, season: Season) -> int:
+    """Combien de saisons de cette voie ont précédé celle-ci."""
+    return Season.objects.filter(
+        user=user, voie=season.voie or season_rules.VOIE_CIMES, index__lt=season.index
+    ).count()
+
+
+def prochaine_voie(user) -> tuple[str, int]:
+    """La voie de la prochaine saison, et la position qu'elle y occupe (§12.2).
+
+    La voie descend du **résultat de la dernière saison close** : tenue, on
+    monte ; ratée, on descend aux braises. La position est le nombre de saisons
+    déjà passées sur cette voie-là — chacune avance à son rythme, et c'est ce
+    qui fait qu'une année en dents de scie raconte une suite au lieu d'un
+    tirage.
+
+    La saison d'essai est exclue des deux comptes : elle ne raconte rien et ne
+    doit pas décider de ce qui vient (même règle qu'au boss).
+    """
+    closes = [
+        s
+        for s in Season.objects.filter(user=user, status=Season.CLOSED).order_by("index")
+        if not season_rules.est_essai(s.index)
+    ]
+    derniere = closes[-1] if closes else None
+    voie = season_rules.voie_apres(derniere.reussie if derniere else None)
+    position = sum(1 for s in closes if s.voie == voie)
+    return voie, position
+
+
+def puissance_de_saison(user, season: Season) -> int:
+    """Ce que la saison précédente pèse, pour dimensionner le boss suivant.
+
+    **Les dégâts réellement infligés, pas les minutes seules** (corrigé le
+    20 août 2026). Le §12.4 dimensionne le boss sur « la performance de la
+    saison précédente × 1,05 », et cette performance était lue comme la somme
+    des minutes. Or les dégâts viennent aussi des étapes de roadmap — soixante
+    points chacune — et des engagements tenus. Un boss de 1800 abattu avec 600
+    minutes de session produisait donc un boss suivant à **630 points**, soit
+    dix heures là où le précédent en demandait trente. Et le suivant encore
+    moins : la courbe s'effondrait d'une saison à l'autre, exactement à
+    l'inverse de ce que le ×1,05 promet.
+
+    Les dégâts sont plafonnés à la vie du boss : le dernier coup dépasse presque
+    toujours, et compter le débordement ferait monter la barre d'un hasard.
+    """
+    minutes = (
+        Session.objects.filter(user=user, season=season, status=Session.DONE).aggregate(
+            total=Sum("actual_minutes")
+        )["total"]
+        or 0
+    )
+    boss = getattr(season, "boss", None)
+    degats = min(boss.damage_taken, boss.max_hp) if boss else 0
+    return max(minutes, degats)
+
+
 def current_season(user, *, today: date) -> Season | None:
     return (
         Season.objects.filter(user=user, status=Season.RUNNING, starts_on__lte=today)
@@ -409,9 +485,23 @@ def open_season(
     modifier_key: str = "",
     phantom_choice: str = "",
     contract_sessions_per_week: int = 0,
+    essai: bool = False,
+    ends_on: date | None = None,
 ) -> Season:
     """Ouvre une saison. ``modifier_key`` et ``phantom_choice`` viennent des
     choix faits à l'écran d'ouverture (§12.5, §12.7) ; vides, le plan décide.
+
+    ``essai`` ouvre une **saison d'essai** : index 0, mise à zéro, et exclue de
+    toute comparaison ultérieure. Elle sert aux premiers jours, ceux où l'on
+    règle ses créneaux et où l'on rate une soirée pour une mauvaise raison.
+    Ces jours-là doivent exister — le travail fait y compte, l'XP est gardée —
+    mais ils ne doivent **rien fixer** : le boss de la saison suivante se
+    dimensionne sur le score précédent, et le fantôme se choisit parmi les
+    saisons passées. Une période d'apprentissage rangée parmi les vraies
+    resterait un adversaire trop faible pour toujours.
+
+    ``ends_on`` raccourcit la saison. Réservé à l'essai : une vraie saison dure
+    28 jours et cette durée est une règle (§12.1), pas un réglage.
 
     Les deux sont pris **avant** de créer le boss et la mise, parce que le
     modificateur les dimensionne tous les deux. Les appliquer après coup
@@ -419,15 +509,16 @@ def open_season(
     inverse qui finit par diverger.
     """
     previous = Season.objects.filter(user=user).order_by("-index").first()
-    index = (previous.index + 1) if previous else 1
+    index = season_rules.ESSAI_INDEX if essai else ((previous.index + 1) if previous else 1)
     previous_score = None
+    # Une saison d'essai ne dimensionne aucun boss. Sinon les quelques jours
+    # passés à comprendre le système fixeraient la barre de la première vraie
+    # saison, et la fixeraient trop bas — pour toujours, puisque chaque saison
+    # se compare à la précédente.
+    if previous and season_rules.est_essai(previous.index):
+        previous = None
     if previous:
-        previous_score = (
-            Session.objects.filter(user=user, season=previous, status=Session.DONE).aggregate(
-                total=Sum("actual_minutes")
-            )["total"]
-            or None
-        )
+        previous_score = puissance_de_saison(user, previous) or None
 
     # Le contrat, s'il est signé, dimensionne le boss de la première saison :
     # sans score précédent, la seule estimation honnête du volume à venir est
@@ -439,11 +530,13 @@ def open_season(
             raise ValueError(verdict.raison)
         contrat = contract_sessions_per_week
 
+    voie, position = prochaine_voie(user)
     plan = season_rules.plan_season(
         index,
         starts_on,
         previous_score=previous_score,
         contract_sessions_per_week=contrat or 3,
+        identite=season_rules.pick_identity(index, voie=voie, position=position),
     )
     retenu = modifier_key or plan.modifier_key
     effets = modifier_rules.resolve(retenu)
@@ -461,23 +554,35 @@ def open_season(
         name=plan.name,
         accent=plan.accent,
         baseline=plan.baseline,
+        # La voie est gravée avec la saison : elle sert à savoir où reprendre
+        # cette ligne-là quand on y revient, deux saisons plus tard.
+        voie=voie,
         modifier_key=retenu,
         starts_on=plan.starts_on,
-        ends_on=plan.ends_on,
+        ends_on=ends_on if (essai and ends_on) else plan.ends_on,
         # « Siège » double la mise et gonfle le boss (§12.5). Appliqué ici, à
         # l'ouverture, et jamais recalculé ensuite : une saison dont l'enjeu
         # bougerait en cours de route ne serait plus un engagement.
-        stake_shards=stake * effets.stake_multiplier,
+        # Rien à engager sur une saison qui ne compte pas : une mise sur un
+        # essai serait une perte possible sans gain possible.
+        stake_shards=0 if essai else stake * effets.stake_multiplier,
         contract_sessions_per_week=contrat,
         contract_projects=projets if contrat else [],
         contract_signed_at=timezone.now() if contrat else None,
         **({"phantom_choice": phantom_choice} if phantom_choice else {}),
     )
+    # Le boss est dimensionné pour 28 jours (§12.4). Sur une saison raccourcie,
+    # il doit descendre d'autant : un boss de quatre semaines posé sur onze
+    # jours est imbattable, et un adversaire imbattable dès le premier jour
+    # n'apprend rien à personne — c'est exactement ce qu'une saison d'essai doit
+    # éviter.
+    jours = (season.ends_on - season.starts_on).days + 1
+    echelle = min(1.0, jours / season_rules.SEASON_DAYS)
     SeasonBoss.objects.create(
         season=season,
         key=plan.boss_key,
         name=plan.boss_name,
-        max_hp=round(plan.boss_hp * effets.boss_hp_multiplier),
+        max_hp=round(plan.boss_hp * effets.boss_hp_multiplier * echelle),
     )
     return season
 
@@ -745,6 +850,11 @@ def start_session(
     if etape and etape.doing_since is None:
         RoadmapStep.objects.filter(pk=etape.pk).update(doing_since=now)
 
+    # Le plan est figé ici, sur la durée annoncée. Une séance prolongée déborde
+    # sur les étapes suivantes du plan et pas au-delà : le temps en trop
+    # profite au travail prévu, il n'ouvre pas une étape qu'on n'a pas vue.
+    plan = creneau_rules.plan_pour(planned_minutes, list(project.steps.all()))
+
     return Session.objects.create(
         user=user,
         project=project,
@@ -756,17 +866,123 @@ def start_session(
         rank_in_day=rank,
         client_uuid=client_uuid,
         verification=Session.SERVER if verified else Session.UNVERIFIED,
+        plan=[
+            {"step_id": p.etape.id, "minutes": p.minutes, "reste_avant": p.reste_avant}
+            for p in plan.portions
+        ],
     )
 
 
-@transaction.atomic
-def end_session(session: Session, *, now: datetime | None = None, note: str = "", next_action: str = "") -> dict:
-    """Clôture une session : minutes réelles, XP, dégâts au boss, hauts faits."""
+def extend_session(
+    session: Session, *, minutes: int = EXTENSION_MINUTES, now: datetime | None = None
+) -> dict:
+    """Prolonge une séance en cours. L'objectif monte, le minuteur repart.
+
+    Le glossaire promettait ce bouton depuis le début — « une fois lancé, un
+    bouton te propose de prolonger de 15 minutes » — et il n'existait nulle
+    part. Il compte maintenant que le dépassement est payé : sans lui, une
+    séance qui déborde n'a plus de terme du tout, et l'anneau ne montre plus
+    rien une fois le compte à rebours à zéro.
+
+    Prolonger **rehausse la promesse** au lieu de l'effacer. C'est la différence
+    avec le simple fait de continuer à travailler : on redit une durée, et la
+    clôture dira encore si elle a été tenue.
+    """
+    if session.status != Session.RUNNING:
+        raise ValueError("Cette séance n'est plus en cours.")
+
+    minutes = max(1, int(minutes))
     now = now or timezone.now()
+    ecoulees = int((now - session.started_at).total_seconds() // 60)
+
+    # L'objectif repart de **maintenant** quand il est déjà dépassé. Ajouter
+    # quinze minutes à un objectif de 25 franchi depuis une demi-heure rendrait
+    # un anneau encore à zéro : le bouton n'aurait rien fait de visible, ce qui
+    # est la pire réponse possible à un clic.
+    base = max(session.planned_minutes, ecoulees)
+    session.planned_minutes = min(MAX_SESSION_MINUTES, base + minutes)
+    session.extensions += 1
+    session.save(update_fields=["planned_minutes", "extensions"])
+
+    return {
+        "id": session.id,
+        "planned_minutes": session.planned_minutes,
+        "extensions": session.extensions,
+        "elapsed_minutes": max(0, ecoulees),
+    }
+
+
+@transaction.atomic
+def _crediter_le_plan(session: Session) -> None:
+    """Reporte les minutes travaillées sur les étapes prévues au démarrage.
+
+    Ne clôt rien et ne change aucun état : seul le compteur ``minutes_done``
+    bouge. Une session antérieure au plan — il n'y en a plus, mais la base en
+    garde — n'a pas de plan et ne crédite donc rien, ce qui est le bon repli.
+    """
+    portions = session.plan or []
+    if not portions:
+        return
+
+    etapes = {
+        e.id: e
+        for e in RoadmapStep.objects.filter(
+            id__in=[p.get("step_id") for p in portions if p.get("step_id")]
+        )
+    }
+
+    restant = session.actual_minutes
+    for portion in portions:
+        if restant <= 0:
+            break
+        etape = etapes.get(portion.get("step_id"))
+        if etape is None:
+            continue
+        part = min(int(portion.get("minutes") or 0), restant)
+        if part <= 0:
+            continue
+        RoadmapStep.objects.filter(pk=etape.pk).update(
+            minutes_done=F("minutes_done") + part
+        )
+        restant -= part
+
+
+def end_session(
+    session: Session,
+    *,
+    now: datetime | None = None,
+    note: str = "",
+    next_action: str = "",
+    difficulty: int | None = None,
+    rng: random.Random | None = None,
+) -> dict:
+    """Clôture une session : minutes réelles, XP, dégâts au boss, hauts faits.
+
+    ``difficulty`` est facultative et ne change **aucun** calcul : ni XP, ni
+    dégâts, ni streak. Elle n'alimente qu'un constat — trois sessions d'affilée
+    trop faciles disent qu'on a cessé d'apprendre. La faire entrer dans le
+    barème donnerait une raison de mentir dessus, et l'information deviendrait
+    inutilisable le jour où elle compte.
+    """
+    now = now or timezone.now()
+    if difficulty in (capacite_rules.TROP_FACILE, capacite_rules.JUSTE, capacite_rules.TROP_DUR):
+        session.difficulty = difficulty
     profile = session.user.profile
 
+    # Les minutes **réellement écoulées**, et non l'objectif annoncé. Jusqu'au
+    # 19 août 2026 elles étaient plafonnées à ``planned_minutes`` : travailler
+    # quarante minutes sur un minuteur de vingt-cinq en perdait quinze, sans
+    # que rien ne le dise. C'était le seul endroit du produit où du travail réel
+    # disparaissait, et le §17 l'interdit dans les deux sens — on ne paie pas ce
+    # qui n'a pas eu lieu, on ne raye pas ce qui a eu lieu.
+    #
+    # Le minuteur ne perd rien pour autant : il reste l'**objectif** de la
+    # séance, celui qu'on annonce en démarrant, celui que le §8.7 utilise pour
+    # repérer un fantôme, et celui que la clôture reprend en disant s'il a été
+    # tenu. Une session se clôture donc à tout moment — avant le terme, après,
+    # bien après — et compte ce qu'elle a duré.
     elapsed = int((now - session.started_at).total_seconds() // 60)
-    session.actual_minutes = max(0, min(elapsed, session.planned_minutes))
+    session.actual_minutes = max(0, min(elapsed, MAX_SESSION_MINUTES))
     session.ended_at = now
 
     # Sous le plancher dégradé, il ne s'est rien passé : la session est
@@ -790,6 +1006,19 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         }
 
     session.status = Session.DONE
+
+    # Le temps réellement passé est crédité sur les étapes que la soirée devait
+    # couvrir, dans l'ordre. C'est ce qui rend le remplissage partiel
+    # utilisable : une étape de cinquante minutes entamée sur un créneau de
+    # vingt-cinq reprend le lendemain là où elle s'est arrêtée, au lieu d'être à
+    # refaire en entier.
+    #
+    # Rien n'est jamais **clos** ici. Le §6 est net : le critère de sortie
+    # décide qu'une étape est finie, pas le chronomètre. Un compteur au plafond
+    # dit « le temps prévu est écoulé », ce qui n'est pas la même chose que
+    # « c'est fait » — et la différence est exactement ce qui distingue une
+    # roadmap d'un minuteur.
+    _crediter_le_plan(session)
 
     track = session.project.track
     history_before = resolve_days(
@@ -829,7 +1058,9 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
         streak=state_before.current,
         days_worked_this_week=days_worked,
         momentum_multiplier=chaleur["multiplier"],
-        early_bonus_ratio=bonus.early_xp_bonus,
+        ecart_au_creneau=ecart_au_creneau(session),
+        punctuality_bonus_ratio=bonus.punctuality_bonus,
+        duration_bonus_ratio=bonus.duration_bonus,
         modifier_multiplier=modifier_rules.session_multiplier(
             effets, minutes=session.actual_minutes, started_hour=local_hour
         ),
@@ -846,7 +1077,7 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     session.xp_breakdown = {
         "base": breakdown.base,
         "first_of_day": breakdown.first_of_day,
-        "early": breakdown.early,
+        "punctual": breakdown.punctual,
         "streak_multiplier": breakdown.streak_multiplier,
         "momentum_multiplier": breakdown.momentum_multiplier,
         "modifier_multiplier": breakdown.modifier_multiplier,
@@ -925,9 +1156,24 @@ def end_session(session: Session, *, now: datetime | None = None, note: str = ""
     for _ in range(max(0, niveau_apres - niveau_avant)):
         cartes.append(progression.draw_card(session.user, reason=loot_rules.MONTEE_DE_NIVEAU))
 
+    # La carte de séance longue (§12.6 étendu, tranché le 19 août 2026). Elle est
+    # **probabiliste** là où celle d'une étape est garantie, et c'est la même
+    # règle qu'ailleurs : ce qui est fréquent se tire, ce qui est rare se donne.
+    # Une session par soir, garantie, inonderait la collection en un mois.
+    des = rng or random.Random()
+    if des.random() < loot_rules.chance_de_carte(session.actual_minutes):
+        cartes.append(progression.draw_card(session.user, reason=loot_rules.SESSION_LONGUE))
+
     return {
         "session_id": session.id,
         "minutes": session.actual_minutes,
+        # L'objectif annoncé au démarrage, et ce qu'il est devenu. C'est ce qui
+        # empêche le minuteur de devenir décoratif maintenant que le dépassement
+        # compte : on a annoncé une durée, la clôture dit si elle a été tenue.
+        "objectif": session.planned_minutes,
+        "objectif_tenu": session.actual_minutes >= session.planned_minutes,
+        "depassement": max(0, session.actual_minutes - session.planned_minutes),
+        "extensions": session.extensions,
         "xp": session.xp_awarded,
         "breakdown": session.xp_breakdown,
         "crit": (
@@ -1010,7 +1256,14 @@ def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
                 "final": phase.final,
             }
 
-    carte = progression.draw_card(user, reason=loot_rules.ETAPE_TERMINEE)
+    # Ce qui a été posé sur cette étape incline le tirage vers le haut, sans
+    # rien garantir (§12.6). Le déclencheur reste **terminer** — une étape
+    # abandonnée à quatre heures ne rend rien — mais une étape qui a coûté cher
+    # ne rend plus la même carte qu'une étape expédiée.
+    posees = minutes_sur_etape(step)
+    carte = progression.draw_card(
+        user, reason=loot_rules.ETAPE_TERMINEE, faveur=loot_rules.faveur_pour(posees)
+    )
     obtenus = achievements.synchroniser(user)
     reliques = progression.grant_relics_for(user, [a["key"] for a in obtenus])
 
@@ -1022,8 +1275,120 @@ def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
         "boss_phase": phase_franchie,
         "achievements": obtenus,
         "relics": reliques,
+        "minutes_posees": posees,
         "already_done": False,
     }
+
+
+def creneau_du_jour(project: Project, *, today: date, now: datetime, tz: str) -> dict | None:
+    """Le rendez-vous fixe de ce projet aujourd'hui, situé dans le temps.
+
+    Partagé par la proposition déterministe et par le briefing du §5.1 : quand
+    le modèle choisit un autre projet que le repli, c'est **son** créneau qu'il
+    faut montrer, pas celui recopié du repli. Une heure juste attachée au mauvais
+    projet est pire qu'une heure absente.
+    """
+    slot = (
+        TimeSlot.objects.filter(project=project, active=True, weekday=today.weekday())
+        .order_by("start_time")
+        .first()
+    )
+    if slot is None:
+        return None
+
+    porteur = {
+        "creneau": {
+            "heure": slot.start_time.strftime("%Hh%M"),
+            "minutes": slot.duration_minutes,
+            "tolerance": xp_rules.TOLERANCE_MINUTES,
+        }
+    }
+    _situer_le_creneau(porteur, today=today, now=now, tz=tz)
+    return porteur["creneau"]
+
+
+def _situer_le_creneau(proposition: dict | None, *, today: date, now: datetime, tz: str) -> None:
+    """Ajoute à la proposition où l'on en est de son rendez-vous.
+
+    Trois états, et c'est tout ce dont l'écran a besoin pour le dire d'une
+    phrase : à venir, maintenant, passé. Calculé côté serveur parce que la
+    journée du coach bascule à 4h — un client qui comparerait l'heure du créneau
+    à ``new Date()`` se tromperait toutes les nuits entre minuit et 4h, en
+    annonçant « dans 20 heures » un créneau qui vient d'être manqué.
+    """
+    if not proposition or not proposition.get("creneau"):
+        return
+
+    creneau = proposition["creneau"]
+    zone = ZoneInfo(tz)
+    heure, minute = (int(part) for part in creneau["heure"].replace("h", ":").split(":"))
+    rendez_vous = datetime.combine(today, time(heure, minute), tzinfo=zone)
+    ecart = int((now.astimezone(zone) - rendez_vous).total_seconds() // 60)
+
+    creneau["ecart_minutes"] = ecart
+    if abs(ecart) <= creneau["tolerance"]:
+        creneau["statut"] = "maintenant"
+    elif ecart < 0:
+        creneau["statut"] = "a_venir"
+    else:
+        creneau["statut"] = "passe"
+
+
+def ecart_au_creneau(session: Session) -> int | None:
+    """Minutes entre le démarrage et le rendez-vous le plus proche du jour.
+
+    ``None`` s'il n'y a aucun créneau déclaré ce jour-là sur ce projet : il n'y
+    avait alors rien à tenir, et le barème n'a rien à primer.
+
+    Lu en **heure locale**, comme tout ce qui touche à une horloge dans ce
+    produit : un créneau est une heure de la vie de quelqu'un, pas un instant
+    UTC. Et rapporté à la **journée du coach**, ce qui donne le bon résultat
+    dans le seul cas tordu : une séance lancée à 00h20 appartient à la journée
+    de la veille, son créneau de 20h30 est donc à quatre heures de là, et elle
+    n'est pas ponctuelle — ce qui est exactement ce qu'on veut dire.
+    """
+    profile = session.user.profile
+    creneaux = TimeSlot.objects.filter(
+        project=session.project, active=True, weekday=session.coach_day.weekday()
+    )
+    if not creneaux:
+        return None
+
+    zone = ZoneInfo(profile.timezone_name)
+    debut = session.started_at.astimezone(zone)
+    ecarts = [
+        abs((debut - datetime.combine(session.coach_day, c.start_time, tzinfo=zone)).total_seconds())
+        // 60
+        for c in creneaux
+    ]
+    return int(min(ecarts))
+
+
+def minutes_sur_etape(step: RoadmapStep) -> int:
+    """Les minutes travaillées sur le projet depuis que l'étape est commencée.
+
+    C'est une **approximation assumée** : aucune session ne déclare l'étape sur
+    laquelle elle porte, et lui demander de le faire ajouterait un champ à la
+    clôture — le seul moment du produit où l'on ne peut rien demander de plus
+    sans faire renoncer à clôturer. Le repère existant est ``doing_since``,
+    posé au premier démarrage sur l'étape courante, et il est juste dans le cas
+    normal : on travaille l'étape en cours.
+
+    Sans ``doing_since``, la réponse est zéro et non une estimation. Une étape
+    cochée sans avoir jamais été commencée n'a rien coûté ; l'inventer
+    reviendrait à payer une faveur pour du travail qu'on n'a pas vu.
+    """
+    if not step.doing_since:
+        return 0
+    return (
+        Session.objects.filter(
+            user=step.project.user,
+            project=step.project,
+            status=Session.DONE,
+            started_at__gte=step.doing_since,
+        ).aggregate(total=Sum("actual_minutes"))["total"]
+        or 0
+    )
 
 
 def _draws_since_crit(session: Session) -> int:
@@ -1183,8 +1548,20 @@ def corps_panel(user, *, today: date) -> dict | None:
 SEUIL_PRIORITE_CORPS = 0.6
 
 
-def propose(user, *, today: date, comeback: bool = False) -> dict | None:
+def propose(
+    user,
+    *,
+    today: date,
+    comeback: bool = False,
+    now: datetime | None = None,
+    minutes: int | None = None,
+) -> dict | None:
     """Choisit la piste, le projet, la durée et la tâche. L'utilisateur n'arbitre pas.
+
+    ``minutes`` est le créneau que la personne vient de choisir à l'écran. Il
+    change **la tâche**, pas seulement le chronomètre : on propose l'étape qui
+    tient dans ce temps-là. Sans lui, la durée reste le plancher du rang et
+    l'étape reste la première ouverte, comme avant.
 
     **La décision peut désormais être une séance de Corps.** Jusqu'ici elle ne
     regardait que l'Atelier : la piste Corps du §11.4 existait dans la base,
@@ -1205,12 +1582,15 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
     séance de cinquante minutes à quelqu'un qui n'a rien fait depuis trois
     jours, c'est proposer de ne pas ouvrir l'app.
     """
+    now = now or timezone.now()
+
     # Le Corps d'abord, s'il est en train de perdre sa semaine. Le comeback du
     # §14 en est exclu : quelqu'un qui revient après trois jours d'arrêt reprend
     # par dix minutes de son travail, pas par une séance de sport de trente.
     if not comeback:
         corps = _propose_corps(user, today=today)
         if corps is not None:
+            _situer_le_creneau(corps, today=today, now=now, tz=user.profile.timezone_name)
             return corps
 
     # Le développement du coach reste accessible en un tap, mais n'est jamais
@@ -1261,7 +1641,16 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
 
     chosen = max(projects, key=score)
     plancher = floor_minutes(user, today=today)
-    step = chosen.current_step
+
+    # Le créneau décide de ce qu'on fait. C'est tout le sujet du module
+    # ``creneau`` : « Longue · 50 » sur une étape de trois sessions engageait
+    # soixante-quinze minutes en en promettant cinquante, et personne ne le
+    # voyait avant 22h. Le plan enchaîne plusieurs étapes si elles tiennent, et
+    # coupe la dernière si elle déborde.
+    duree = DEGRADED_MINUTES if comeback else (minutes or plancher)
+    plan = creneau_rules.plan_pour(duree, list(chosen.steps.all()))
+    premiere = plan.premiere
+    step = premiere.etape if premiere else None
     slot = next(
         (ts for ts in chosen.timeslots.all() if ts.weekday == today.weekday() and ts.active), None
     )
@@ -1273,7 +1662,7 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
         .first()
     )
 
-    return {
+    proposition = {
         "track": Track.ATELIER,
         "project": {
             "id": chosen.id,
@@ -1282,18 +1671,101 @@ def propose(user, *, today: date, comeback: bool = False) -> dict | None:
             "emblem": chosen.emblem,
             "completion": chosen.completion,
         },
-        # Sans créneau déclaré, la durée proposée **est** le plancher du rang :
-        # c'est le seul endroit où la progression du §4.1 devient visible sans
-        # qu'on aille lire un chiffre.
-        "minutes": DEGRADED_MINUTES if comeback else (slot.duration_minutes if slot else plancher),
-        "step": {"id": step.id, "label": step.label, "needs_split": step.needs_split} if step else None,
+        # **La durée proposée est le plancher du rang, toujours** — jamais celle
+        # déclarée sur le créneau (corrigé le 20 août 2026).
+        #
+        # Le créneau annonçait parfois cinquante minutes, et le gros bouton du
+        # soir affichait « Démarrer · 50 min ». C'est exactement le contraire de
+        # ce que le §4.1 cherche : le plancher est ridicule à dessein pour
+        # survivre aux mauvais soirs, et un engagement de cinquante minutes
+        # affiché à 21h30 un soir de fatigue est une raison de ne pas appuyer.
+        #
+        # Rien n'est perdu pour autant : depuis que le dépassement compte et que
+        # « +15 minutes » existe, une séance **monte** — on part à vingt-cinq et
+        # on prolonge tant que ça vient. Décider d'une heure entière avant
+        # d'avoir commencé, c'est décider à froid ce qui se décide à chaud.
+        # La durée du créneau reste ce qu'elle a toujours été : une intention,
+        # que le rappel de créneau et le gardien continuent d'annoncer.
+        "minutes": duree,
+        # Le plan de la soirée : ce que le créneau couvre, étape par étape.
+        # L'écran le montre avant de démarrer — enchaîner deux étapes ou n'en
+        # faire que la moitié se décide à froid, pas à 22h quand on découvre
+        # qu'on est au milieu de quelque chose.
+        "plan": [
+            {
+                "step_id": p.etape.id,
+                "label": p.etape.label,
+                "minutes": p.minutes,
+                "reste_avant": p.reste_avant,
+                "pourcentage": p.pourcentage,
+                "entiere": p.entiere,
+                "a_clore": p.a_clore,
+                "exit_criterion": p.etape.exit_criterion,
+            }
+            for p in plan.portions
+        ],
+        # Les deux faits que l'écran annonce en une phrase. Redondants avec le
+        # plan, et c'est voulu : un composant qui doit recalculer « est-ce que ça
+        # rentre » à partir d'une liste finit par le calculer autrement que le
+        # serveur.
+        "plan_coupe": plan.coupe,
+        "plan_enchaine": plan.enchaine,
+        # Le bloc suivant du parcours, quand la roadmap vient de se vider. C'est
+        # le seul moment où la question se pose, et c'est aussi le moment où,
+        # sans cette ligne, le produit s'arrêtait : quatorze blocs planifiés, la
+        # roadmap épuisée en quelques semaines, et rien à l'écran pour en ouvrir
+        # un de plus.
+        "next_bloc": (
+            {"id": suivant.id, "name": suivant.name, "resource": suivant.resource}
+            if (suivant := bloc_a_ouvrir(chosen))
+            else None
+        ),
+        # Le critère de sortie voyage avec l'étape jusqu'à la décision du soir.
+        # C'est le seul endroit où il compte vraiment : savoir *quand on a fini*
+        # avant de commencer est ce qui distingue une session d'une dérive, et
+        # une étape ouverte sur le bureau ne le rappelle jamais toute seule.
+        "step": (
+            {
+                "id": step.id,
+                "label": step.label,
+                "needs_split": step.needs_split,
+                "exit_criterion": step.exit_criterion,
+                "resource": step.resource,
+                "url": step.url,
+                "scope": step.scope,
+            }
+            if step
+            else None
+        ),
         "amorce": amorce or "",
+        # Le rendez-vous du jour, s'il y en a un. Il voyage avec la proposition
+        # parce que c'est là qu'il se décide : savoir *avant* de démarrer qu'on
+        # est dans son créneau — ou qu'on l'a manqué de vingt minutes — est la
+        # seule façon pour la prime de ponctualité d'être autre chose qu'une
+        # surprise après coup. Une règle qu'on ne découvre qu'au décompte final
+        # ne change aucun comportement.
+        "creneau": (
+            {
+                "heure": slot.start_time.strftime("%Hh%M"),
+                "minutes": slot.duration_minutes,
+                "tolerance": xp_rules.TOLERANCE_MINUTES,
+            }
+            if slot
+            else None
+        ),
         "reason": (
             "Une tâche, dix minutes."
             if comeback
             else _proposal_reason(chosen, slot, done_by_project.get(chosen.id, 0))
         ),
     }
+    # Où l'on en est du rendez-vous, ajouté ici plutôt que chez l'appelant :
+    # le briefing du §5.1 recopie cette proposition telle quelle, et la ligne
+    # disparaissait dès que le modèle répondait — un défaut invisible à la
+    # lecture du code, visible seulement à l'écran, une seconde après le
+    # chargement.
+    _situer_le_creneau(proposition, today=today, now=now, tz=user.profile.timezone_name)
+    return proposition
 
 
 def _propose_corps(user, *, today: date) -> dict | None:
@@ -1353,12 +1825,34 @@ def _propose_corps(user, *, today: date) -> dict | None:
             "emblem": choisi.emblem,
             "completion": choisi.completion,
         },
-        "minutes": creneau.duration_minutes if creneau else corps_rules.PLANCHER,
+        # Le plancher de la piste, jamais la durée du créneau : même raison
+        # qu'à l'Atelier — ce qui s'affiche sur le bouton est ce qu'on s'engage
+        # à faire *maintenant*, et ça se prolonge.
+        "minutes": corps_rules.PLANCHER,
         "step": None,
         "amorce": "",
+        # La piste Corps a des créneaux comme l'Atelier, et la même prime les
+        # récompense : une séance de sport tenue à l'heure dite est exactement
+        # ce que le §11.4 cherche à installer.
+        "creneau": (
+            {
+                "heure": creneau.start_time.strftime("%Hh%M"),
+                "minutes": creneau.duration_minutes,
+                "tolerance": xp_rules.TOLERANCE_MINUTES,
+            }
+            if creneau
+            else None
+        ),
+        # L'heure du rendez-vous d'abord quand il y en a un : c'est elle que la
+        # ligne d'état sous la raison commente, et sans elle « passé de 46 min »
+        # ne se rapporte à rien.
         "reason": (
-            f"{panneau['restantes']} séance(s) pour tenir la semaine, "
-            f"{panneau['jours_restants']} jour(s) devant."
+            f"Créneau du jour, {creneau.start_time.strftime('%Hh%M')}."
+            if creneau
+            else (
+                f"{panneau['restantes']} séance(s) pour tenir la semaine, "
+                f"{panneau['jours_restants']} jour(s) devant."
+            )
         ),
     }
 
@@ -1376,7 +1870,12 @@ def _proposal_reason(project: Project, slot, done: int) -> str:
 # L'état complet de l'accueil
 # --------------------------------------------------------------------------
 
-def home_state(user, *, now: datetime | None = None) -> dict:
+def home_state(user, *, now: datetime | None = None, minutes: int | None = None) -> dict:
+    """L'écran d'accueil. ``minutes`` est le créneau choisi, s'il l'a été.
+
+    Il ne sert qu'à la proposition, où il change la tâche autant que le
+    chronomètre — voir ``propose`` et ``rules.creneau``.
+    """
     now = now or timezone.now()
     profile: Profile = user.profile
     today = coach_day(now, profile.timezone_name, profile.day_rollover_hour)
@@ -1413,18 +1912,36 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         shards_forfeited=forfeited,
     )
 
+    # La bande dessinée s'élargit à ce qui a réellement eu lieu. Depuis que le
+    # travail compte à n'importe quelle heure (§4.1), une séance de 10h était
+    # dessinée **collée à 18h** : le ratio était borné à la fenêtre, donc la
+    # jauge affirmait une chose fausse — et c'est la seule chose qu'une jauge ne
+    # doit jamais faire. La fenêtre du soir reste rendue à part : elle garde son
+    # rôle, dire quand la soirée se ferme et quand le gardien parlera.
+    posees = [s for s in sessions_today if s.status in (Session.DONE, Session.RUNNING)]
+    debut_bande = min([window.start, *[s.started_at for s in posees]])
+    fin_bande = max([window.end, *[s.ended_at or now for s in posees]])
+    span = max(1, int((fin_bande - debut_bande).total_seconds() // 60))
+
+    def _ratio(moment: datetime) -> float:
+        minutes = (moment - debut_bande).total_seconds() / 60
+        return round(min(1.0, max(0.0, minutes / span)), 4)
+
     blocks = [
         {
             "project": s.project.name,
             "color": s.project.color,
-            "start_ratio": _ratio_in_window(window, s.started_at),
-            "end_ratio": _ratio_in_window(window, s.ended_at or now),
+            "start_ratio": _ratio(s.started_at),
+            "end_ratio": _ratio(s.ended_at or now),
             "minutes": s.actual_minutes,
             "running": s.status == Session.RUNNING,
         }
-        for s in sessions_today
-        if s.status in (Session.DONE, Session.RUNNING)
+        for s in posees
     ]
+
+    proposition = propose(
+        user, today=today, comeback=sanctions["comeback"], now=now, minutes=minutes
+    )
 
     return {
         "day": today.isoformat(),
@@ -1458,6 +1975,13 @@ def home_state(user, *, now: datetime | None = None) -> dict:
                 "name": season.name,
                 "accent": season.accent,
                 "baseline": season.baseline,
+                # Où l'on se tient dans la trame (§12.2). Une histoire que seul
+                # le code connaît n'est pas une histoire : sans cette ligne, la
+                # voie basse ne se distingue de la haute que par la couleur.
+                "acte": season_rules.acte_de_voie(
+                    season.voie or season_rules.VOIE_CIMES,
+                    _position_dans_la_voie(user, season),
+                ),
                 "day_index": season.day_index(today) + 1,
                 "days_total": season_rules.SEASON_DAYS,
                 "days_left": season.days_left(today),
@@ -1479,8 +2003,13 @@ def home_state(user, *, now: datetime | None = None) -> dict:
         ),
         "boss": boss_payload(season, today=today),
         "evening": {
-            "start": window.start.isoformat(),
-            "end": window.end.isoformat(),
+            # La bande dessinée, puis la fenêtre. Les deux coïncident tant que
+            # rien n'a été travaillé en dehors, ce qui est le cas ordinaire.
+            "start": debut_bande.isoformat(),
+            "end": fin_bande.isoformat(),
+            "window_start": window.start.isoformat(),
+            "window_end": window.end.isoformat(),
+            "widened": debut_bande < window.start or fin_bande > window.end,
             "total_minutes": window.total_minutes,
             "elapsed_ratio": window.ratio(now),
             "blocks": blocks,
@@ -1492,11 +2021,12 @@ def home_state(user, *, now: datetime | None = None) -> dict:
                 "color": running.project.color,
                 "started_at": running.started_at.isoformat(),
                 "planned_minutes": running.planned_minutes,
+                "extensions": running.extensions,
             }
             if running
             else None
         ),
-        "proposal": propose(user, today=today, comeback=sanctions["comeback"]),
+        "proposal": proposition,
         "quests": [
             {
                 "kind": q.kind,
@@ -1534,6 +2064,8 @@ def preview_project(markdown: str) -> dict:
         "color": parsed.color,
         "emblem": parsed.emblem,
         "weekly_commitment": parsed.weekly_commitment,
+        "objective": parsed.objective,
+        "frame": parsed.frame,
         "open_steps": parsed.open_steps,
         "steps": [
             {
@@ -1541,10 +2073,36 @@ def preview_project(markdown: str) -> dict:
                 "state": s.state,
                 "estimated_sessions": s.estimated_sessions,
                 "needs_split": s.needs_split,
+                "resource": s.resource,
+                "url": s.url,
+                "scope": s.scope,
+                "load": s.load,
+                "exit_criterion": s.exit_criterion,
             }
             for s in parsed.steps
         ],
+        # L'aperçu montre tout ce qui sera écrit, y compris ce qui ne se voit
+        # pas dans la liste d'étapes. Un aperçu qui cache une partie du document
+        # laisse valider une roadmap dont on n'a pas vu la moitié.
+        "parcours": [
+            {
+                "name": b.name,
+                "outcome": b.outcome,
+                "resource": b.resource,
+                "url": b.url,
+                "load": b.load,
+                "cost": b.cost,
+                "optional": b.optional,
+                "exit_criterion": b.exit_criterion,
+            }
+            for b in parsed.parcours
+        ],
+        "ecartees": [{"name": e.name, "reason": e.reason} for e in parsed.ecartees],
         "warnings": parsed.warnings,
+        # Ce que le parseur n'a pas su placer. L'écran s'en sert pour proposer
+        # une relecture par le modèle : c'est le seul signal fiable disant que
+        # le document contient plus que ce qui vient d'être lu.
+        "ignored": parsed.ignorees,
     }
 
 
@@ -1744,21 +2302,201 @@ def create_project_from_markdown(user, markdown: str) -> Project:
         domain=parsed.domain,
         verification=parsed.verification,
         weekly_commitment=parsed.weekly_commitment,
+        objective=parsed.objective,
+        frame=parsed.frame,
     )
     if parsed.repo_path:
         # Déclaré à la création : la vérification marche dès la première
         # session, sans réglage supplémentaire.
         ProjectRepo.objects.get_or_create(project=project, path=parsed.repo_path)
+    # Le parcours et les écartées ne servent à rien le soir même, et c'est
+    # exactement pourquoi ils se perdaient : le parseur les lisait, la création
+    # ne les recopiait pas, et l'entretien de projet passait vingt minutes à
+    # produire une information que l'écriture en base jetait sans rien dire.
+    blocs = [
+        ProjectBloc.objects.create(
+            project=project,
+            order=order,
+            name=bloc.name,
+            outcome=bloc.outcome,
+            resource=bloc.resource,
+            url=bloc.url,
+            load=bloc.load,
+            cost=bloc.cost,
+            optional=bloc.optional,
+            exit_criterion=bloc.exit_criterion,
+        )
+        for order, bloc in enumerate(parsed.parcours)
+    ]
+
+    # Les étapes initiales sont le détail du **premier** bloc : c'est ce que
+    # l'entretien produit, et le lien est ce qui permettra plus tard de savoir
+    # quel bloc refermer quand la roadmap se videra.
+    premier = blocs[0] if blocs else None
+
     for order, step in enumerate(parsed.steps):
         RoadmapStep.objects.create(
             project=project,
+            bloc=premier,
             order=order,
             label=step.label,
             state=step.state,
             estimated_sessions=step.estimated_sessions,
             done_at=timezone.now() if step.state == RoadmapStep.DONE else None,
+            resource=step.resource,
+            url=step.url,
+            scope=step.scope,
+            load=step.load,
+            exit_criterion=step.exit_criterion,
+        )
+    for order, ecartee in enumerate(parsed.ecartees):
+        DiscardedResource.objects.create(
+            project=project,
+            order=order,
+            name=ecartee.name,
+            reason=ecartee.reason,
         )
     return project
+
+
+def bloc_a_ouvrir(projet) -> "ProjectBloc | None":
+    """Le prochain bloc du parcours, s'il y a lieu d'en ouvrir un.
+
+    Rend ``None`` dans trois cas, tous normaux : le projet n'a pas de parcours
+    (une roadmap collée à la main n'en a pas), il reste des étapes ouvertes, ou
+    le parcours est terminé. La question n'est posée que lorsque la roadmap est
+    vide — c'est le seul moment où le bloc courant est réellement fini.
+    """
+    if projet.steps.filter(state__in=["todo", "doing"]).exists():
+        return None
+    return projet.parcours.filter(done_at__isnull=True).order_by("order", "id").first()
+
+
+
+@transaction.atomic
+def ecrire_les_etapes_du_bloc(project: Project, bloc: ProjectBloc, etapes: list[dict]) -> dict:
+    """Referme le bloc précédent, rattache les nouvelles étapes à celui-ci.
+
+    Vit ici, à côté de ``create_project_from_markdown``, parce que les deux
+    écrivent des ``RoadmapStep`` à partir des mêmes champs : les séparer les
+    aurait fait diverger au premier attribut ajouté, et une étape créée par le
+    découpage aurait perdu son périmètre sans que rien ne le signale.
+
+    Les étapes déjà faites ne sont pas touchées. Elles restent dans la roadmap,
+    rattachées à leur bloc : c'est l'historique du projet, et le §17 interdit
+    d'effacer ce qui a eu lieu.
+    """
+    maintenant = timezone.now()
+
+    # Les blocs qui précèdent celui-ci sont refermés — y compris ceux qu'on
+    # aurait sautés. Un bloc laissé ouvert derrière soi ferait rouvrir un
+    # parcours déjà dépassé au prochain passage.
+    ProjectBloc.objects.filter(
+        project=project, done_at__isnull=True, order__lt=bloc.order
+    ).update(done_at=maintenant)
+
+    depart = (project.steps.aggregate(m=Max("order"))["m"] or 0) + 1
+    for decalage, etape in enumerate(etapes):
+        RoadmapStep.objects.create(
+            project=project,
+            bloc=bloc,
+            order=depart + decalage,
+            label=etape["libelle"],
+            state=etape.get("etat") or RoadmapStep.TODO,
+            estimated_sessions=max(1, min(3, int(etape.get("sessions") or 2))),
+            resource=etape.get("ressource", ""),
+            url=etape.get("url", ""),
+            scope=etape.get("perimetre", ""),
+            load=etape.get("charge", ""),
+            exit_criterion=etape.get("critere_sortie", ""),
+        )
+
+    return {
+        "bloc": {"id": bloc.id, "name": bloc.name, "order": bloc.order},
+        "created": len(etapes),
+        "detail": f"« {bloc.name} » est ouvert : {len(etapes)} étapes à faire.",
+    }
+
+
+# --------------------------------------------------------------------------
+# Les preuves de capacité — le troisième axe
+# --------------------------------------------------------------------------
+
+@transaction.atomic
+def declarer_preuve(user, project: Project, *, critere: str, day: date, bloc=None) -> Preuve:
+    """Constate une capacité, et la paie en Éclats.
+
+    Jamais en XP : l'XP mesure un volume par construction (§4.4), et une
+    capacité n'est pas un volume. Les Éclats, eux, se dépensent à la Forge —
+    donc une preuve ouvre quelque chose, ce qui est le bon signal.
+
+    Le critère est refusé s'il ne dit rien. « J'ai progressé » n'est pas
+    constatable par quelqu'un d'autre, et une preuve qu'on s'accorde soi-même
+    est de l'auto-évaluation — exactement ce que le §6 refuse partout ailleurs.
+    """
+    regle = capacite_rules.Preuve(projet=project.name, critere=critere)
+    if not regle.valide:
+        raise ValueError(
+            "Écris ce qui a été constaté, et de façon vérifiable : "
+            "« les 100 % de labs Apprentice validés », pas « j'ai progressé »."
+        )
+
+    shards = capacite_rules.shards_pour_preuve(
+        Preuve.objects.filter(user=user, project=project).count()
+    )
+    preuve = Preuve.objects.create(
+        user=user,
+        project=project,
+        bloc=bloc,
+        critere=critere.strip(),
+        obtained_on=day,
+        shards_awarded=shards,
+    )
+    Profile.objects.filter(user=user).update(shards=F("shards") + shards)
+    return preuve
+
+
+def capacite_panel(user) -> dict:
+    """Les preuves acquises, et les heures qu'elles ont coûtées.
+
+    Les deux nombres restent côte à côte et ne fusionnent jamais : un score
+    unique remonterait en ne faisant que des heures, donc il aurait exactement
+    le défaut que cet axe corrige.
+    """
+    preuves = list(
+        Preuve.objects.filter(user=user).select_related("project").order_by("-obtained_on", "-id")
+    )
+    minutes = (
+        Session.objects.filter(user=user, status=Session.DONE).aggregate(t=Sum("actual_minutes"))["t"]
+        or 0
+    )
+    etat = capacite_rules.etat(len(preuves), minutes)
+    etat["liste"] = [
+        {
+            "id": p.id,
+            "critere": p.critere,
+            "projet": p.project.name,
+            "couleur": p.project.color,
+            "obtained_on": p.obtained_on.isoformat(),
+        }
+        for p in preuves[:12]
+    ]
+    return etat
+
+
+def palier_de_difficulte(user, *, project: Project | None = None) -> dict | None:
+    """Trois sessions d'affilée déclarées trop faciles (§ capacité).
+
+    Le seul constat du système déclenché par une **bonne** nouvelle apparente.
+    Il ne retire rien et n'impose rien : monter la barre peut vouloir dire
+    changer de ressource, passer au bloc suivant, ou arrêter de refaire ce
+    qu'on sait déjà — et le système ne sait pas lequel.
+    """
+    sessions = Session.objects.filter(user=user, status=Session.DONE, difficulty__isnull=False)
+    if project is not None:
+        sessions = sessions.filter(project=project)
+    difficultes = list(sessions.order_by("-started_at").values_list("difficulty", flat=True)[:5])
+    return capacite_rules.palier_trop_facile(difficultes)
 
 
 # --------------------------------------------------------------------------
@@ -2187,11 +2925,76 @@ def declare_garde(garde: Garde, *, day: date, occurred: bool) -> dict:
 # --------------------------------------------------------------------------
 
 def _checks_by_routine(user) -> dict[str, list[date]]:
-    """Toutes les coches de l'utilisateur, indexées par routine."""
+    """Toutes les coches **valides** de l'utilisateur, indexées par routine.
+
+    Les coches hors fenêtre en sont exclues : elles restent en base — le §17
+    interdit d'effacer ce qui a eu lieu — mais elles ne comptent pas pour la
+    semaine. Une habitude horaire dont la coche à 14h compterait comme un lever
+    à 7h ne mesurerait rien du tout.
+    """
     out: dict[str, list[date]] = {}
-    for routine_id, day in RoutineCheck.objects.filter(routine__user=user).values_list("routine_id", "day"):
+    for routine_id, day in (
+        RoutineCheck.objects.filter(routine__user=user, on_time=True)
+        .values_list("routine_id", "day")
+    ):
         out.setdefault(str(routine_id), []).append(day)
     return out
+
+
+def _local_time(user, moment=None):
+    """L'heure locale de l'utilisateur — jamais l'heure du serveur.
+
+    Le §1 est catégorique là-dessus : les timestamps viennent du serveur, mais
+    ce qui se compare à une heure déclarée par quelqu'un est son heure à lui.
+    Un lever « avant 7h30 » mesuré en UTC serait faux deux fois par an, et faux
+    en permanence en voyage.
+    """
+    from zoneinfo import ZoneInfo
+
+    moment = moment or timezone.now()
+    return moment.astimezone(ZoneInfo(user.profile.timezone_name)).time()
+
+
+def _bornes_d_activite(user, day: date) -> tuple[time | None, time | None]:
+    """Première et dernière activité observée sur une journée du coach.
+
+    Lues depuis les signaux des sondes, qui datent leurs fenêtres quand elles
+    savent le faire. Les sondes qui n'en sont pas capables ne rendent rien ici,
+    et c'est traité comme une absence de signal — jamais comme une nuit calme.
+    """
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo(user.profile.timezone_name)
+    bornes = Signal.objects.filter(user=user, day=day).aggregate(
+        debut=Min("started_at"), fin=Max("ended_at")
+    )
+    debut, fin = bornes["debut"], bornes["fin"]
+    return (
+        debut.astimezone(zone).time() if debut else None,
+        fin.astimezone(zone).time() if fin else None,
+    )
+
+
+def corroboration_du_jour(user, routine: Routine, *, day: date) -> str:
+    """Ce que les sondes disent de cette habitude horaire, aujourd'hui.
+
+    Recalculée à chaque lecture et jamais stockée : un coucher ne peut être
+    corroboré qu'une fois la nuit passée, et un état figé au moment du clic
+    serait faux pour l'habitude la plus importante des deux.
+    """
+    if routine.deadline is None:
+        return sommeil_rules.SANS_SIGNAL
+    profile = user.profile
+    premiere, derniere = _bornes_d_activite(user, day)
+    return sommeil_rules.corroboration(
+        routine.deadline,
+        routine.direction,
+        routine.anchor,
+        premiere_activite=premiere,
+        derniere_activite=derniere,
+        journee_finie=day < coach_day(timezone.now(), profile.timezone_name, profile.day_rollover_hour),
+        rollover_hour=user.profile.day_rollover_hour,
+    )
 
 
 def routine_panel(user, *, today: date) -> dict:
@@ -2204,6 +3007,35 @@ def routine_panel(user, *, today: date) -> dict:
     rules = [r.to_rule() for r in routines]
     checks = _checks_by_routine(user)
     entries = routine_rules.today_panel(rules, checks, today)
+    # Les coches du jour posées hors fenêtre. Elles n'entrent pas dans le
+    # compte, mais l'écran doit les montrer : sans ça, la ligne resterait
+    # « à faire » alors que le bouton ne répond plus, et ça ressemblerait à un bug.
+    en_retard = set(
+        str(rid)
+        for rid in RoutineCheck.objects.filter(
+            routine__user=user, day=today, on_time=False
+        ).values_list("routine_id", flat=True)
+    )
+    # Ce que les sondes disent des habitudes horaires. Calculé une fois pour le
+    # panneau entier : les bornes d'activité sont les mêmes pour toutes.
+    premiere, derniere = _bornes_d_activite(user, today)
+    corroborations, corroboration_lignes = {}, {}
+    for routine in routines:
+        if routine.deadline is None:
+            continue
+        etat = sommeil_rules.corroboration(
+            routine.deadline,
+            routine.direction,
+            routine.anchor,
+            premiere_activite=premiere,
+            derniere_activite=derniere,
+            # Le panneau ne montre qu'aujourd'hui, donc une journée jamais
+            # close : un coucher ne s'y juge pas, et c'est honnête.
+            journee_finie=False,
+            rollover_hour=user.profile.day_rollover_hour,
+        )
+        corroborations[str(routine.pk)] = etat
+        corroboration_lignes[str(routine.pk)] = sommeil_rules.ligne(etat, routine.deadline)
 
     groups: list[dict] = []
     for entry in entries:
@@ -2227,6 +3059,10 @@ def routine_panel(user, *, today: date) -> dict:
                 "week_held": entry.week.held,
                 "slack": entry.routine.slack,
                 "shards_if_checked": entry.shards_if_checked,
+                "window": routine_rules.window_label(entry.routine),
+                "late_today": entry.routine.key in en_retard,
+                "corroboration": corroborations.get(entry.routine.key, sommeil_rules.SANS_SIGNAL),
+                "corroboration_line": corroboration_lignes.get(entry.routine.key, ""),
             }
         )
 
@@ -2241,17 +3077,35 @@ def routine_panel(user, *, today: date) -> dict:
 
 
 @transaction.atomic
-def check_routine(routine: Routine, *, day: date, source: str = RoutineCheck.APP) -> dict:
+def check_routine(
+    routine: Routine, *, day: date, source: str = RoutineCheck.APP, at: date | None = None
+) -> dict:
     """Coche une routine pour une journée du coach.
 
     Idempotent : recocher le même jour ne rapporte rien de plus. Les Éclats
     s'arrêtent à l'objectif hebdomadaire, et la semaine tenue paie son bonus une
     seule fois — celui de la coche qui atteint le seuil.
+
+    Pour une routine à fenêtre horaire — se lever tôt, ne pas se coucher tard —
+    l'heure de la coche décide. Hors fenêtre, le geste est **gardé** et ne compte
+    pas : ni semaine, ni Éclats. Refuser le clic ferait croire à une panne, et
+    l'accepter en silence ferait d'une habitude horaire un simple bouton.
     """
     rule = routine.to_rule()
-    days = list(RoutineCheck.objects.filter(routine=routine).values_list("day", flat=True))
-    if day in days:
-        return {"created": False, "shards": 0, "week": _week_payload(rule, days, day)}
+    days = list(
+        RoutineCheck.objects.filter(routine=routine, on_time=True).values_list("day", flat=True)
+    )
+    if RoutineCheck.objects.filter(routine=routine, day=day).exists():
+        return {"created": False, "on_time": day in days, "shards": 0, "week": _week_payload(rule, days, day)}
+
+    a_l_heure = routine_rules.within_window(
+        rule, at or _local_time(routine.user), routine.user.profile.day_rollover_hour
+    )
+    if not a_l_heure:
+        RoutineCheck.objects.create(
+            routine=routine, day=day, source=source, shards_awarded=0, on_time=False
+        )
+        return {"created": True, "on_time": False, "shards": 0, "week": _week_payload(rule, days, day)}
 
     before = routine_rules.week_state(rule, days, day).done
     shards = routine_rules.shards_for_check(rule, checks_before_in_week=before)
@@ -2262,7 +3116,7 @@ def check_routine(routine: Routine, *, day: date, source: str = RoutineCheck.APP
     if shards:
         Profile.objects.filter(user=routine.user).update(shards=F("shards") + shards)
 
-    return {"created": True, "shards": shards, "week": _week_payload(rule, days + [day], day)}
+    return {"created": True, "on_time": True, "shards": shards, "week": _week_payload(rule, days + [day], day)}
 
 
 @transaction.atomic
@@ -2297,7 +3151,3 @@ def _week_payload(rule: routine_rules.Routine, days: list[date], day: date) -> d
     }
 
 
-def _ratio_in_window(window, moment: datetime) -> float:
-    total = max(1, window.total_minutes)
-    minutes = (moment - window.start).total_seconds() / 60
-    return round(min(1.0, max(0.0, minutes / total)), 4)

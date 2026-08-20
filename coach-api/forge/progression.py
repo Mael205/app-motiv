@@ -40,6 +40,7 @@ from .rules import modifiers as modifier_rules
 from .rules import momentum as momentum_rules
 from .rules import phantom as phantom_rules
 from .rules import relics as relic_rules
+from .rules import seasons as season_rules
 from .rules import skills as skill_rules
 from .rules.calendar import week_start
 
@@ -183,8 +184,16 @@ def _pity(user) -> tuple[int, int]:
     return depuis_rare, depuis_epique
 
 
-def draw_card(user, *, reason: str, rng: random.Random | None = None) -> dict:
-    """Tire une carte, la range, et rend de quoi jouer l'animation d'ouverture."""
+def draw_card(
+    user, *, reason: str, faveur: float = 0.0, rng: random.Random | None = None
+) -> dict:
+    """Tire une carte, la range, et rend de quoi jouer l'animation d'ouverture.
+
+    ``faveur`` incline le tirage vers le haut sans rien garantir. Elle vient de
+    l'effort posé avant le déclencheur — les heures d'une étape terminée — et
+    vaut zéro partout ailleurs, ce qui laisse les autres tirages exactement
+    comme ils étaient.
+    """
     possedees = set(LootCard.objects.filter(user=user).values_list("key", flat=True))
     depuis_rare, depuis_epique = _pity(user)
 
@@ -192,6 +201,7 @@ def draw_card(user, *, reason: str, rng: random.Random | None = None) -> dict:
         owned=possedees,
         draws_since_rare=depuis_rare,
         draws_since_epic=depuis_epique,
+        faveur=faveur,
         rng=rng,
     )
     eclats = loot_rules.shards_for(carte, duplicate=doublon)
@@ -471,7 +481,7 @@ def relic_panel(user) -> dict:
         "bonuses": {
             "extra_shields": relic_bonuses(user).extra_shields,
             "extra_days_off": relic_bonuses(user).extra_days_off,
-            "early_xp_bonus": relic_bonuses(user).early_xp_bonus,
+            "punctuality_bonus": relic_bonuses(user).punctuality_bonus,
             "shard_bonus": relic_bonuses(user).shard_bonus,
             "boss_damage_bonus": relic_bonuses(user).boss_damage_bonus,
         },
@@ -615,9 +625,14 @@ def phantom_panel(user, *, today: date, now: datetime | None = None) -> dict | N
     if courante is None:
         return None
 
+    # La saison d'essai sort du réservoir de fantômes : elle n'a pas été jouée
+    # dans les mêmes conditions, et un adversaire tiré de jours d'apprentissage
+    # est un adversaire qu'on bat sans rien apprendre (§12.7).
     passees = [
         _season_curve(user, s)
-        for s in Season.objects.filter(user=user, index__lt=courante.index).order_by("index")
+        for s in Season.objects.filter(user=user, index__lt=courante.index)
+        .exclude(index=season_rules.ESSAI_INDEX)
+        .order_by("index")
     ]
     mienne = _season_curve(user, courante)
     fantome = phantom_rules.pick(passees, courante.phantom_choice)

@@ -171,6 +171,60 @@ CATALOGUE: tuple[Card, ...] = (
     Card("fin_lame", "Coup de lame", RARE, "finisher", "slash"),
     Card("fin_sceau", "Sceau apposé", EPIQUE, "finisher", "seal"),
     Card("fin_eclipse", "Éclipse", LEGENDAIRE, "finisher", "eclipse"),
+
+    # ================= Troisième vague (J6, §16) =======================
+    # Le confort du dernier jalon, au sens propre : rien ici ne débloque quoi
+    # que ce soit. La raison d'ajouter est arithmétique — soixante-neuf cartes à
+    # deux ou trois tirages par semaine se complètent en une année, et une
+    # collection complète cesse d'être un moteur : chaque tirage devient un
+    # doublon, c'est-à-dire une conversion en Éclats, c'est-à-dire une
+    # transaction. La séance longue du 19 août ajoute en plus un tirage
+    # hebdomadaire, ce qui rapproche encore l'échéance.
+    #
+    # Les emplacements gardent leur répartition : plus de thèmes, parce qu'un
+    # accent se voit en permanence ; peu de cadres, parce qu'un cadre se voit
+    # sur un seul écran.
+
+    # -- Thèmes
+    Card("theme_bitume", "Bitume", COMMUN, "theme", "#5F6672"),
+    Card("theme_argile", "Argile", COMMUN, "theme", "#B07A5A"),
+    Card("theme_menthe", "Menthe givrée", COMMUN, "theme", "#7FD8C0"),
+    Card("theme_brique", "Brique", COMMUN, "theme", "#A5503F"),
+    Card("theme_indigo", "Indigo", RARE, "theme", "#4B57B8"),
+    Card("theme_safran", "Safran", RARE, "theme", "#E0952B"),
+    Card("theme_ardente", "Terre ardente", RARE, "theme", "#C4562B"),
+    Card("theme_vert_de_gris", "Vert-de-gris", EPIQUE, "theme", "#4E8C7A"),
+    Card("theme_amethyste", "Améthyste", EPIQUE, "theme", "#7B4FBF"),
+    Card("theme_or_blanc", "Or blanc", LEGENDAIRE, "theme", "#F0E2B6"),
+
+    # -- Emblèmes
+    Card("emb_sablier", "Sablier", COMMUN, "emblem", "⧗"),
+    Card("emb_bougie", "Bougie", COMMUN, "emblem", "⚱"),
+    Card("emb_compas", "Compas", COMMUN, "emblem", "⌖"),
+    Card("emb_marteau", "Marteau", RARE, "emblem", "⚒"),
+    Card("emb_alambic", "Alambic", RARE, "emblem", "⚗"),
+    Card("emb_spirale", "Spirale", EPIQUE, "emblem", "◈"),
+    Card("emb_soleil_noir", "Soleil noir", LEGENDAIRE, "emblem", "☉"),
+
+    # -- Cadres
+    Card("cadre_os", "Cadre d'os", COMMUN, "frame", "bone"),
+    Card("cadre_bronze", "Cadre de bronze", RARE, "frame", "bronze"),
+    Card("cadre_givre", "Cadre de givre", EPIQUE, "frame", "rime"),
+    Card("cadre_eclipse", "Cadre d'éclipse", LEGENDAIRE, "frame", "eclipsed"),
+
+    # -- Titres
+    Card("titre_artisan", "Artisan", COMMUN, "title", "Artisan"),
+    Card("titre_du_soir", "Homme du soir", COMMUN, "title", "Du soir"),
+    Card("titre_patient", "Le Patient", RARE, "title", "Le Patient"),
+    Card("titre_forgeron", "Forgeron", RARE, "title", "Forgeron"),
+    Card("titre_sans_excuse", "Sans excuse", EPIQUE, "title", "Sans excuse"),
+    Card("titre_intraitable", "Intraitable", LEGENDAIRE, "title", "Intraitable"),
+
+    # -- Effets de fin de session
+    Card("fin_limaille", "Limaille", COMMUN, "finisher", "filings"),
+    Card("fin_souffle", "Souffle", RARE, "finisher", "breath"),
+    Card("fin_enclume", "Coup d'enclume", EPIQUE, "finisher", "anvil"),
+    Card("fin_aurore", "Aurore", LEGENDAIRE, "finisher", "dawn"),
 )
 
 PAR_CLE = {c.key: c for c in CATALOGUE}
@@ -179,14 +233,39 @@ PAR_RARETE: dict[str, list[Card]] = {
 }
 
 
-def rarity_weights(*, draws_since_rare: int, draws_since_epic: int) -> dict[str, int]:
+# Ce que l'effort déplace au maximum dans les poids, sur 1000. Volontairement
+# modeste : la faveur incline le tirage, elle ne le décide pas. Une faveur qui
+# garantirait l'épique ferait du travail une monnaie d'achat de cartes, et le
+# §12.6 tient à ce que le loot reste une surprise et non un barème.
+FAVEUR_VERS_RARE = 220
+FAVEUR_VERS_EPIQUE = 90
+
+
+def rarity_weights(
+    *, draws_since_rare: int, draws_since_epic: int, faveur: float = 0.0
+) -> dict[str, int]:
     """Les poids courants, pitié comprise.
 
     La montée est progressive et non un palier sec : une pitié qui bascule d'un
     coup se remarque et donne l'impression d'un système qui triche. Une pitié
     qui monte doucement se vit comme de la chance.
+
+    ``faveur`` va de 0 à 1 et vient de l'**effort** que le tirage récompense —
+    les heures posées sur une étape avant de la terminer. Elle transfère du
+    commun vers le rare, et du rare vers l'épique. Elle s'ajoute à la pitié au
+    lieu de la remplacer : la pitié corrige la malchance, la faveur reconnaît le
+    travail, et les deux n'ont aucune raison de s'exclure.
     """
     poids = dict(POIDS)
+
+    faveur = min(1.0, max(0.0, faveur))
+    if faveur:
+        vers_rare = min(poids[COMMUN], round(FAVEUR_VERS_RARE * faveur))
+        poids[COMMUN] -= vers_rare
+        poids[RARE] += vers_rare
+        vers_epique = min(poids[RARE], round(FAVEUR_VERS_EPIQUE * faveur))
+        poids[RARE] -= vers_epique
+        poids[EPIQUE] += vers_epique
 
     if draws_since_rare >= PITIE_RARE:
         # Le commun s'effondre au profit du rare, jusqu'à devenir impossible.
@@ -209,6 +288,7 @@ def draw(
     owned: set[str] | None = None,
     draws_since_rare: int = 0,
     draws_since_epic: int = 0,
+    faveur: float = 0.0,
     rng: random.Random | None = None,
 ) -> tuple[Card, bool]:
     """Tire une carte. Rend la carte et si elle est un doublon.
@@ -221,7 +301,9 @@ def draw(
     rng = rng or random.Random()
     owned = owned or set()
 
-    poids = rarity_weights(draws_since_rare=draws_since_rare, draws_since_epic=draws_since_epic)
+    poids = rarity_weights(
+        draws_since_rare=draws_since_rare, draws_since_epic=draws_since_epic, faveur=faveur
+    )
     rarete = rng.choices(RARETES, weights=[poids[r] for r in RARETES], k=1)[0]
     carte = rng.choice(PAR_RARETE[rarete])
     return carte, carte.key in owned
@@ -294,6 +376,11 @@ FIN_DE_SAISON = "saison"
 # fêtée : elle rendait 60 points de dégâts et rien d'autre. Une carte garantie
 # la met au niveau du passage de niveau, qui lui ne demande que du volume.
 ETAPE_TERMINEE = "etape"
+# Une session longue peut faire tomber une carte, avec une probabilité qui monte
+# avec les minutes réellement travaillées. C'est le seul tirage **probabiliste**
+# lié à une session, et c'est voulu : garanti, il ferait de chaque soirée une
+# distribution et viderait l'ouverture de son sens.
+SESSION_LONGUE = "session"
 # Fabriquée à la Forge, pas tirée. Distinguée dans le journal parce que ce n'est
 # pas de la chance : c'est une dépense, et les deux ne se relisent pas pareil.
 FORGEE = "forgee"
@@ -303,8 +390,58 @@ RAISONS = {
     CLOTURE_DE_SEMAINE: "Semaine tenue",
     FIN_DE_SAISON: "Fin de saison",
     ETAPE_TERMINEE: "Étape terminée",
+    SESSION_LONGUE: "Session longue",
     FORGEE: "Forgée",
 }
+
+
+# --------------------------------------------------------------------------
+# Ce que la durée d'une session, et l'effort posé sur une étape, valent au tirage
+# --------------------------------------------------------------------------
+#
+# Tranché le 19 août 2026, sur la question laissée ouverte dans `docs/a-faire` :
+# *une étape longue vaut-elle la même carte qu'une étape courte ?* Non. Le
+# déclencheur reste **terminer** — rien ne tombe pour avoir peiné sans finir —
+# mais ce qui tombe tient compte de ce qui a été posé avant.
+#
+# Les deux courbes ci-dessous sont volontairement plates au début. Une carte qui
+# arriverait dès dix minutes ferait du mode dégradé une machine à loot, alors
+# qu'il existe pour les soirs où l'on ne peut rien faire d'autre : le §14 en fait
+# une issue de secours, et une issue de secours ne se récompense pas.
+
+SESSION_SEUIL = 25          # sous le plancher normal, aucun tirage
+SESSION_PLAFOND = 60        # au-delà, la chance ne monte plus
+SESSION_CHANCE_MAX = 0.25
+
+ETAPE_PLAFOND_MINUTES = 300  # cinq heures posées sur une étape : faveur pleine
+
+
+def chance_de_carte(minutes: int) -> float:
+    """Probabilité qu'une session fasse tomber une carte, entre 0 et 0,25.
+
+    Nulle sous 25 minutes, puis linéaire jusqu'à 60. Le plafond est bas exprès :
+    à raison d'une session longue par soir, il tombe environ une carte par
+    semaine, ce qui reste inférieur au rythme des étapes et des niveaux. Le loot
+    doit rester lié à ce qui **avance**, et une session est du temps, pas de
+    l'avancement.
+    """
+    minutes = max(0, int(minutes))
+    if minutes < SESSION_SEUIL:
+        return 0.0
+    portee = SESSION_PLAFOND - SESSION_SEUIL
+    ratio = min(1.0, (minutes - SESSION_SEUIL) / portee)
+    return round(SESSION_CHANCE_MAX * ratio, 4)
+
+
+def faveur_pour(minutes_posees: int) -> float:
+    """La faveur d'un tirage d'étape, d'après les minutes posées sur elle.
+
+    Zéro pour une étape expédiée, 1 au bout de cinq heures. La courbe est
+    linéaire et plafonnée : au-delà, une étape n'est plus longue, elle est
+    bloquée — et le §13.5 a déjà un constat pour ça. Récompenser encore
+    récompenserait l'enlisement.
+    """
+    return min(1.0, max(0, int(minutes_posees)) / ETAPE_PLAFOND_MINUTES)
 
 
 def draws_for_week(*, days_kept: int, commitments_kept: bool) -> int:

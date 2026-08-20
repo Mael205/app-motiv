@@ -212,10 +212,15 @@
     gap: 8px;
   }
 
+  /* Le préfixe disparaît, le numéro de niveau reste. L'ellipse faisait
+     l'inverse : elle coupait « XP vers le ni… » et emportait le seul chiffre
+     qui varie. */
+  .banner__xp-head .banner__xp-prefixe {
+    display: none;
+  }
+
   .banner__xp-head .label {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
@@ -260,40 +265,74 @@
   height: 34px;
   font-size: 1.25rem;
   line-height: 1;
-  color: var(--accent, #E8A33D);
+  color: var(--accent);
 }
 
 .banner__titre {
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent, #E8A33D);
+  color: var(--accent);
   opacity: 0.85;
 }
 
+/* Les cadres de la troisième vague (J6) réutilisent les quatre traitements
+   existants plutôt que d'en inventer quatre autres. Un cadre est un liseré de
+   trente pixels : au-delà de quatre variantes, la différence ne se voit plus,
+   et une carte qui ne change rien à l'écran est une carte qui déçoit. Ce qui
+   les distingue est leur nom et leur rareté, pas un cinquième rayon. */
 body[data-frame='iron'] .banner__sigil--carte,
+body[data-frame='bone'] .banner__sigil--carte,
 body[data-frame='slate'] .banner__sigil--carte {
   border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  border-radius: 6px;
+  clip-path: var(--clip-sm);
 }
 
 body[data-frame='brass'] .banner__sigil--carte,
+body[data-frame='bronze'] .banner__sigil--carte,
 body[data-frame='silver'] .banner__sigil--carte,
 body[data-frame='burnt'] .banner__sigil--carte {
-  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 55%, transparent);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  clip-path: var(--clip-sm);
 }
 
 body[data-frame='obsidian'] .banner__sigil--carte,
+body[data-frame='rime'] .banner__sigil--carte,
 body[data-frame='stained'] .banner__sigil--carte,
 body[data-frame='leather'] .banner__sigil--carte {
-  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
   border-radius: 50%;
 }
 
 body[data-frame='aurora'] .banner__sigil--carte,
+body[data-frame='eclipsed'] .banner__sigil--carte,
 body[data-frame='meteor'] .banner__sigil--carte {
-  border: 1px solid var(--accent, #E8A33D);
+  border: 1px solid var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent, #E8A33D) 70%, transparent);
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+
+/* La trame (§12.2).
+ *
+ * Deux voies, deux teintes, et la basse n'est **pas** en rouge : elle n'est pas
+ * une sanction, elle est un autre décor. Un rouge d'alerte ici doublerait la
+ * peine déjà payée par la mise, ce que le §17 interdit. Les cimes tirent vers
+ * le clair, les braises vers le cuivre — deux ambiances, aucune valeur.
+ */
+.banner__voie {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.banner__voie--cimes {
+  color: color-mix(in srgb, var(--accent, #e8a33d) 55%, var(--muted));
+}
+
+.banner__voie--braises {
+  color: color-mix(in srgb, #c87d4a 55%, var(--muted));
 }

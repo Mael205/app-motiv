@@ -228,7 +228,7 @@ class TestDeclencheur:
 
     def test_part_le_dimanche_soir(self, user, poste):
         fired = triggers.check_weekly_report(user.profile, paris(20, 0))
-        assert fired and fired[0]["kind"] == triggers.BILAN
+        assert triggers.BILAN in [f["kind"] for f in fired]
 
     def test_ne_part_pas_un_mardi(self, user, poste):
         assert triggers.check_weekly_report(user.profile, paris(20, 0, date(2026, 3, 3))) == []

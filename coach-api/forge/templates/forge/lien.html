@@ -59,6 +59,9 @@ qui n'a pas le coach et n'en veut pas.
 
 {% elif vue.kind == 'reponse' %}
   <h1>{{ vue.question }}</h1>
+  {# Le fait daté avant la question : le §13.3 en fait la moitié de la question,
+     et « qu'est-ce qui s'est passé ce soir-là » sans le soir ne se répond pas. #}
+  {% if vue.constat %}<p>{{ vue.constat }}</p>{% endif %}
   <p>Deux phrases suffisent.</p>
   <form method="post">{% csrf_token %}
     <textarea name="texte" autofocus></textarea>

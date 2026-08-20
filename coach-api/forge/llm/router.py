@@ -38,12 +38,34 @@ SONNET = "claude-sonnet-5"
 RESERVE_RAISONNEMENT = {"low": 1000, "medium": 4000, "high": 8000}
 
 
+# Le délai d'attente par défaut. Il est court **exprès** : le briefing part
+# pendant que l'écran est déjà utilisable, et le §7 interdit de faire attendre
+# quoi que ce soit sur le chemin critique du soir. Mieux vaut le repli
+# déterministe qu'une app qui se fige.
+TIMEOUT_DEFAUT = 150
+
+
 @dataclass(frozen=True)
 class Route:
     model: str
     effort: str
     max_tokens: int
     why: str
+    # Toutes les tâches n'ont pas la même urgence. Le briefing doit tenir dans
+    # l'attente d'un écran ; l'entretien de projet est une séance qu'on ouvre
+    # exprès, et il produit un parcours de dix blocs avec leurs ressources —
+    # 150 s ne suffisent pas, et l'abandonner à mi-chemin coûte bien plus cher
+    # que d'attendre.
+    timeout: int = TIMEOUT_DEFAUT
+    # Le modèle peut-il aller chercher ses sources ?
+    #
+    # Réservé à l'entretien, et pour une raison mesurée : une roadmap écrite de
+    # mémoire nomme des ressources qui ont changé de prix, d'adresse ou de
+    # contenu depuis l'entraînement. C'était l'écart le plus visible avec le
+    # même exercice fait dans un chat — celui-ci cherche, et cite. Partout
+    # ailleurs le modèle transforme du texte déjà fourni : chercher n'y
+    # apporterait rien et coûterait des secondes sur le chemin du soir.
+    recherche_web: bool = False
 
     @property
     def reponse_visible(self) -> int:
@@ -76,12 +98,27 @@ ROUTES: dict[Task, Route] = {
         model=OPUS,
         effort="high",
         max_tokens=24000,
-        why="une roadmap floue se paie pendant des semaines (§4.5)",
+        # La recherche ajoute des allers-retours avant le premier mot écrit.
+        # Sept minutes pour un parcours de deux ans documenté restent un bon
+        # échange : c'est une séance qu'on ouvre exprès, pas un écran d'attente.
+        timeout=600,
+        recherche_web=True,
+        why="une roadmap floue se paie pendant des semaines (§4.5), et une "
+        "ressource citée de mémoire a pu changer de prix ou d'adresse",
+    ),
+    Task.IMPORT_MARKDOWN: Route(
+        model=SONNET,
+        effort="medium",
+        max_tokens=12000,
+        timeout=240,
+        why="relire un markdown déjà écrit pour le remettre au format est une "
+        "transformation : la réponse est entièrement dans l'entrée",
     ),
     Task.REVUE_HEBDO: Route(
         model=OPUS,
         effort="high",
         max_tokens=16000,
+        timeout=300,
         why="analyse dialoguée : il faut arriver avec les constats déjà faits (§5.3)",
     ),
     Task.BILAN: Route(
@@ -105,9 +142,16 @@ ROUTES: dict[Task, Route] = {
     ),
     Task.DECOUPAGE: Route(
         model=SONNET,
-        effort="medium",
-        max_tokens=8000,
-        why="découper une étape est mécanique une fois le contexte donné",
+        effort="high",
+        max_tokens=20000,
+        timeout=300,
+        # Ce tour arrive des mois après l'entretien qui a écrit le bloc. Une
+        # adresse, un découpage de chapitres, un prix ont eu le temps de
+        # changer, et découper un bloc sur une ressource morte donne dix soirées
+        # perdues avant que quiconque s'en aperçoive.
+        recherche_web=True,
+        why="le bloc est déjà décidé : reste à le rendre faisable, ce qui est "
+        "une transformation — mais sur des sources qui ont pu bouger depuis",
     ),
 }
 

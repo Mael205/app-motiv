@@ -25,3 +25,13 @@ export { CountUp } from './CountUp'
 export { Burst } from './Burst'
 export { Rays } from './Rays'
 export { EASE } from './easing'
+export {
+  animerAnneau,
+  animerEntree,
+  devoilerTitre,
+  inclinerAuPointeur,
+  revelerAuDefilement,
+  pulser,
+} from './anim'
+export { quandVisible } from './anim'
+export { useRevelation, useInclinaison } from './useReveal'

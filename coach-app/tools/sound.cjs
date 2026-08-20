@@ -10,8 +10,9 @@
  * une légendaire doit programmer plus de voix qu'une commune.
  */
 const { chromium } = require('playwright')
+const { verdictSon, conclure } = require('./verdict.cjs')
 
-const ORIGIN = process.env.ORIGIN || 'http://localhost:5180'
+const ORIGIN = process.env.ORIGIN || 'http://localhost:5173'
 
 const ESPION = `
 window.__voix = []
@@ -74,4 +75,9 @@ window.webkitAudioContext = FakeCtx
 
   console.log(JSON.stringify(resultats, null, 1))
   await browser.close()
+
+  // Le verdict. Deux facons pour le son d'etre casse, et aucune ne s'entend sur
+  // la machine du jour : la coupure ne coupe pas (des voix partent alors que le
+  // son est sur « off »), ou une sequence est muette (zero voix programmee).
+  conclure(verdictSon(resultats))
 })()

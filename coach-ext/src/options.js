@@ -117,3 +117,31 @@ $('save').addEventListener('click', async () => {
   state.textContent = 'Enregistré.'
   state.className = 'state'
 })
+
+
+/** Le bouton « Envoyer maintenant ».
+ *
+ * Il existe pour une raison de diagnostic, pas de confort. Tant qu'aucun envoi
+ * n'a eu lieu, l'état affiché est vide — et un état vide veut dire deux choses
+ * indiscernables : « rien à envoyer », qui est le cas normal et fréquent
+ * puisque tout ce qui tombe dans « autre » n'est jamais transmis, et « ça ne
+ * marche pas ». Ce bouton sépare les deux en une seconde.
+ */
+document.getElementById('envoyer').addEventListener('click', async () => {
+  const etat = document.getElementById('state')
+  etat.textContent = 'Envoi…'
+  try {
+    const reponse = await api.runtime.sendMessage({ type: 'coach-envoyer' })
+    if (reponse && reponse.lastError) {
+      etat.textContent = reponse.lastError
+    } else if (reponse && reponse.lastFlush) {
+      etat.textContent = `Dernier envoi : ${new Date(reponse.lastFlush).toLocaleString('fr-FR')}`
+    } else {
+      // Le cas honnête : il n'y avait rien à envoyer. Le dire évite de chercher
+      // une panne là où il n'y en a pas.
+      etat.textContent = "Rien à envoyer : aucune minute pleine sur un site catégorisé."
+    }
+  } catch (erreur) {
+    etat.textContent = `Échec : ${erreur.message}`
+  }
+})

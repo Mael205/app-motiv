@@ -104,6 +104,39 @@ def ordre_des_identites(annee: int, total: int) -> list[int]:
     return [(depart + i * pas) % total for i in range(total)]
 
 
+def place_dans_le_reservoir(annee: int, rang: int, total: int, *, decalage: int = 0) -> int:
+    """L'indice tiré du réservoir pour la ``rang``-ième saison d'une année.
+
+    Un réservoir **plus grand qu'une année** (J6) ne se consomme pas en un an :
+    il se vide sur plusieurs années avant d'être rebattu. Vingt-quatre identités
+    pour douze saisons donnent donc deux ans de noms inédits, puis un nouveau
+    tirage d'ordre.
+
+    C'est la correction d'un défaut qui n'apparaissait qu'en agrandissant le
+    catalogue : réutiliser ``ordre_des_identites`` par année et n'en garder que
+    les douze premières places donnait deux progressions arithmétiques
+    différentes sur le même cycle — qui se recouvrent largement. On voyait donc
+    revenir la moitié des noms l'année suivante, alors qu'il y avait douze
+    identités inutilisées dans le réservoir.
+
+    ``decalage`` décale le tirage d'un tour, pour que deux catalogues de même
+    taille — les identités et les boss — ne s'apparient pas à l'identique
+    d'une année sur l'autre.
+
+    Suppose que ``total`` soit un multiple de ``SAISONS_PAR_AN`` ; sinon une
+    année finirait à cheval sur deux tours, et une identité pourrait sortir
+    deux fois dans les douze.
+    """
+    if total <= 0:
+        return 0
+
+    annees_par_tour = max(1, total // SAISONS_PAR_AN)
+    tour = (annee - 1) // annees_par_tour
+    annee_dans_le_tour = (annee - 1) % annees_par_tour
+    ordre = ordre_des_identites(tour + 1 + decalage, total)
+    return ordre[(annee_dans_le_tour * SAISONS_PAR_AN + rang - 1) % total]
+
+
 def _pas_premier_avec(total: int, annee: int) -> int:
     """Un pas qui parcourt tout le cycle sans jamais retomber avant la fin.
 

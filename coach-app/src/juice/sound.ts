@@ -206,6 +206,16 @@ export const sfx = {
     note({ freq: LA3 / 2, duree: 0.9, gain: 0.1, type: 'sine' })
   },
 
+  /** Prolongation : deux notes qui montent d'un ton, et rien de plus.
+   *
+   * Volontairement plus discret que l'entrée en session. Prolonger n'est pas un
+   * événement : c'est la même séance qui continue, et un son de récompense
+   * ferait du bouton une chose à cliquer plutôt qu'une chose à décider.
+   */
+  sessionExtend() {
+    accord([MI4, SOL4], { duree: 0.26, gain: 0.09, type: 'triangle', ecart: 0.06 })
+  },
+
   /** Passage de niveau : arpège ascendant. L'événement le plus fréquent des rares. */
   levelUp() {
     accord([LA4, DO5, MI5, LA5], { duree: 0.55, gain: 0.14, type: 'triangle', ecart: 0.07 })

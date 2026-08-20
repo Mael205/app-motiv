@@ -24,10 +24,12 @@ les trois, sans compte à créer et sans application à installer.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
-from .models import ActionLink, FridgeIdea
+from .models import ActionLink, FridgeIdea, Rappel
 
 # Combien de temps un lien reste valable, selon ce qu'il sert à faire. La durée
 # n'est pas cosmétique : un lien de bilan qui traîne un an dans une boîte
@@ -36,7 +38,16 @@ TTL_JOURS = {
     ActionLink.VU: 30,
     ActionLink.REPONSE: 14,
     ActionLink.FRIGO: 365,        # celui-là est un raccourci, on le garde
+    # Les deux gestes du gardien ne valent que pour la soirée en cours. Un
+    # « démarrer 10 min » cliqué trois jours plus tard démarrerait une séance
+    # que personne n'a décidée, sur une proposition qui n'a plus cours.
+    ActionLink.DEMARRER: 1,
+    ActionLink.REPORTER: 1,
 }
+
+# Le report du gardien, en minutes. Quinze : assez pour finir ce qu'on fait,
+# trop peu pour que la soirée passe (§11.7).
+REPORT_MINUTES = 15
 
 # Un frigo se remplit plusieurs fois avec le même lien : c'est un marque-page,
 # pas un ticket. Les deux autres se consomment.
@@ -74,6 +85,10 @@ def presenter(lien: ActionLink) -> dict:
         "kind": lien.kind,
         "titre": _titre(lien),
         "question": lien.context.get("question", ""),
+        # Le fait daté qui a provoqué la question (§13.3). Il voyage avec elle :
+        # « qu'est-ce qui s'est passé ce soir-là » sans le soir en question ne
+        # se répond pas, et surtout pas depuis une notification.
+        "constat": lien.context.get("constat", ""),
         "fait": lien.spent,
         "expire": lien.expired,
         "utilisable": lien.usable,
@@ -81,10 +96,21 @@ def presenter(lien: ActionLink) -> dict:
 
 
 def _titre(lien: ActionLink) -> str:
+    """Le titre affiché. **Aucun effet de bord** : cette fonction n'agit jamais.
+
+    La distinction n'est pas théorique — une messagerie qui pré-charge un lien
+    déclenche un GET, et un titre qui « ferait » quelque chose démarrerait une
+    séance que personne n'a demandée. Tout ce qui agit vit dans ``consommer``,
+    qui n'est appelée que sur un POST.
+    """
     if lien.kind == ActionLink.VU:
         return lien.context.get("titre") or "Bilan de la semaine"
     if lien.kind == ActionLink.REPONSE:
         return "Une question"
+    if lien.kind == ActionLink.DEMARRER:
+        return "Démarrer maintenant"
+    if lien.kind == ActionLink.REPORTER:
+        return "Reporter"
     return "Au frigo"
 
 
@@ -115,10 +141,17 @@ def consommer(lien: ActionLink, *, texte: str = "") -> dict:
         lien.save(update_fields=["uses", "last_used_at"])
         return {"ok": True, "message": "Au frigo. Tu le retrouveras dimanche."}
 
+    if lien.kind == ActionLink.DEMARRER:
+        return _demarrer(lien)
+
+    if lien.kind == ActionLink.REPORTER:
+        return _reporter(lien)
+
     if lien.kind == ActionLink.REPONSE:
         if not texte:
             return {"ok": False, "message": "Écris quelque chose."}
         lien.answer = texte
+        _classer_dans_la_revue(lien, texte)
 
     lien.uses = lien.max_uses
     lien.last_used_at = timezone.now()
@@ -134,7 +167,96 @@ def consommer(lien: ActionLink, *, texte: str = "") -> dict:
 def _deja(lien: ActionLink) -> str:
     if lien.kind == ActionLink.VU:
         return "Déjà marqué comme lu."
+    if lien.kind == ActionLink.DEMARRER:
+        return "Déjà démarrée."
+    if lien.kind == ActionLink.REPORTER:
+        return "Déjà reporté."
     return "Déjà envoyé."
+
+
+def _demarrer(lien: ActionLink) -> dict:
+    """Démarre la séance que le gardien proposait, depuis la notification.
+
+    Le projet et la durée sont fixés **à l'émission**, comme pour tout lien : le
+    geste ne se négocie pas au clic. C'est ce qui permet d'appuyer sur un bouton
+    de notification sans rien lire — ce que le §11.7 cherche, et qui n'a de sens
+    que si la chose qui va se produire a été décidée avant.
+
+    Une séance déjà en cours n'est pas une erreur : c'est le cas nominal du
+    double clic et du pré-chargement, et le lien répond « elle tourne déjà ».
+    """
+    from . import services
+    from .models import Project, Session
+
+    if Session.objects.filter(user=lien.user, status=Session.RUNNING).exists():
+        _consommer_le_lien(lien)
+        return {"ok": True, "message": "Une séance tourne déjà."}
+
+    projet = Project.objects.filter(
+        user=lien.user, pk=lien.context.get("project_id"), status=Project.ACTIVE
+    ).first()
+    if projet is None:
+        return {"ok": False, "message": "Ce projet n'est plus actif."}
+
+    minutes = int(lien.context.get("minutes") or 10)
+    try:
+        services.start_session(lien.user, projet, planned_minutes=minutes)
+    except ValueError as erreur:
+        return {"ok": False, "message": str(erreur)}
+
+    _consommer_le_lien(lien)
+    return {"ok": True, "message": f"{minutes} minutes sur {projet.name}. C'est parti."}
+
+
+def _reporter(lien: ActionLink) -> dict:
+    """Repose le gardien un quart d'heure plus tard.
+
+    Ce n'est **pas** un renoncement, et c'est pour ça que le geste existe : sans
+    lui, la seule façon de faire taire un gardien qui tombe au mauvais moment
+    est de le balayer, c'est-à-dire de le perdre. Un report est la seule réponse
+    honnête à « pas maintenant », et il ne coûte rien au §14 — le jour reste à
+    valider, la fenêtre continue de se fermer.
+    """
+    Rappel.objects.create(
+        user=lien.user,
+        kind="gardien_reporte",
+        due_at=timezone.now() + timedelta(minutes=REPORT_MINUTES),
+        title=lien.context.get("titre") or "Toujours rien de posé",
+        body=lien.context.get("corps") or "",
+    )
+    _consommer_le_lien(lien)
+    return {"ok": True, "message": f"Reposé dans {REPORT_MINUTES} minutes."}
+
+
+def _consommer_le_lien(lien: ActionLink) -> None:
+    lien.uses = lien.max_uses
+    lien.last_used_at = timezone.now()
+    lien.save(update_fields=["uses", "last_used_at"])
+
+
+def _classer_dans_la_revue(lien: ActionLink, texte: str) -> None:
+    """Range la réponse dans la revue du dimanche, si le lien en désigne une.
+
+    Le lien ne connaît de la revue que son identifiant et le rang de la
+    question — assez pour écrire, jamais assez pour lire. Une revue close
+    n'accepte plus rien : la réponse est alors gardée sur le lien, où elle reste
+    consultable, plutôt que perdue ou glissée dans un compte-rendu déjà écrit.
+    """
+    identifiant = lien.context.get("revue_id")
+    index = lien.context.get("index")
+    if identifiant is None or index is None:
+        return
+
+    from .models import WeeklyReview
+    from . import review
+
+    revue = WeeklyReview.objects.filter(pk=identifiant, user=lien.user).first()
+    if revue is None or revue.closed_at:
+        return
+    try:
+        review.repondre(revue, index=int(index), texte=texte)
+    except ValueError:                                # question disparue, revue close
+        return
 
 
 def _marquer_lu(lien: ActionLink) -> None:

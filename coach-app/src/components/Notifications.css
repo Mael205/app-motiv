@@ -1,0 +1,30 @@
+/* L'interrupteur des notifications.
+ *
+ * Discret : c'est un réglage, pas une fonctionnalité à vendre. La seule chose
+ * qu'il doit réussir est d'exister au moment où l'on se demande pourquoi rien
+ * n'arrive le soir.
+ */
+
+.notifs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 2px solid var(--line-strong);
+}
+
+.notifs__texte {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.notifs--muet {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--dim);
+}

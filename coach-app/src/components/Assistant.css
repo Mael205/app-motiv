@@ -12,7 +12,7 @@
   grid-template-rows: auto 1fr auto auto;
   gap: 0.6rem;
   padding: 1rem 1rem 1.2rem;
-  background: var(--fond, #0B0710);
+  background: var(--fond);
   overflow: hidden;
 }
 
@@ -82,7 +82,7 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.7rem 0.85rem;
-  border-radius: 10px;
+  clip-path: var(--clip-sm);
   border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
   background: color-mix(in srgb, currentColor 4%, transparent);
 }
@@ -93,7 +93,7 @@
 }
 
 .acte--appliquee {
-  border-color: color-mix(in srgb, var(--vert, #7ED08C) 45%, transparent);
+  border-color: color-mix(in srgb, var(--vert) 45%, transparent);
 }
 
 .acte__head {
@@ -116,12 +116,12 @@
 }
 
 .acte__etat--appliquee {
-  color: var(--vert, #7ED08C);
+  color: var(--vert);
   opacity: 1;
 }
 
 .acte__etat--perimee {
-  color: var(--or, #E8A33D);
+  color: var(--or);
   opacity: 1;
 }
 
@@ -157,7 +157,7 @@
 .acte__warning {
   margin: 0;
   font-size: 0.74rem;
-  color: var(--or, #E8A33D);
+  color: var(--or);
   line-height: 1.45;
 }
 
@@ -166,7 +166,7 @@
 }
 
 .acte__ok {
-  border-color: color-mix(in srgb, var(--accent, #E8A33D) 50%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .amorces ul {
@@ -186,7 +186,7 @@
 .assistant__erreur {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--rose, #DE5F7E);
+  color: var(--rose);
   line-height: 1.45;
 }
 
@@ -202,14 +202,12 @@
   align-items: end;
 }
 
+/* Champ du système (theme.css), moins le redimensionnement : la zone de
+   saisie de l'assistant vit dans une grille à hauteur fixe, l'étirer déborde
+   du panneau. C'était par ailleurs le dernier coin arrondi de l'application. */
 .assistant__saisie textarea {
-  padding: 0.55rem 0.7rem;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 0.9rem;
+  min-height: var(--control-h);
+  font-size: var(--t-sm);
   resize: none;
 }
 
@@ -223,9 +221,9 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 40%, transparent);
-  background: color-mix(in srgb, var(--fond, #0B0710) 88%, var(--accent, #E8A33D));
-  color: var(--accent, #E8A33D);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--fond) 88%, var(--accent));
+  color: var(--accent);
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
@@ -233,7 +231,7 @@
 
 @media (hover: hover) {
   .assistant__appel:hover {
-    border-color: var(--accent, #E8A33D);
+    border-color: var(--accent);
   }
 }
 

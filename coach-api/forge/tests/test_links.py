@@ -59,7 +59,9 @@ class TestCeQueLaPageMontre:
 
         vue = links.presenter(lien)
         assert "Une idée déjà au frigo" not in str(vue)
-        assert set(vue) == {"kind", "titre", "question", "fait", "expire", "utilisable"}
+        assert set(vue) == {
+            "kind", "titre", "question", "constat", "fait", "expire", "utilisable",
+        }
 
     def test_le_titre_du_bilan_vient_du_contexte(self, user):
         lien, _ = links.emettre(user, kind=ActionLink.VU, context={"titre": "Semaine du 10 août"})
@@ -158,3 +160,76 @@ class TestParLeWeb:
 
     def test_emettre_un_lien_demande_l_authentification(self, client, user):
         assert client.post("/api/links", {"kind": "frigo"}).status_code in (401, 403)
+
+
+class TestQuestionDeRevue:
+    """La revue du dimanche, répondue depuis la notification (§5.3, §11.7).
+
+    Le type ``reponse`` et sa page existaient depuis le 17 août ; personne ne
+    les émettait. Une revue qui n'existe que dans l'app est une revue qu'on
+    ouvre le dimanche soir, c'est-à-dire jamais.
+    """
+
+    @pytest.fixture
+    def revue(self, user):
+        from forge.models import WeeklyReview
+
+        return WeeklyReview.objects.create(
+            user=user,
+            week_start=timezone.now().date(),
+            questions=[
+                {"fait": "Mardi : créneau prévu, aucune session.", "question": "Que s'est-il passé ?", "reponse": ""},
+                {"fait": "Deux soirs à 23h40.", "question": "Qu'est-ce qui retarde ?", "reponse": ""},
+            ],
+        )
+
+    def test_le_lien_porte_la_question_et_son_fait(self, user, revue):
+        from forge import review
+
+        secret, question = review.lien_de_question(revue)
+        vue = links.presenter(links.resoudre(secret))
+        assert vue["question"] == question["question"]
+        assert vue["constat"] == "Mardi : créneau prévu, aucune session."
+
+    def test_la_reponse_atterrit_dans_la_revue(self, user, revue):
+        from forge import review
+
+        secret, _ = review.lien_de_question(revue)
+        resultat = links.consommer(links.resoudre(secret), texte="J'étais au restaurant.")
+        assert resultat["ok"]
+
+        revue.refresh_from_db()
+        assert revue.questions[0]["reponse"] == "J'étais au restaurant."
+        assert revue.questions[1]["reponse"] == ""
+
+    def test_la_question_suivante_est_celle_qui_reste(self, user, revue):
+        from forge import review
+
+        secret, _ = review.lien_de_question(revue)
+        links.consommer(links.resoudre(secret), texte="Rentré tard.")
+        revue.refresh_from_db()
+
+        _, suivante = review.lien_de_question(revue)
+        assert suivante["fait"] == "Deux soirs à 23h40."
+
+    def test_une_revue_close_n_accepte_plus_rien(self, user, revue):
+        from forge import review
+
+        secret, _ = review.lien_de_question(revue)
+        revue.closed_at = timezone.now()
+        revue.save(update_fields=["closed_at"])
+
+        # Le lien répond quand même : la réponse est gardée sur lui plutôt que
+        # glissée dans un compte-rendu déjà écrit.
+        resultat = links.consommer(links.resoudre(secret), texte="Trop tard.")
+        assert resultat["ok"]
+        revue.refresh_from_db()
+        assert revue.questions[0]["reponse"] == ""
+
+    def test_plus_de_lien_quand_tout_est_repondu(self, user, revue):
+        from forge import review
+
+        for question in revue.questions:
+            question["reponse"] = "dit"
+        revue.save(update_fields=["questions"])
+        assert review.lien_de_question(revue) is None

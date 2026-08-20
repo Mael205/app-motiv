@@ -30,6 +30,11 @@ export function SessionScreen({
   const [busy, setBusy] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestion, setSuggestion] = useState<DebriefSuggestion | null>(null)
+  /** La difficulté ressentie, en un tap. Facultative — un champ obligatoire de
+   *  plus à la clôture ferait renoncer à clôturer, et une clôture manquée coûte
+   *  bien plus qu'une difficulté inconnue. Elle n'entre dans aucun calcul :
+   *  c'est ce qui garantit qu'on peut répondre honnêtement. */
+  const [difficulty, setDifficulty] = useState<1 | 2 | 3 | null>(null)
 
   /** Propose une amorce a partir des notes brutes. **Ne cloture rien.**
    *
@@ -54,7 +59,16 @@ export function SessionScreen({
     }
   }
 
-  const planned = session.planned_minutes * 60
+  /** L'objectif vit en local **et** en props : la prolongation doit se voir au
+   *  clic, pas au prochain rafraîchissement de l'accueil dix secondes plus
+   *  tard. Le serveur reste la source de vérité — il rend le nouvel objectif,
+   *  et c'est lui qu'on affiche. */
+  const [objectif, setObjectif] = useState(session.planned_minutes)
+  const [prolongations, setProlongations] = useState(session.extensions ?? 0)
+  const [prolongeant, setProlongeant] = useState(false)
+  useEffect(() => setObjectif(session.planned_minutes), [session.planned_minutes])
+
+  const planned = objectif * 60
   const started = new Date(session.started_at).getTime()
 
   useEffect(() => {
@@ -66,9 +80,30 @@ export function SessionScreen({
 
   const remaining = Math.max(0, planned - elapsed)
   const ratio = Math.min(1, elapsed / planned)
-  const minutes = String(Math.floor(remaining / 60)).padStart(2, '0')
-  const seconds = String(remaining % 60).padStart(2, '0')
   const over = remaining === 0
+  /** Passé le terme, l'anneau compte **à l'endroit** : le temps en plus est du
+   *  travail qui compte désormais, et un 00:00 figé le disait perdu. */
+  const affiche = over ? elapsed - planned : remaining
+  const minutes = String(Math.floor(affiche / 60)).padStart(2, '0')
+  const seconds = String(affiche % 60).padStart(2, '0')
+
+  /** Prolonge de quinze minutes. C'est le seul geste qui fasse monter
+   *  l'objectif : il n'a pas d'inverse, parce que raccourcir une promesse en
+   *  cours revient à clôturer, et le bouton existe juste en dessous. */
+  async function prolonger() {
+    setProlongeant(true)
+    setError('')
+    try {
+      const etat = await api.extendSession(session.id)
+      setObjectif(etat.planned_minutes)
+      setProlongations(etat.extensions)
+      sfx.sessionExtend()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'La prolongation a échoué.')
+    } finally {
+      setProlongeant(false)
+    }
+  }
 
   async function submit() {
     if (!nextAction.trim()) {
@@ -78,7 +113,7 @@ export function SessionScreen({
     setBusy(true)
     setError('')
     try {
-      setResult(await api.endSession(session.id, note, nextAction.trim()))
+      setResult(await api.endSession(session.id, note, nextAction.trim(), difficulty))
       setPhase('result')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'La clôture a échoué.')
@@ -123,18 +158,34 @@ export function SessionScreen({
               </svg>
               <div className="ring__center">
                 <span className={`ring__time num${over ? ' ring__time--over' : ''}`}>
+                  {over ? '+' : ''}
                   {minutes}:{seconds}
                 </span>
-                <span className="label">{over ? 'temps écoulé' : 'restantes'}</span>
+                {/* Le mot change parce que le compteur a changé de sens : avant
+                    le terme il décompte une promesse, après il compte du travail
+                    qui s'ajoute. */}
+                <span className="label">{over ? 'en plus, et ça compte' : 'restantes'}</span>
               </div>
             </div>
+
+            {/* L'objectif annoncé reste écrit. Sans lui, un minuteur qu'on peut
+                dépasser et clôturer à volonté n'annonce plus rien — et c'est
+                justement ce que le §11.1 fait dire au démarrage : une durée. */}
+            <p className="session__objectif">
+              Objectif <span className="num">{objectif}</span> min
+              {prolongations ? ` · prolongée ${prolongations}×` : ''}
+            </p>
 
             <button className="cta" onClick={() => setPhase('debrief')}>
               {over ? 'Clôturer' : 'Terminer maintenant'}
             </button>
+            <button className="ghost session__extend" onClick={prolonger} disabled={prolongeant}>
+              {prolongeant ? 'Un instant…' : '+15 minutes'}
+            </button>
             <button className="ghost session__abandon" onClick={abandon}>
               Abandonner la session
             </button>
+            {error && <p className="session__error">{error}</p>}
           </motion.div>
         )}
 
@@ -187,6 +238,32 @@ export function SessionScreen({
                 autoFocus
               />
             </label>
+
+            {/* La seule question du système qui porte sur la qualité et non sur
+                le volume. Trois sessions d'affilée « trop facile » ne veulent
+                pas dire qu'on travaille mal — ça veut dire qu'on a cessé
+                d'apprendre, et aucun autre compteur ne le voit : sur tous les
+                autres, c'est même une bonne série. */}
+            <div className="difficulte">
+              <span className="label">Le niveau, honnêtement</span>
+              <div className="difficulte__choix">
+                {([[1, 'Trop facile'], [2, 'Juste'], [3, 'Trop dur']] as const).map(([n, mot]) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`difficulte__bouton${difficulty === n ? ' difficulte__bouton--actif' : ''}`}
+                    onClick={() => setDifficulty(difficulty === n ? null : n)}
+                    aria-pressed={difficulty === n}
+                  >
+                    {mot}
+                  </button>
+                ))}
+              </div>
+              <p className="difficulte__note">
+                N'entre dans aucun calcul : ni XP, ni streak. C'est ce qui permet d'y répondre
+                honnêtement.
+              </p>
+            </div>
 
             {error && <p className="session__error">{error}</p>}
 
@@ -251,6 +328,17 @@ function finisseur(): { count: number; spread: number; color?: string } {
       return { count: 24, spread: 210, color: '#E8843D' }
     case 'dust':
       return { count: 16, spread: 160 }
+    /* Troisième vague (J6). Chacune change un nombre de particules et une
+       couleur, jamais un chiffre : le §17 interdit qu'un cosmétique devienne du
+       pouvoir, et une gerbe reste une gerbe. */
+    case 'filings':
+      return { count: 20, spread: 190, color: '#9FB3C8' }
+    case 'breath':
+      return { count: 28, spread: 260, color: '#7FD8C0' }
+    case 'anvil':
+      return { count: 38, spread: 200, color: '#C87D4A' }
+    case 'dawn':
+      return { count: 52, spread: 360, color: '#F0E2B6' }
     default:
       return { count: 22, spread: 200 }
   }
@@ -339,21 +427,37 @@ function ResultStage({ result, onDone }: { result: SessionResult; onDone: () => 
         )}
       </motion.div>
 
+      {/* L'objectif annoncé, relu à la clôture. Ni félicitation ni reproche :
+          deux nombres et un verbe, comme le §17 l'impose au bilan quotidien. */}
+      <p className="result__objectif">
+        {result.objectif_tenu
+          ? `Objectif ${result.objectif} min tenu${
+              result.depassement ? ` · ${result.depassement} min en plus` : ''
+            }`
+          : `Objectif ${result.objectif} min · clôturée à ${result.minutes}`}
+      </p>
+
       <ul className="result__lines">
         <li>
           <span>{result.minutes} minutes</span>
           <span className="num">+{b.base}</span>
         </li>
+        {b.duration_premium > 0 && (
+          <li>
+            <span>Prime de durée</span>
+            <span className="num">+{b.duration_premium}</span>
+          </li>
+        )}
         {b.first_of_day > 0 && (
           <li>
             <span>Première session du jour</span>
             <span className="num">+{b.first_of_day}</span>
           </li>
         )}
-        {b.early > 0 && (
+        {b.punctual > 0 && (
           <li>
-            <span>Démarrée avant 20h</span>
-            <span className="num">+{b.early}</span>
+            <span>Créneau tenu</span>
+            <span className="num">+{b.punctual}</span>
           </li>
         )}
         {b.streak_multiplier > 1 && (

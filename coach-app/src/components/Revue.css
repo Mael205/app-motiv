@@ -14,12 +14,9 @@
   gap: 12px;
 }
 
-.revue__titre {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-  color: var(--accent);
-  font-size: 11px;
-}
+/* Le titre de rubrique vient de theme.css (`.rule-title`). Il valait
+   ici 11 px, la taille d'une legende de compteur, pour une vraie
+   rubrique. */
 
 .revue__intro,
 .revue__note {
@@ -63,15 +60,11 @@
   margin-top: 10px;
 }
 
+/* Le style du champ vient de theme.css. Il ne reste ici que ce qui est propre
+   à la revue : une hauteur courte, parce que la consigne dit « deux phrases ». */
 .revue__saisie textarea {
-  width: 100%;
-  padding: 9px 11px;
-  background: var(--bg-deep);
-  border: 1px solid var(--line);
-  color: var(--text);
-  font: inherit;
-  font-size: 13.5px;
-  resize: vertical;
+  min-height: 64px;
+  font-size: var(--t-sm);
 }
 
 .revue__bloc {
@@ -97,15 +90,13 @@
   font-size: 10.5px;
 }
 
+/* L'action pleine de l'écran. Elle empruntait sa couleur à l'accent mais rien
+   d'autre au système : ni biseau, ni relief, ni la famille display des autres
+   boutons pleins. C'est maintenant un `.cta`, seulement pas pleine largeur —
+   ce n'est pas la décision du soir, c'est la sortie d'un panneau. */
 .revue__clore {
-  align-self: flex-start;
-  padding: 9px 16px;
-  background: var(--accent);
-  border: 0;
-  color: var(--bg-deep);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 14px 20px;
+  font-size: var(--t-xl);
 }
 
 .contrat {
@@ -189,15 +180,9 @@
   animation: revue-question 0.5s cubic-bezier(0.16, 1.2, 0.3, 1) 0.12s both;
 }
 
-.revue__saisie textarea {
-  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
-}
-
-.revue__saisie textarea:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
-}
+/* Le halo de focus était propre à ce champ : trois pixels d'accent que nul
+   autre champ de l'application ne portait. Le focus est maintenant celui du
+   système, partout le même. */
 
 @media (prefers-reduced-motion: reduce) {
   .revue__reponse,
@@ -213,7 +198,7 @@
   margin: 0.9rem 0;
   padding: 0.7rem 0.9rem;
   border-left: 2px solid var(--project, currentColor);
-  border-radius: 0 8px 8px 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--chamfer-sm)), calc(100% - var(--chamfer-sm)) 100%, 0 100%);
   background: color-mix(in srgb, currentColor 4%, transparent);
 }
 

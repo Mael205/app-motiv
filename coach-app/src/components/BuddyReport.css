@@ -12,12 +12,9 @@
   gap: 10px;
 }
 
-.buddy__titre {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 11px;
-}
+/* Le titre de rubrique vient de theme.css (`.rule-title`). Il valait
+   ici 11 px, la taille d'une legende de compteur, pour une vraie
+   rubrique. */
 
 .buddy__vide,
 .buddy__alerte {
@@ -159,13 +156,13 @@
   gap: 0.45rem;
   margin: 0.6rem 0;
   padding: 0.7rem 0.8rem;
-  border-radius: 10px;
+  clip-path: var(--clip-sm);
   background: color-mix(in srgb, currentColor 5%, transparent);
 }
 
 .buddy__remplacer input {
   padding: 0.45rem 0.6rem;
-  border-radius: 8px;
+  clip-path: var(--clip-sm);
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   background: transparent;
   color: inherit;
@@ -181,5 +178,5 @@
 .buddy__refus {
   margin: 0;
   font-size: 0.78rem;
-  color: var(--rose, #DE5F7E);
+  color: var(--rose);
 }

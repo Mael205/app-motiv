@@ -1,8 +1,11 @@
-import type { HomeState } from '../types'
+import type { HomeState, ModeExtra as EtatExtra } from '../types'
+import { useRevelation } from '../juice'
 import { useBriefing } from '../hooks/useBriefing'
+import { BilanDuMatin } from '../components/BilanDuMatin'
 import { CorpsPanel } from '../components/CorpsPanel'
 import { DecisionBlock } from '../components/DecisionBlock'
 import { GardePanel } from '../components/GardePanel'
+import { ModeExtra } from '../components/ModeExtra'
 import { NightHud } from '../components/NightHud'
 import { RelaxGate } from '../components/RelaxGate'
 import { RoutinePanel } from '../components/RoutinePanel'
@@ -53,24 +56,55 @@ import './Home.css'
  * l'Entretien n'a pas de streak à admirer (§11.9) et une garde se déclare le
  * soir même ou pas du tout.
  */
-export function Home({ state, onStarted }: { state: HomeState; onStarted: () => void }) {
+export function Home({
+  state,
+  extra = null,
+  onStarted,
+}: {
+  state: HomeState
+  extra?: EtatExtra | null
+  onStarted: () => void
+}) {
   // Le briefing arrive apres coup et remplace la proposition ; tant qu'il n'est
   // pas la, l'ecran est deja complet et deja actionnable.
   const briefing = useBriefing(state.proposal, state.day + state.minutes_today)
   const decision = briefing ?? state.proposal
   const locked = state.sanctions.showcase_locked
 
+  /** Le bilan d'hier ne paraît qu'**avant** l'ouverture de la fenêtre du soir.
+   *
+   * C'est ce qui le rend compatible avec le §11.1 : le matin, l'accueil ne
+   * porte aucune décision — la soirée n'a pas commencé, il n'y a rien à
+   * démarrer — et une tuile qui ne demande rien y a sa place. Passé l'heure,
+   * elle disparaît d'elle-même et l'écran redevient ce qu'il doit être : une
+   * décision et rien d'autre. Les deux dates viennent du serveur, jamais d'un
+   * `new Date()` local qui se tromperait entre minuit et la bascule de 4h. */
+  const avantLaSoiree = state.now < state.evening.start
+
+  /* Les panneaux consultatifs se levent quand on les atteint — jamais le bloc
+     de decision, qui doit exister a l'image zero. Le §7 interdit l'animation
+     sur le chemin critique, et un bouton « Demarrer » qui attend d'etre
+     observe pour devenir visible en serait le pire exemple. */
+  const scene = useRevelation({ lever: '.deck__consult > *, .deck__rail--right > *' })
+
   return (
-    <div className="deck">
+    <div className="deck" ref={scene}>
       {/* ---- Rail gauche : qui tu es ----------------------------------- */}
       <aside className="deck__rail deck__rail--left">
-        <SeasonBanner
-          cosmetics={state.cosmetics}
-          season={state.season}
-          progression={state.progression}
-          streak={state.streak}
-          unlock={state.rank.next_unlock}
-        />
+        {/* Pendant le mode extra, il n'y a pas de saison à montrer — et c'est
+            précisément ce qu'il faut expliquer. Le bandeau cède sa place plutôt
+            que d'afficher un vide à la forme de saison. */}
+        {extra ? (
+          <ModeExtra extra={extra} />
+        ) : (
+          <SeasonBanner
+            cosmetics={state.cosmetics}
+            season={state.season}
+            progression={state.progression}
+            streak={state.streak}
+            unlock={state.rank.next_unlock}
+          />
+        )}
 
         {/* Consultatif : dans le rail a gauche sur grand ecran, mais rejete
             APRES la decision sur telephone — voir la note de mise en page.
@@ -96,6 +130,11 @@ export function Home({ state, onStarted }: { state: HomeState; onStarted: () => 
 
       {/* ---- Centre : la décision, et rien d'autre --------------------- */}
       <div className="deck__main">
+        {/* Le bilan de la nuit (§13.1), le matin seulement. Il ne demande rien,
+            donc il ne dispute rien à la décision — qui n'existe pas encore à
+            cette heure-là. */}
+        <BilanDuMatin avantLaSoiree={avantLaSoiree} />
+
         {state.streak.message && (
           <div className={`notice notice--${state.streak.sanction_level >= 2 ? 'hard' : 'soft'}`}>
             {state.streak.message}

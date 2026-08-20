@@ -57,10 +57,62 @@ def season_score(user, season: Season) -> int:
     saison à l'autre. Un score en XP comparerait des règles ; un score en
     minutes compare du travail.
     """
-    return (
+    propres = (
         Session.objects.filter(user=user, season=season, status=Session.DONE).aggregate(
             total=Sum("actual_minutes")
         )["total"]
+        or 0
+    )
+    return propres + minutes_extra(user, season)
+
+
+def fenetre_extra(user, season: Season) -> tuple[date, date] | None:
+    """Les jours du **mode extra** qui alimentent cette saison (§12.4).
+
+    Le §12.4 récompense une victoire anticipée par une longueur d'avance : les
+    jours entre la mort du boss et l'ouverture de la saison suivante ne sont pas
+    perdus, leur travail est mis de côté pour elle. Les deux jours de pause du
+    §12.1 entrent dans la même fenêtre — travailler entre deux saisons ne doit
+    jamais valoir moins que ne rien faire.
+
+    La fenêtre est bornée par la **date de clôture réelle** de la saison
+    précédente, pas par sa date de fin prévue : c'est toute la différence quand
+    le boss est tombé au jour 11.
+    """
+    precedente = (
+        Season.objects.filter(user=user, index__lt=season.index, status=Season.CLOSED)
+        .order_by("-index")
+        .first()
+    )
+    if precedente is None:
+        return None
+
+    debut = (precedente.closed_on or precedente.ends_on) + timedelta(days=1)
+    fin = season.starts_on - timedelta(days=1)
+    return (debut, fin) if debut <= fin else None
+
+
+def minutes_extra(user, season: Season) -> int:
+    """Les minutes mises de côté pour cette saison avant qu'elle commence.
+
+    Comptées depuis l'historique et jamais stockées : ce sont des sessions sans
+    saison, dans une fenêtre connue. Un compteur figé à l'ouverture se
+    tromperait dès qu'une sonde remonte une minute en retard, et le §10 impose
+    déjà de tout recalculer.
+    """
+    fenetre = fenetre_extra(user, season)
+    if fenetre is None:
+        return 0
+
+    debut, fin = fenetre
+    return (
+        Session.objects.filter(
+            user=user,
+            season=None,
+            status=Session.DONE,
+            coach_day__gte=debut,
+            coach_day__lte=fin,
+        ).aggregate(total=Sum("actual_minutes"))["total"]
         or 0
     )
 
@@ -90,7 +142,16 @@ def close_season(user, season: Season, *, today: date, rng: random.Random | None
     season.final_score = score
     season.title_awarded = season_rules.title_for(ratio, season.name)
     season.status = Season.CLOSED
-    season.save(update_fields=["final_score", "title_awarded", "status"])
+    # Le jour réel, qui n'est pas ``ends_on`` quand le boss est tombé en avance.
+    season.closed_on = today
+    # Le résultat, gravé : c'est lui qui décide de la voie de la suivante
+    # (§12.2). Le recalculer plus tard depuis le boss donnerait la même réponse
+    # aujourd'hui et une autre le jour où le seuil bougerait — et une trame déjà
+    # traversée ne se réécrit pas.
+    season.reussie = ratio >= SEUIL_REUSSITE
+    season.save(
+        update_fields=["final_score", "title_awarded", "status", "closed_on", "reussie"]
+    )
 
     # La mise, résolue une seule fois — et sur ce qu'il en **reste**. Le palier 2
     # du §14 en prélève un quart à chaque streak cassé, déjà retiré du solde ;
@@ -300,7 +361,45 @@ def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
 # Offre de la saison suivante (§12.2, §12.5, §12.7)
 # --------------------------------------------------------------------------
 
-def next_offer(user, *, today: date) -> dict:
+def saison_a_venir(user, *, today: date) -> Season | None:
+    """Une saison déjà ouverte dont le premier jour n'est pas encore arrivé.
+
+    Elle existe pendant le **mode extra** : le boss est tombé, la saison
+    suivante est engagée, et elle attend sa date. Sans cette lecture, l'app
+    reproposait indéfiniment d'ouvrir une saison — ``current_season`` ne rend
+    que celles qui ont commencé, donc l'écran voyait « aucune saison » et
+    offrait la suivante, puis la suivante encore.
+    """
+    return (
+        Season.objects.filter(user=user, status=Season.RUNNING, starts_on__gt=today)
+        .order_by("index")
+        .first()
+    )
+
+
+def etat_extra(user, *, today: date) -> dict | None:
+    """Le mode extra, s'il a lieu : ce qu'il reste à attendre et ce qui est mis
+    de côté (§12.4).
+
+    Il faut le dire à l'écran, et c'est la moitié du travail : une app qui
+    n'affiche plus ni boss, ni fantôme, ni modificateur pendant deux semaines
+    sans expliquer pourquoi ne se lit pas comme une récompense, elle se lit
+    comme une panne.
+    """
+    prochaine = saison_a_venir(user, today=today)
+    if prochaine is None:
+        return None
+
+    return {
+        "name": prochaine.name,
+        "accent": prochaine.accent,
+        "starts_on": prochaine.starts_on.isoformat(),
+        "days_until": (prochaine.starts_on - today).days,
+        "minutes": minutes_extra(user, prochaine),
+    }
+
+
+def next_offer(user, *, today: date) -> dict | None:
     """Ce qu'on propose pour la saison suivante. N'écrit rien.
 
     Rien n'est écrit tant que le choix n'est pas fait : c'est ce qui permet de
@@ -308,12 +407,30 @@ def next_offer(user, *, today: date) -> dict:
     d'office par un appel de lecture serait un engagement pris à la place de
     quelqu'un.
     """
+    # Une saison déjà engagée qui attend sa date n'a pas à être re-proposée :
+    # accepter l'offre en créerait une seconde, et la troisième au rechargement
+    # suivant.
+    if saison_a_venir(user, today=today) is not None:
+        return None
+
     precedente = Season.objects.filter(user=user).order_by("-index").first()
     index = (precedente.index + 1) if precedente else 1
 
-    score_precedent = season_score(user, precedente) if precedente else None
+    # La même mesure qu'à l'ouverture : les dégâts infligés, pas les minutes
+    # seules. Deux formules différentes ici et là donneraient deux vies de boss
+    # pour la même saison — celle annoncée dans l'offre et celle réellement
+    # créée.
+    voie, position = services.prochaine_voie(user)
+    score_precedent = (
+        services.puissance_de_saison(user, precedente)
+        if precedente and not season_rules.est_essai(precedente.index)
+        else None
+    ) or None
     plan = season_rules.plan_season(
-        index, _next_start(precedente, today=today), previous_score=score_precedent
+        index,
+        _next_start(precedente, today=today),
+        previous_score=score_precedent,
+        identite=season_rules.pick_identity(index, voie=voie, position=position),
     )
 
     # La voie « Écho » en propose cinq au lieu de trois. Un choix plus large,
@@ -339,12 +456,20 @@ def next_offer(user, *, today: date) -> dict:
 
     return {
         "index": plan.index,
+        # La clé, que l'offre ne portait pas : l'écran d'ouverture passait le
+        # *nom* à l'emblème, qui attend une clé — il a donc toujours dessiné le
+        # glyphe de repli, sur toutes les saisons depuis qu'il existe.
+        "key": plan.key,
         "name": plan.name,
         "accent": plan.accent,
         "baseline": plan.baseline,
         "starts_on": plan.starts_on.isoformat(),
         "ends_on": plan.ends_on.isoformat(),
         "boss": {"name": plan.boss_name, "hp": plan.boss_hp},
+        # Où l'on entre dans la trame, et pourquoi. Sans la raison, la voie
+        # basse ressemble à une punition tirée au sort ; avec elle, c'est la
+        # suite de ce qui vient de se passer.
+        "acte": season_rules.acte_de_voie(voie, position),
         "modifiers": propositions,
         "phantoms": _phantom_offer(user, index=index),
         "shards": user.profile.shards,

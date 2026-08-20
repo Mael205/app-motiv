@@ -16,33 +16,187 @@ from . import years
 SEASON_DAYS = 28
 SEASON_PAUSE_DAYS = 2
 
-# Registres volontairement mélangés : métal, dark fantasy, sci-fi (SPEC §12.2).
-SEASON_POOL: tuple[dict, ...] = (
-    {"key": "hellfest", "name": "Hellfest", "accent": "#E0533D", "registre": "métal",
-     "baseline": "Quatre semaines. Le feu ne demande pas la permission."},
-    {"key": "heavens_paradise", "name": "Heaven's Paradise", "accent": "#F2E6C2", "registre": "métal céleste",
-     "baseline": "On monte, ou on regarde monter."},
-    {"key": "ragnarok", "name": "Ragnarök", "accent": "#8FA9C4", "registre": "nordique",
-     "baseline": "Tout finit. La question est ce que tu auras bâti avant."},
-    {"key": "purgatoire", "name": "Purgatoire", "accent": "#8A6FB0", "registre": "dark fantasy",
-     "baseline": "Ni en haut, ni en bas. Vingt-huit jours pour trancher."},
-    {"key": "faille_s", "name": "Faille S", "accent": "#43D9E0", "registre": "sci-fi",
-     "baseline": "La faille est ouverte. Rang S ou rien."},
-    {"key": "solstice_noir", "name": "Solstice Noir", "accent": "#B98A2E", "registre": "dark fantasy",
-     "baseline": "La nuit la plus longue se travaille."},
-    {"key": "wacken", "name": "Wacken", "accent": "#8FD14F", "registre": "métal",
-     "baseline": "Le champ est boueux. On joue quand même."},
-    {"key": "dernier_rempart", "name": "Dernier Rempart", "accent": "#C0574F", "registre": "siège",
-     "baseline": "Ils passeront par toi."},
-    {"key": "aube_rouge", "name": "Aube Rouge", "accent": "#D1403F", "registre": "épique",
-     "baseline": "Vingt-huit levers. Compte-les."},
-    {"key": "nadir", "name": "Nadir", "accent": "#3E6FA8", "registre": "sci-fi froid",
-     "baseline": "Le point le plus bas est un point de départ comme un autre."},
-    {"key": "inferno", "name": "Inferno", "accent": "#F07A20", "registre": "métal",
-     "baseline": "Ça chauffe à partir de maintenant."},
-    {"key": "vigie", "name": "Vigie", "accent": "#4FC4B4", "registre": "sobriété",
-     "baseline": "Tenir le poste. Rien de plus, rien de moins."},
-)
+# La saison d'essai. Index 0, et elle est la seule à porter ce numéro : les
+# saisons réelles commencent à 1 et se suivent.
+#
+# Elle existe pour une raison précise. Découvrir le système coûte quelques
+# jours — on règle ses créneaux, on comprend les boucliers, on rate une soirée
+# pour une mauvaise raison. Faire porter ces jours-là par une vraie saison
+# fausse tout ce qui vient après : le boss de la saison suivante se dimensionne
+# sur le score précédent (§12.4), et le fantôme se choisit parmi les saisons
+# passées (§12.7). Une saison d'apprentissage rangée parmi les vraies devient
+# donc un adversaire artificiellement faible, pour toujours.
+#
+# D'où la règle : **une saison d'essai ne se compare jamais.** Elle ne
+# dimensionne aucun boss, elle n'entre dans aucun réservoir de fantômes, et sa
+# mise vaut zéro — il n'y a rien à perdre sur une saison qui ne compte pas.
+# Elle garde en revanche ses sessions, son XP et ses cartes : le §17 interdit
+# d'effacer du travail réel, et le travail d'un essai reste du travail.
+ESSAI_INDEX = 0
+
+
+def est_essai(index: int) -> bool:
+    """Cette saison compte-t-elle dans les comparaisons ?"""
+    return index == ESSAI_INDEX
+
+# --------------------------------------------------------------------------
+# La trame : deux voies, et c'est la saison précédente qui décide de la tienne
+# --------------------------------------------------------------------------
+#
+# **L'ordre était tiré au sort ; il raconte maintenant quelque chose** (20 août
+# 2026). Les identités sortaient d'une permutation qui changeait chaque année,
+# pour que deux années ne se ressemblent pas. Ça marchait comme anti-répétition
+# et ratait tout le reste : une saison tombait sans rapport avec la précédente,
+# et son nom n'était qu'une étiquette de couleur. Douze étiquettes tirées au
+# sort ne font pas une histoire, et le §0.10 dit que ce qui n'a pas d'identité
+# ne se garde pas.
+#
+# ## Deux voies, pas une
+#
+# Une trame unique aurait raconté la même chose à tout le monde, quoi qu'il se
+# soit passé. Or le produit sait déjà distinguer une saison tenue d'une saison
+# ratée — c'est ce que le §12.6 tranche pour résoudre la mise. La trame suit
+# donc ce résultat :
+#
+#   **Voie des Cimes** — après une saison tenue. Ça s'ouvre, ça monte, ça finit
+#   en haut : l'éveil, la faille, le méridien franchi, le sommet.
+#
+#   **Voie des Braises** — après une saison ratée. Ça descend jusqu'au fond,
+#   puis ça creuse et ça forge : Nadir, le purgatoire, le rempart, l'enclume.
+#
+# **La voie basse n'est pas une punition, et c'est la condition pour qu'elle
+# soit tenable.** Elle ne retire rien : même mise, même boss, mêmes règles. Le
+# §17 interdit d'ajouter une sanction, et une histoire qui punirait doublerait
+# celle qui a déjà été payée. Ce qui change est le décor — un mois raté raconté
+# comme une descente aux forges est plus juste, et surtout plus tenable, qu'un
+# mois raté raconté avec les mots d'un sommet.
+#
+# **Chaque voie avance à son propre rythme.** On ne saute pas de la troisième
+# saison des Cimes à la troisième des Braises : on reprend la voie basse là où
+# on l'avait laissée. Une année en dents de scie tricote donc les deux, et deux
+# parcours n'ont jamais la même suite — sans qu'aucun tirage n'intervienne.
+#
+# Le **boss**, lui, reste tiré d'un tour à l'autre. La trame dit ce qu'on
+# traverse, pas qui l'on affronte.
+VOIE_CIMES = "cimes"
+VOIE_BRAISES = "braises"
+
+VOIES: dict[str, dict] = {
+    VOIE_CIMES: {
+        "nom": "Voie des Cimes",
+        "ligne": "La saison a été tenue. Ça monte.",
+        "actes": {1: "Le Seuil", 2: "La Montée"},
+    },
+    VOIE_BRAISES: {
+        "nom": "Voie des Braises",
+        "ligne": "La saison n'a pas été tenue. Ça descend, puis ça forge.",
+        "actes": {1: "La Descente", 2: "La Forge"},
+    },
+}
+
+TRAME: dict[str, tuple[dict, ...]] = {
+    # ---- VOIE DES CIMES ----------------------------------------------------
+    VOIE_CIMES: (
+        # Acte I — Le Seuil
+        {"key": "eveil", "name": "L'Éveil", "accent": "#8FD14F", "acte": 1, "registre": "éveil",
+         "baseline": "Ce qui dormait se lève. À toi de savoir quoi."},
+        {"key": "faille_s", "name": "Faille S", "accent": "#43D9E0", "acte": 1, "registre": "sci-fi",
+         "baseline": "La faille est ouverte. Rang S ou rien."},
+        {"key": "meridien", "name": "Méridien", "accent": "#E8B44A", "acte": 1, "registre": "navigation",
+         "baseline": "Une ligne, et tout ce qui est à l'ouest est derrière."},
+        {"key": "prisme", "name": "Prisme", "accent": "#5FD6B4", "acte": 1, "registre": "sci-fi",
+         "baseline": "Une lumière entre, six sortent."},
+        {"key": "vigie", "name": "Vigie", "accent": "#4FC4B4", "acte": 1, "registre": "sobriété",
+         "baseline": "Tenir le poste. Rien de plus, rien de moins."},
+        {"key": "marche_haute", "name": "Marche Haute", "accent": "#B8C46A", "acte": 1, "registre": "montagne",
+         "baseline": "Celle qu'on monte à contrecœur, et qu'on ne redescend pas."},
+        # Acte II — La Montée
+        {"key": "orbite_basse", "name": "Orbite Basse", "accent": "#4FA3E0", "acte": 2, "registre": "sci-fi",
+         "baseline": "Assez haut pour voir, assez bas pour retomber."},
+        {"key": "sanctuaire", "name": "Sanctuaire", "accent": "#C8A2D8", "acte": 2, "registre": "dark fantasy",
+         "baseline": "L'endroit qu'on défend n'est pas celui où l'on dort."},
+        {"key": "aube_rouge", "name": "Aube Rouge", "accent": "#D1403F", "acte": 2, "registre": "épique",
+         "baseline": "Vingt-huit levers. Compte-les."},
+        {"key": "hellfest", "name": "Hellfest", "accent": "#E0533D", "acte": 2, "registre": "métal",
+         "baseline": "Quatre semaines. Le feu ne demande pas la permission."},
+        {"key": "ragnarok", "name": "Ragnarök", "accent": "#8FA9C4", "acte": 2, "registre": "nordique",
+         "baseline": "Tout finit. La question est ce que tu auras bâti avant."},
+        {"key": "heavens_paradise", "name": "Heaven's Paradise", "accent": "#F2E6C2", "acte": 2,
+         "registre": "métal céleste", "baseline": "On monte, ou on regarde monter."},
+    ),
+    # ---- VOIE DES BRAISES --------------------------------------------------
+    VOIE_BRAISES: (
+        # Acte I — La Descente
+        {"key": "nadir", "name": "Nadir", "accent": "#3E6FA8", "acte": 1, "registre": "sci-fi froid",
+         "baseline": "Le point le plus bas est un point de départ comme un autre."},
+        {"key": "purgatoire", "name": "Purgatoire", "accent": "#8A6FB0", "acte": 1, "registre": "dark fantasy",
+         "baseline": "Ni en haut, ni en bas. Vingt-huit jours pour trancher."},
+        {"key": "quartier_nord", "name": "Quartier Nord", "accent": "#7A8FA6", "acte": 1, "registre": "urbain",
+         "baseline": "Personne ne vient te chercher ici."},
+        {"key": "obsidienne", "name": "Obsidienne", "accent": "#6E5B8F", "acte": 1, "registre": "minéral",
+         "baseline": "Le verre volcanique casse net. Pas avant."},
+        {"key": "solstice_noir", "name": "Solstice Noir", "accent": "#B98A2E", "acte": 1, "registre": "dark fantasy",
+         "baseline": "La nuit la plus longue se travaille."},
+        {"key": "cendre_haute", "name": "Cendre Haute", "accent": "#A89484", "acte": 1, "registre": "post-apo",
+         "baseline": "Ce qui a brûlé fertilise ou stérilise. Ça se décide maintenant."},
+        # Acte II — La Forge
+        {"key": "dernier_rempart", "name": "Dernier Rempart", "accent": "#C0574F", "acte": 2, "registre": "siège",
+         "baseline": "Ils passeront par toi."},
+        {"key": "acier_froid", "name": "Acier Froid", "accent": "#9FB3C8", "acte": 2, "registre": "forge",
+         "baseline": "On trempe ce qui a été chauffé."},
+        {"key": "veine_mere", "name": "Veine Mère", "accent": "#C98F3A", "acte": 2, "registre": "mine",
+         "baseline": "Vingt-huit jours à creuser au même endroit."},
+        {"key": "derniere_forge", "name": "Dernière Forge", "accent": "#E0703D", "acte": 2, "registre": "forge",
+         "baseline": "Le feu s'éteint à la fin du mois. Pas avant."},
+        {"key": "tonnerre", "name": "Tonnerre", "accent": "#D6543C", "acte": 2, "registre": "métal",
+         "baseline": "Le bruit arrive après. Toujours."},
+        {"key": "inferno", "name": "Inferno", "accent": "#F07A20", "acte": 2, "registre": "métal",
+         "baseline": "Ça chauffe à partir de maintenant."},
+    ),
+}
+
+# Le catalogue à plat. Il ne sert qu'aux vérifications d'ensemble — unicité des
+# clés, couverture des emblèmes — jamais au tirage.
+SEASON_POOL: tuple[dict, ...] = TRAME[VOIE_CIMES] + TRAME[VOIE_BRAISES]
+
+SAISONS_PAR_VOIE = len(TRAME[VOIE_CIMES])
+
+
+def voie_apres(reussie: bool | None) -> str:
+    """La voie qu'ouvre le résultat de la saison précédente.
+
+    ``None`` — aucune saison avant, ou résultat inconnu — mène aux Cimes : on
+    commence par l'éveil, pas par le fond.
+    """
+    return VOIE_BRAISES if reussie is False else VOIE_CIMES
+
+
+def identite_de_voie(voie: str, position: int) -> dict:
+    """L'identité à cette position de cette voie. Les deux bouclent à douze.
+
+    ``position`` est le **nombre de saisons déjà passées sur cette voie**, pas
+    l'index de la saison. Reprendre la voie basse là où on l'avait laissée est
+    ce qui fait qu'une année en dents de scie raconte une suite plutôt qu'un
+    tirage.
+    """
+    ligne = TRAME.get(voie) or TRAME[VOIE_CIMES]
+    return ligne[max(0, position) % len(ligne)]
+
+
+def acte_de_voie(voie: str, position: int) -> dict:
+    """L'acte auquel appartient une position : son numéro, son nom, sa voie."""
+    identite = identite_de_voie(voie, position)
+    infos = VOIES.get(voie) or VOIES[VOIE_CIMES]
+    numero = identite.get("acte", 1)
+    return {
+        "numero": numero,
+        "nom": infos["actes"].get(numero, ""),
+        "total": len(infos["actes"]),
+        "voie": voie,
+        "voie_nom": infos["nom"],
+        "voie_ligne": infos["ligne"],
+    }
+
 
 # Modificateurs façon roguelike : trois sont proposés, un seul est choisi — cinq
 # après la voie « Écho » de l'ascendance. Douze entrées pour que deux saisons
@@ -100,6 +254,24 @@ BOSSES: tuple[dict, ...] = (
     {"key": "demain_matin", "name": "Demain Matin"},
     {"key": "collectionneur", "name": "Le Collectionneur de Débuts"},
     {"key": "juste_un_episode", "name": "Juste Un Épisode"},
+
+    # -- Second réservoir, pour la même raison que les identités : douze boss
+    # tenaient exactement une année, donc le treizième mois ramenait Procrastin.
+    # Chacun continue de nommer une façon précise de ne pas travailler — c'est
+    # ce qui fait qu'on le reconnaît le soir où on le rencontre, et un boss
+    # abstrait ne se reconnaît jamais.
+    {"key": "encore_cinq", "name": "Encore Cinq Minutes"},
+    {"key": "grand_nettoyage", "name": "Le Grand Nettoyage"},
+    {"key": "tutoriel_sans_fin", "name": "Le Tutoriel Sans Fin"},
+    {"key": "outil_parfait", "name": "L'Outil Parfait"},
+    {"key": "veille_technologique", "name": "La Veille Technologique"},
+    {"key": "pas_le_bon_moment", "name": "Pas Le Bon Moment"},
+    {"key": "quand_j_aurai", "name": "Quand J'aurai Le Temps"},
+    {"key": "second_ecran", "name": "Le Second Écran"},
+    {"key": "refonte_totale", "name": "La Refonte Totale"},
+    {"key": "avis_des_autres", "name": "L'Avis Des Autres"},
+    {"key": "dimanche_soir", "name": "Dimanche Soir"},
+    {"key": "presque_fini", "name": "Presque Fini"},
 )
 
 # Dégâts infligés au boss, en points. Une minute travaillée = un point ; une
@@ -141,33 +313,31 @@ class SeasonPlan:
         return years.ferme_l_annee(self.index)
 
 
-def pick_identity(index: int) -> dict:
-    """L'identité d'une saison, décidée par sa place dans l'année.
+def pick_identity(index: int, *, voie: str = VOIE_CIMES, position: int | None = None) -> dict:
+    """L'identité d'une saison : sa voie, et sa place sur cette voie.
 
-    Chaque identité sort **exactement une fois par an** : arrivé à la neuvième,
-    il en reste trois, et on les a toutes vues à la fin. La version précédente
-    écartait simplement les clés déjà utilisées, ce qui marchait tant qu'une
-    année n'existait pas — mais ne donnait aucun compte à rebours, et retombait
-    sur le catalogue entier une fois les douze épuisées.
-
-    L'ordre change d'une année à l'autre sans que rien ne soit stocké : il se
-    déduit du numéro d'année.
+    ``position`` est le nombre de saisons déjà passées sur ``voie``. Quand elle
+    n'est pas fournie — un appel qui ne connaît que l'index, comme la saison
+    d'essai — on retombe sur le rang dans l'année, ce qui donne le début de la
+    voie haute : l'éveil.
     """
-    annee = years.annee_de(index)
-    ordre = years.ordre_des_identites(annee, len(SEASON_POOL))
-    return SEASON_POOL[ordre[years.rang_dans_l_annee(index) - 1]]
+    if position is None:
+        position = years.rang_dans_l_annee(index) - 1
+    return identite_de_voie(voie, position)
 
 
 def pick_boss(index: int) -> dict:
     """Le boss d'une saison. Un par saison de l'année, jamais deux fois.
 
-    La permutation est décalée d'une année par rapport aux identités : sans ce
-    décalage, « Hellfest » affronterait Procrastin chaque année, et les deux
-    catalogues n'en formeraient plus qu'un.
+    Le tirage est décalé d'un tour par rapport aux identités : sans ce décalage,
+    « Hellfest » affronterait Procrastin chaque année, et les deux catalogues
+    n'en formeraient plus qu'un.
     """
-    annee = years.annee_de(index)
-    ordre = years.ordre_des_identites(annee + 1, len(BOSSES))
-    return BOSSES[ordre[years.rang_dans_l_annee(index) - 1]]
+    return BOSSES[
+        years.place_dans_le_reservoir(
+            years.annee_de(index), years.rang_dans_l_annee(index), len(BOSSES), decalage=1
+        )
+    ]
 
 
 def propose_modifiers(index: int, count: int = 3) -> list[dict]:
@@ -199,11 +369,12 @@ def plan_season(
     *,
     previous_score: int | None = None,
     contract_sessions_per_week: int = 3,
+    identite: dict | None = None,
 ) -> SeasonPlan:
     """Le plan d'une saison. ``contract_sessions_per_week`` ne sert qu'à la
     première : sans score précédent, la seule estimation honnête du volume à
     venir est celle que quelqu'un vient d'annoncer en signant son contrat."""
-    identity = pick_identity(index)
+    identity = identite or pick_identity(index)
     boss = pick_boss(index)
     return SeasonPlan(
         index=index,

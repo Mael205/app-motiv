@@ -35,7 +35,7 @@
   margin-bottom: 4px;
 }
 
-.char__count { font-size: 13px; color: var(--accent); }
+.char__count { font-size: 13px; color: var(--perso); }
 
 .char__shape {
   margin-top: 14px;
@@ -127,8 +127,8 @@
 }
 
 .char__tab--on {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--perso);
+  border-color: color-mix(in srgb, var(--perso) 45%, transparent);
 }
 
 .collection {
@@ -138,12 +138,17 @@
   list-style: none;
 }
 
-/* La case s'étire, le bouton la remplit. Sans ces deux lignes, chaque bouton
-   prend la hauteur de son propre contenu : une carte possédée, qui porte un nom
-   et une rareté, dépassait la carte scellée d'à côté, et la grille se lisait de
-   travers ligne après ligne. */
+/* La case s'étire, le bouton la remplit. Sans ces lignes, chaque bouton prend
+   la hauteur de son propre contenu : une carte possédée, qui porte un nom et
+   une rareté, dépassait la carte scellée d'à côté, et la grille se lisait de
+   travers ligne après ligne.
+
+   La colonne est ce qui permet un second bouton — « Retirer » sur la carte
+   équipée, « Forger » sur celle qu'on n'a pas. En ligne, ce bouton se posait
+   à côté de la carte et écrasait sa largeur au lieu de se ranger dessous. */
 .collection > li {
   display: flex;
+  flex-direction: column;
 }
 
 .collection > li > .slotcard__btn {
@@ -161,20 +166,27 @@
   text-align: center;
   border: 1px solid color-mix(in srgb, var(--rarity) 35%, transparent);
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-  transition: transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+  clip-path: var(--clip-sm);
 }
 
+/* Plus de `transform` ici : la carte est inclinee par anime.js au pointeur
+   (`inclinerAuPointeur`), et une transition CSS sur la meme propriete se
+   battrait avec lui a chaque mouvement de souris. Il ne reste que l'ombre,
+   qui porte plus loin a mesure que la carte se leve. */
 .slotcard__btn:not(:disabled):hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px -14px var(--rarity);
+  box-shadow: 0 22px 40px -18px var(--rarity);
 }
 
 /* Une carte non possedee montre sa place sans montrer son contenu : la
-   collection sert a donner envie, pas a faire l'inventaire de ce qu'on a. */
+   collection sert a donner envie, pas a faire l'inventaire de ce qu'on a.
+
+   Le voile ne se pose plus deux fois. La carte portait `opacity: 0.4` **et**
+   des enfants en `--dim` : les deux se multipliaient, et une collection de
+   cent cartes scellées — c'est-à-dire l'état de départ — était illisible. Le
+   « ? » suffit à dire que le contenu est caché ; l'atténuation n'a plus à le
+   redire. */
 .slotcard--locked .slotcard__btn {
   border-color: var(--line);
-  opacity: 0.4;
   cursor: default;
 }
 
@@ -193,14 +205,14 @@
 .slotcard__name { font-size: 11.5px; font-weight: 500; }
 
 .slotcard__rarity {
-  font-size: 9.5px;
+  font-size: var(--t-xs);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--rarity);
 }
 
-.slotcard--locked .slotcard__rarity { color: var(--dim); }
+.slotcard--locked .slotcard__rarity { color: var(--muted); }
 
 .slotcard__copies {
   position: absolute;
@@ -258,20 +270,47 @@
   font: inherit;
   font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: var(--accent, #E8A33D);
+  color: var(--perso);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--accent, #E8A33D) 32%, transparent);
-  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--perso) 32%, transparent);
+  clip-path: var(--clip-sm);
   cursor: pointer;
 }
 
 .slotcard__forge:disabled {
-  color: var(--dim, #6B5F7D);
+  color: var(--dim);
   border-color: color-mix(in srgb, currentColor 18%, transparent);
   cursor: default;
 }
 
 .slotcard__forge:focus-visible {
-  outline: 2px solid var(--accent, #E8A33D);
+  outline: 2px solid var(--perso);
+  outline-offset: 2px;
+}
+
+/* Le retrait porte la couleur de la carte, pas celle de l'accent : c'est
+   précisément l'accent qui va changer au clic, et un bouton qui s'annonce
+   dans la teinte qu'il est sur le point de retirer se lit mal. */
+.slotcard__unequip {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.24rem 0.4rem;
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--rarity);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--rarity) 32%, transparent);
+  clip-path: var(--clip-sm);
+  cursor: pointer;
+}
+
+.slotcard__unequip:hover {
+  border-color: color-mix(in srgb, var(--rarity) 60%, transparent);
+}
+
+.slotcard__unequip:focus-visible {
+  outline: 2px solid var(--rarity);
   outline-offset: 2px;
 }

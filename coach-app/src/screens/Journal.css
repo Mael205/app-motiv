@@ -2,7 +2,21 @@
 .journal__empty {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--s5);
+}
+
+/* Le journal est une surface de lecture : contrairement à l'accueil et aux
+   projets, il n'a rien à mettre dans une seconde colonne. Il garde donc une
+   largeur de ligne lisible au lieu de s'étirer sur les treize cents pixels de
+   la coquille — une phrase de revue y courait sur cent-quatre-vingts
+   caractères, et l'œil perdait la ligne suivante. */
+@media (min-width: 1160px) {
+  .journal,
+  .journal__empty {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+  }
 }
 
 .jday {
@@ -11,12 +25,9 @@
   gap: 10px;
 }
 
-.jday__date {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-  color: var(--accent);
-  font-size: 11px;
-}
+/* Le titre de rubrique vient de theme.css (`.rule-title`). Il valait
+   ici 11 px, la taille d'une legende de compteur, pour une vraie
+   rubrique. */
 
 .jentry {
   padding: 14px 16px;

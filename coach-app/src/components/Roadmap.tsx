@@ -20,6 +20,12 @@ export function Roadmap({
   const doneCount = steps.filter((s) => s.state === 'done').length
   const progress = steps.length ? doneCount / steps.length : 0
 
+  // L'étape sur laquelle on peut agir : celle en cours, sinon la première non
+  // faite. C'est la seule qui déplie ses attributs. Les afficher partout
+  // rendrait la roadmap illisible, et les cacher partout les rendrait inutiles
+  // — ils existent pour le soir où l'on démarre, donc pour une seule étape.
+  const courante = steps.find((s) => s.state === 'doing') ?? steps.find((s) => s.state !== 'done')
+
   return (
     <ol className="rm">
       {/* Le rail parcouru, tracé une seule fois derrière les nœuds. */}
@@ -58,12 +64,48 @@ export function Roadmap({
                   à découper
                 </span>
               )}
+              {step.load && <span className="rm__load">{step.load}</span>}
               <span className="rm__pips" title={`${step.estimated_sessions} session(s) estimée(s)`}>
                 {Array.from({ length: Math.min(step.estimated_sessions, 6) }, (_, i) => (
                   <span key={i} className="rm__pip" />
                 ))}
               </span>
             </div>
+
+            {/* Le plan ne s'affiche que s'il a quelque chose à dire. Sans cette
+                garde, une étape courante sans ressource ni périmètre ni critère
+                rendait un `<dl>` vide — une barre grise de la largeur de la
+                carte, que rien ne distinguait d'un champ cassé. */}
+            {step.id === courante?.id && (step.resource || step.scope || step.exit_criterion) && (
+              <dl className="rm__plan">
+                {step.resource && (
+                  <div className="rm__plan-line">
+                    <dt>Ressource</dt>
+                    <dd>
+                      {step.url ? (
+                        <a href={step.url} target="_blank" rel="noreferrer">
+                          {step.resource}
+                        </a>
+                      ) : (
+                        step.resource
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {step.scope && (
+                  <div className="rm__plan-line">
+                    <dt>Périmètre</dt>
+                    <dd>{step.scope}</dd>
+                  </div>
+                )}
+                {step.exit_criterion && (
+                  <div className="rm__plan-line rm__plan-line--exit">
+                    <dt>Fini quand</dt>
+                    <dd>{step.exit_criterion}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
           </div>
         </li>
       ))}

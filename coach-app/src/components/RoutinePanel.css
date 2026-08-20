@@ -119,3 +119,46 @@
   font-family: var(--mono);
   color: var(--turquoise);
 }
+
+/* La fenêtre horaire d'une habitude, sous son nom. Discrète, mais jamais
+   cachée : une contrainte qu'on ne voit pas ne se respecte pas. */
+.routine__window {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Cochée hors fenêtre. Ni verte ni rouge : le geste a eu lieu, il ne compte
+   pas — et il n'y a rien à reprocher à quelqu'un qui l'a fait plus tard.
+   Le §14 interdit le mot de jugement ; la couleur en est un aussi. */
+.routine--late .routine__mark,
+.routine--late .routine__window {
+  color: color-mix(in srgb, var(--muted) 70%, var(--accent));
+}
+
+.routine--late .routine__name {
+  opacity: 0.78;
+}
+
+/* Ce que les sondes ont vu d'une habitude horaire. Aucune des deux couleurs
+   n'est un verdict : une contradiction ne retire rien (§6), elle constate. Le
+   désaccord est donc en gris appuyé et non en rouge — le rouge dirait « tu as
+   menti », ce que le système n'a aucun moyen de savoir. */
+.routine__sonde {
+  margin-left: 5px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.routine__sonde--corrobore {
+  color: color-mix(in srgb, var(--accent) 55%, var(--muted));
+}
+
+.routine__sonde--contredit {
+  color: var(--muted);
+  opacity: 0.85;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}

@@ -39,6 +39,7 @@ import logging
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from django.db import transaction
 from django.db.models import Count, Max
 from django.utils import timezone
 
@@ -219,6 +220,14 @@ def briefing(user, *, now: datetime | None = None) -> dict | None:
 
     etape = projet.current_step
     return {
+        # La piste et le créneau se recalculent pour **le projet retenu par le
+        # modèle**, qui n'est pas toujours celui du repli. Les recopier depuis
+        # le repli attacherait une heure juste au mauvais projet, et la piste
+        # affichée serait celle d'une proposition qui n'a pas été retenue.
+        "track": projet.track.kind,
+        "creneau": services.creneau_du_jour(
+            projet, today=today, now=now, tz=profile.timezone_name
+        ),
         "project": {
             "id": projet.id,
             "name": projet.name,
@@ -563,3 +572,130 @@ def interview_import(interview) -> "Project":
     interview.status = interview.IMPORTE
     interview.save(update_fields=["project", "status", "updated_at"])
     return projet
+
+
+def _bloc_en_dict(bloc) -> dict:
+    return {
+        "nom": bloc.name,
+        "resultat": bloc.outcome,
+        "ressource": bloc.resource,
+        "url": bloc.url,
+        "charge": bloc.load,
+        "cout": bloc.cost,
+        "critere_sortie": bloc.exit_criterion,
+    }
+
+
+@transaction.atomic
+def ouvrir_le_bloc_suivant(projet) -> dict:
+    """Referme le bloc courant et écrit les étapes du suivant (§4.5).
+
+    **Le trou que cette fonction bouche.** L'entretien n'explose en étapes que le
+    bloc en cours — c'est le bon découpage, trois cents étapes de vingt-cinq
+    minutes ne se relisent pas — mais rien ne prenait le relais quand ce bloc
+    s'achevait. Sur un parcours de quatorze blocs, la roadmap se vidait au bout
+    de quelques semaines et treize blocs restaient à l'état de titres. Le
+    parcours était complet et le produit s'arrêtait au premier dixième.
+
+    Le modèle reçoit le bloc tel qu'il a été décidé à l'entretien, ce qui a été
+    fait depuis, et les blocs qui suivent pour ne pas empiéter dessus. Il ne
+    redécide rien : l'ordre du parcours est une dépendance, pas une suggestion.
+    """
+    bloc = services.bloc_a_ouvrir(projet)
+    if bloc is None:
+        raise ValueError(
+            "Il reste des étapes ouvertes, ou le parcours est terminé."
+            if projet.parcours.exists()
+            else "Ce projet n'a pas de parcours : ajoute les étapes à la main."
+        )
+
+    faits = list(
+        projet.parcours.filter(done_at__isnull=False).order_by("order", "id")
+    )
+    suivants = list(
+        projet.parcours.filter(done_at__isnull=True).exclude(pk=bloc.pk).order_by("order", "id")
+    )
+    contexte_projet = {
+        "nom": projet.name,
+        "domaine": projet.get_domain_display(),
+        "objectif": projet.objective,
+        "cadre": projet.frame,
+        "engagement": projet.weekly_commitment,
+        "blocs_suivants": [{"nom": b.name} for b in suivants],
+    }
+
+    prompt = prompts.decoupage_prompt(
+        projet=contexte_projet,
+        bloc=_bloc_en_dict(bloc),
+        blocs_precedents=[_bloc_en_dict(b) for b in faits],
+        etapes_faites=list(
+            projet.steps.filter(state="done").order_by("order").values_list("label", flat=True)
+        ),
+    )
+
+    try:
+        reponse = get_provider().structured(
+            task=Task.DECOUPAGE,
+            system=prompts.SYSTEM_DECOUPAGE,
+            prompt=prompt,
+            schema=prompts.SCHEMA_DECOUPAGE,
+        )
+    except LLMUnavailable as error:
+        raise InterviewUnavailable(str(error)) from error
+
+    if reponse.refused:
+        raise InterviewUnavailable("le modèle a décliné le découpage")
+
+    payload = reponse.content if isinstance(reponse.content, dict) else {}
+    try:
+        valide = gate(Task.DECOUPAGE, payload)
+    except QualityGateFailed as error:
+        logger.warning("découpage refusé par la porte : %s", error.reason)
+        raise InterviewUnavailable(error.reason) from error
+
+    return services.ecrire_les_etapes_du_bloc(projet, bloc, valide["etapes"])
+
+
+def relire_markdown(markdown: str) -> str:
+    """Fait ranger un markdown libre par le modèle, et rend le format canonique.
+
+    **Le secours du collage, pas son passage obligé.** Le parseur reste le
+    chemin normal : il est instantané, gratuit, et il marche sans réseau. Mais
+    une grammaire ne comprend que les formes qu'on lui a apprises, et un
+    document écrit dans un chat en invente toujours une de plus — un tableau
+    là où on attendait des puces, un titre là où on attendait une clé. Ce qu'il
+    n'a pas su placer, l'aperçu le dit maintenant ; ceci est ce qu'on peut en
+    faire.
+
+    Le modèle ne crée rien en base et ne décide de rien : il rend des champs,
+    ``render`` les met en forme, et le markdown obtenu repasse par le même
+    aperçu, la même confirmation et le même parseur que s'il avait été tapé à la
+    main. Le chemin de l'IA n'a toujours aucun privilège.
+    """
+    texte = (markdown or "").strip()
+    if not texte:
+        raise ValueError("Il n'y a rien à relire.")
+
+    try:
+        reponse = get_provider().structured(
+            task=Task.IMPORT_MARKDOWN,
+            system=prompts.SYSTEM_IMPORT,
+            prompt=prompts.import_prompt(texte),
+            schema=prompts.SCHEMA_IMPORT,
+        )
+    except LLMUnavailable as error:
+        raise InterviewUnavailable(str(error)) from error
+
+    if reponse.refused:
+        raise InterviewUnavailable("le modèle a décliné la relecture")
+
+    payload = reponse.content if isinstance(reponse.content, dict) else {}
+    try:
+        valide = gate(Task.IMPORT_MARKDOWN, payload)
+    except QualityGateFailed as error:
+        # Pas de seconde tentative ici, contrairement à l'entretien : le repli
+        # existe et il est bon — le markdown collé tel quel, lu par le parseur.
+        logger.warning("relecture refusée par la porte : %s", error.reason)
+        raise InterviewUnavailable(error.reason) from error
+
+    return valide["markdown"]

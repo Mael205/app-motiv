@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRevelation } from '../juice'
+import { EnCharge, EnErreur } from '../components/EtatCharge'
 import { api } from '../api'
+import { BilanRelu } from '../components/BilanDuMatin'
 import { BuddyReport } from '../components/BuddyReport'
 import { Constats } from '../components/Constats'
+import { Export } from '../components/Export'
 import { Fuite } from '../components/Fuite'
+import { Notifications } from '../components/Notifications'
 import { Revue } from '../components/Revue'
 import type { JournalEntry } from '../types'
 import './Journal.css'
@@ -19,25 +24,51 @@ import './Journal.css'
  */
 export function Journal() {
   const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [erreur, setErreur] = useState('')
 
-  useEffect(() => {
-    api.journal().then(setEntries)
+  /* `.then(setEntries)` sans `.catch` laissait l'écran sur « Chargement… »
+     indéfiniment dès que l'API ne répondait pas, et rejetait une promesse dans
+     le vide. Le rechargement est nommé pour que « Réessayer » puisse le
+     rappeler. */
+  const charger = useCallback(async () => {
+    try {
+      setErreur('')
+      setEntries(await api.journal())
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+    }
   }, [])
 
-  if (!entries) return <p className="muted">Chargement…</p>
+  useEffect(() => {
+    charger()
+  }, [charger])
+
+  /* Les entrees et les rubriques se levent au defilement ; le journal est
+     l'ecran le plus long du produit, et tout faire entrer au montage revenait
+     a n'animer que les deux premieres lignes. */
+  const scene = useRevelation(
+    { devoiler: '.section-title, .rule-title', lever: '.jentry, .revue__q, .revue__bloc' },
+    Boolean(entries),
+  )
+
+  if (erreur) return <EnErreur message={erreur} onRetry={charger} />
+  if (!entries) return <EnCharge />
 
   if (entries.length === 0) {
     return (
-      <div className="journal__empty">
+      <div className="journal__empty" ref={scene}>
         <h2 className="section-title display">Journal</h2>
         <p className="muted">
           Rien encore. Chaque session terminée écrit une ligne ici — c'est ce qui rend les semaines
           relisibles au lieu de floues.
         </p>
+        <BilanRelu />
         <Constats />
         <Revue />
         <Fuite />
         <BuddyReport />
+        <Notifications />
+        <Export />
       </div>
     )
   }
@@ -50,7 +81,7 @@ export function Journal() {
   const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0)
 
   return (
-    <div className="journal">
+    <div className="journal" ref={scene}>
       <header>
         <h2 className="section-title display">Journal</h2>
         <p className="section-hint">
@@ -59,12 +90,13 @@ export function Journal() {
         </p>
       </header>
 
+      <BilanRelu />
       <Constats />
       <Revue />
 
       {Object.entries(byDay).map(([day, dayEntries]) => (
         <section key={day} className="jday">
-          <h3 className="jday__date label">
+          <h3 className="jday__date rule-title">
             {new Date(day).toLocaleDateString('fr-FR', {
               weekday: 'long',
               day: 'numeric',
@@ -91,6 +123,8 @@ export function Journal() {
 
       <Fuite />
       <BuddyReport />
+      <Notifications />
+      <Export />
     </div>
   )
 }

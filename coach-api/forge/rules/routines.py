@@ -26,13 +26,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, time
 
-from .calendar import week_start
+from .calendar import ROLLOVER_HOUR, week_start
 
 SHARDS_PER_CHECK = 3
 WEEK_HELD_BONUS = 10
 DAYS_PER_WEEK = 7
+
+# Le sens d'une fenêtre horaire. « Debout avant 7h30 » et « rien après 23h » se
+# vérifient de la même façon, dans deux directions.
+AVANT = "avant"
+APRES = "apres"
 
 REVEIL = "reveil"
 APRES_DOUCHE = "apres_douche"
@@ -66,6 +71,14 @@ class Routine:
     weekly_target: int
     weekdays: tuple[int, ...] = ()
     anchor: str = LIBRE
+    # La fenêtre horaire, facultative. Elle transforme une routine en habitude
+    # *horaire* : « se lever tôt » ne veut rien dire si la coche compte à 14h.
+    # Le §11.9 ancre les routines sur un geste et non sur une heure, et ça reste
+    # vrai — mais deux habitudes échappent à la règle par nature, parce que
+    # l'heure **est** l'habitude : le lever et le coucher. Pour toutes les
+    # autres, ``deadline`` reste vide et rien ne change.
+    deadline: time | None = None
+    direction: str = AVANT
 
     def is_due(self, day: date) -> bool:
         """La routine est-elle proposée ce jour-là ?"""
@@ -83,6 +96,41 @@ class Routine:
         cassable — l'interface doit le signaler comme un réglage risqué.
         """
         return max(0, self.due_days_per_week - self.weekly_target)
+
+
+def minutes_since_rollover(moment: time, rollover_hour: int = ROLLOVER_HOUR) -> int:
+    """Minutes écoulées depuis la bascule de journée, pour une heure locale.
+
+    C'est la seule façon correcte de comparer deux heures dans ce système. La
+    journée du coach ne commence pas à minuit mais à 4h (§1), donc 00h20 est
+    **tard** dans la journée d'hier, pas tôt dans celle d'aujourd'hui. Comparer
+    les heures brutes ferait passer un coucher à 00h20 pour un coucher avant
+    23h30, ce qui est exactement le mensonge que la mécanique doit empêcher.
+    """
+    return ((moment.hour - rollover_hour) * 60 + moment.minute) % (24 * 60)
+
+
+def within_window(routine: Routine, moment: time, rollover_hour: int = ROLLOVER_HOUR) -> bool:
+    """La coche tombe-t-elle dans la fenêtre de la routine ?
+
+    Sans fenêtre déclarée, tout moment convient — c'est le cas de toutes les
+    routines du §11.9, qui s'ancrent sur un geste et pas sur une horloge.
+    """
+    if routine.deadline is None:
+        return True
+    pose = minutes_since_rollover(moment, rollover_hour)
+    limite = minutes_since_rollover(routine.deadline, rollover_hour)
+    return pose <= limite if routine.direction == AVANT else pose >= limite
+
+
+def window_label(routine: Routine) -> str:
+    """« avant 7h30 », tel quel sous le nom de la routine. Vide s'il n'y en a pas."""
+    if routine.deadline is None:
+        return ""
+    # « 7h30 » et non « 07h30 » : c'est comme ça qu'on écrit une heure en
+    # français, et la ligne se lit sous un nom de routine, pas dans un journal.
+    heure = f"{routine.deadline.hour}h{routine.deadline.minute:02d}".replace("h00", "h")
+    return f"{'avant' if routine.direction == AVANT else 'après'} {heure}"
 
 
 @dataclass(frozen=True)

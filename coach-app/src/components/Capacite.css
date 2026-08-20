@@ -1,0 +1,67 @@
+/* Le troisième axe.
+ *
+ * Le parti pris visuel porte l'idée : le nombre de preuves est en grand et à
+ * pleine couleur, les heures sont à côté, plus petites et estompées. Ce n'est
+ * pas de la décoration — c'est la hiérarchie que le reste du produit n'a pas,
+ * où le temps passé domine tous les écrans. Ici, il passe second.
+ */
+
+.capacite__chiffres {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  margin: 10px 0 12px;
+}
+
+.capacite__bloc {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.capacite__nombre {
+  font-size: 30px;
+  line-height: 1;
+  color: var(--accent);
+}
+
+/* Les heures : même information, moitié moins de poids. */
+.capacite__bloc--faible .capacite__nombre {
+  font-size: 19px;
+  color: var(--muted);
+}
+
+.capacite__ratio {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.capacite__vide {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.capacite__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.capacite__liste li {
+  border-left: 2px solid color-mix(in srgb, var(--project) 55%, transparent);
+  padding-left: 0.7rem;
+}
+
+.capacite__critere {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.capacite__source {
+  margin: 2px 0 0;
+  font-size: 11px;
+}

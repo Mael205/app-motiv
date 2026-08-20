@@ -1,30 +1,64 @@
 .projects {
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: var(--s5);
+}
+
+.projects__main,
+.projects__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* Le seuil est celui du deck de l'accueil (theme.css) : les deux onglets
+   basculent en bureau au même moment, sinon la navigation change de forme
+   d'un onglet à l'autre au milieu du redimensionnement. */
+@media (min-width: 1160px) {
+  .projects {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
+    align-items: start;
+    gap: var(--s6);
+  }
+
+  .projects__side {
+    position: sticky;
+    top: 84px;
+  }
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 24px;
+  gap: var(--s2);
+  font-size: var(--t-2xl);
   color: var(--accent);
 }
 
 .section-hint {
-  margin: 6px 0 14px;
-  font-size: 13px;
+  margin: var(--s1) 0 var(--s3);
+  font-size: var(--t-sm);
   color: var(--muted);
 }
 
 .pcard {
-  margin-bottom: 12px;
-  padding: 16px 18px;
+  margin-bottom: var(--s3);
+  padding: var(--s4) 18px;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)), var(--panel);
   border: 1px solid var(--line);
   border-left: 3px solid var(--project);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  /* Même biseau que `.panel` : coin haut-gauche et coin bas-droit. La carte
+     n'en coupait qu'un, ce qui donnait deux familles de formes sur un même
+     écran. Le liseré gauche impose de laisser le haut-gauche droit, donc seul
+     le bas-droit est chanfreiné — mais au rayon du système. */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%
+  );
 }
 
 .pcard__head {
@@ -62,14 +96,19 @@
   color: var(--dim);
 }
 
-/* Anneau de complétion : le pourcentage se lit en forme, pas seulement en chiffre. */
+/* Anneau de complétion : le pourcentage se lit en forme, pas seulement en chiffre.
+ *
+ * Un seul enfant centré. La version précédente en empilait deux — l'emblème du
+ * projet et le pourcentage — dans la même cellule de grille de soixante
+ * pixels ; l'emoji débordait de sa taille de police et venait manger le
+ * chiffre. L'emblème vit maintenant sur la ligne du titre. */
 .ring-mini {
   position: relative;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
 }
 
 .ring-mini svg {
@@ -90,21 +129,31 @@
   stroke-width: 4;
   stroke-linecap: round;
   filter: drop-shadow(0 0 6px var(--project));
-  transition: stroke-dashoffset 600ms var(--ease-out);
-}
-
-.ring-mini__emblem {
-  font-size: 19px;
-  line-height: 1;
-  color: var(--project);
-  transform: translateY(-5px);
 }
 
 .ring-mini__percent {
-  position: absolute;
-  bottom: 11px;
-  font-size: 10px;
+  display: flex;
+  align-items: baseline;
+  font-size: var(--t-lg);
+  line-height: 1;
+  color: var(--text);
+}
+
+/* Le signe pour cent, plus petit et gris : le nombre est l'information, le
+   signe n'est que son unité. */
+.ring-mini__percent i {
+  font-size: var(--t-xs);
+  font-style: normal;
   color: var(--muted);
+  margin-left: 1px;
+}
+
+/* L'emblème de piste, sur la ligne du titre. Il porte la couleur du projet,
+   comme le liseré gauche de la carte : deux marques, une seule identité. */
+.pcard__emblem {
+  margin-right: var(--s2);
+  font-size: var(--t-md);
+  line-height: 1;
 }
 
 .ideas {
@@ -161,45 +210,200 @@
   opacity: 0.5;
 }
 
+/* La mise en attente. Elle était le seul bloc arrondi d'une interface
+   entièrement biseautée, et mesurait tout en rem quand le reste compte en
+   pixels : deux systèmes de forme sur la même carte. */
 .hold {
   display: grid;
-  gap: 0.5rem;
-  margin: 0.7rem 0 0;
-  padding: 0.7rem 0.8rem;
-  border-radius: 10px;
-  background: color-mix(in srgb, currentColor 5%, transparent);
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  padding: var(--s3);
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 2px solid var(--line-strong);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    0 100%
+  );
 }
 
+/* Le bouton qui ouvre l'attente vit sous la roadmap, pas au-dessus : c'est une
+   sortie de secours, elle ne se lit pas avant le chemin qu'elle interrompt. */
 .hold__open {
-  margin-top: 0.7rem;
-  font-size: 0.78rem;
+  align-self: flex-start;
+  margin-top: var(--s3);
+  font-size: var(--t-xs);
 }
 
 .hold__field {
   display: grid;
-  gap: 0.25rem;
-}
-
-.hold__field input {
-  padding: 0.45rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  gap: var(--s1);
 }
 
 .hold--active {
-  border-left: 2px solid var(--project, currentColor);
+  border-left-color: var(--project, currentColor);
 }
 
 .hold__line {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--t-sm);
 }
 
 .hold__refus {
   margin: 0;
-  font-size: 0.78rem;
-  color: var(--rose, #DE5F7E);
+  font-size: var(--t-xs);
+  color: var(--rose);
+}
+
+/* L'objectif du projet : sa condition de fin, pas son thème. Il porte la
+   couleur du projet parce que c'est la seule ligne de la fiche qui dise
+   pourquoi les autres existent. */
+.pcard__objective {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  border-left: 2px solid color-mix(in srgb, var(--project) 45%, transparent);
+  padding-left: 0.7rem;
+}
+
+.pcard__objective .label {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Le cadre : ce qui interdit ou contraint. Discret — il ne se lit qu'une fois,
+   mais il doit être lisible ce jour-là. */
+.pcard__frame {
+  margin: 6px 0 0;
+  padding-left: 0.7rem;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Le parcours et les écartées : repliés, parce qu'ils ne servent jamais le
+   soir. C'est la seule exception à la règle « rien derrière un dépliant » —
+   elle vaut pour ce qui décide d'une soirée, et le parcours décide de mois. */
+.parcours {
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
+}
+
+.parcours__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+}
+
+.parcours__summary::-webkit-details-marker {
+  display: none;
+}
+
+.parcours__summary::before {
+  content: '▸';
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 140ms ease;
+}
+
+.parcours[open] > .parcours__summary::before {
+  transform: rotate(90deg);
+}
+
+.parcours__count {
+  color: color-mix(in srgb, var(--project) 80%, var(--text));
+}
+
+.parcours__load {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.parcours__list {
+  margin: 10px 0 0;
+  padding: 0 0 0 0.7rem;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.parcours__bloc--opt {
+  opacity: 0.72;
+}
+
+.parcours__name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parcours__tag {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 1px 5px;
+}
+
+.parcours__outcome {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.parcours__meta {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+}
+
+.parcours__meta a {
+  color: var(--project);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--project) 40%, transparent);
+}
+
+.parcours__exit {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--project) 70%, var(--text));
+}
+
+/* Déclarer une preuve. Le bouton reste discret et ne se dégrise jamais : rien
+   dans le système ne sait si le critère est rempli, et l'afficher comme
+   « disponible » laisserait croire le contraire. */
+.parcours__preuve-open {
+  margin-top: 5px;
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.parcours__preuve {
+  margin-top: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.parcours__preuve-question {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Le seul retour, et il est sec. Une preuve n'a pas besoin de fanfare : ce qui
+   la rend précieuse est qu'elle ne se retire pas, pas qu'elle scintille. */
+.parcours__preuve-ok {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--project) 75%, var(--text));
 }

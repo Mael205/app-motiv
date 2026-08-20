@@ -48,22 +48,10 @@
   text-decoration: line-through;
 }
 
+/* `.fridge__input` a disparu : elle était déclarée ici, dans la feuille de
+   l'accueil, et servait au frigo de l'onglet Projets **et** à l'écran de
+   connexion. Le style de champ vit maintenant dans theme.css, sur l'élément.
+   Il ne reste ici que la gouttière de la rangée. */
 .fridge {
-  gap: 8px;
-}
-
-.fridge__input {
-  flex: 1;
-  min-width: 0;
-  padding: 11px 13px;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--line);
-  outline: none;
-}
-
-.fridge__input:focus {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  gap: var(--s2);
 }

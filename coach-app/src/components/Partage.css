@@ -1,0 +1,44 @@
+/* L'accusé de réception d'un partage (§11.7).
+ *
+ * Il flotte au-dessus de l'écran parce qu'il ne fait partie d'aucun onglet :
+ * un partage arrive de l'extérieur, et l'app était peut-être fermée. Il ne
+ * disparaît pas tout seul — une idée qu'on croit avoir capturée et qui s'est
+ * perdue est pire que pas de capture du tout, donc l'utilisateur ferme
+ * lui-même, après avoir lu ce qui a été gardé.
+ */
+
+.partage {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(26rem, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--panel-high);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.8);
+}
+
+.partage__texte {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.partage__rate {
+  margin: 0;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--rose) 70%, var(--muted));
+}
+
+.partage__fermer {
+  align-self: flex-end;
+  font-size: 12px;
+}

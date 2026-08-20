@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from '../api'
+import { useInclinaison, useRevelation } from '../juice'
+import { EnCharge, EnErreur } from '../components/EtatCharge'
 import { MomentumEmber } from '../components/MomentumEmber'
 import { PhantomRace } from '../components/PhantomRace'
+import { Capacite } from '../components/Capacite'
 import { SkillTree } from '../components/SkillTree'
 import { HautsFaits } from '../components/HautsFaits'
+import { Statistiques } from '../components/Statistiques'
 import { Trace } from '../components/Trace'
 import { LootReveal } from '../components/LootReveal'
 import type { LootCardDrawn, Phantom, ProgressionPanel } from '../types'
@@ -49,6 +53,10 @@ export function Character({
 
   async function load() {
     try {
+      // L'erreur se lève avant l'appel, pas après son succès : sans cette
+      // ligne, un « Réessayer » qui aboutissait laissait l'ancien message
+      // affiché — l'écran restait en panne alors que les données étaient là.
+      setError('')
       const recu = await api.progression()
       setPanel(recu)
       // Les cartes de la semaine tombent a l'ouverture : elles se jouent tout
@@ -63,14 +71,26 @@ export function Character({
     if (!locked) load()
   }, [locked])
 
+  /* Les reliques et les cartes de collection se comptent par dizaines : sans
+     revelation au defilement, cent animations se jouent au montage dont
+     quatre-vingt-dix hors champ. */
+  const scene = useRevelation(
+    { lever: '.relics > li, .collection > li, .panel' },
+    Boolean(panel),
+  )
+
+  /* Les cartes de collection s'inclinent aussi : c'est la surface la plus
+     proche d'un objet a manipuler de tout le produit. */
+  useInclinaison(scene, '.slotcard__btn', `${slot}:${panel?.collection.slots[slot]?.length ?? 0}`)
+
   if (locked) return <Showcase />
-  if (error) return <p className="muted">{error}</p>
-  if (!panel) return <p className="muted">Chargement…</p>
+  if (error) return <EnErreur message={error} onRetry={load} />
+  if (!panel) return <EnCharge />
 
   const cards = panel.collection.slots[slot] ?? []
 
   return (
-    <div className="char">
+    <div className="char" ref={scene}>
       <div className="char__col">
         <MomentumEmber momentum={panel.momentum} />
 
@@ -80,7 +100,17 @@ export function Character({
 
         <Trace compact />
 
+        {/* Les compteurs qui ne baissent pas d'abord, les courbes ensuite : on
+            lit ce qui est acquis avant ce qui varie. */}
+        <Statistiques />
+
         <HautsFaits />
+
+        {/* La capacité est posée **avant** l'arbre, et c'est délibéré : l'arbre
+            convertit des heures en titres, donc il se lit comme une mesure de
+            niveau alors qu'il mesure du temps. Les deux l'un sous l'autre
+            rendent la différence visible sans qu'on ait à l'expliquer. */}
+        <Capacite />
 
         <section className="panel">
           <SkillTree branches={panel.skills.branches} tiers={panel.skills.tiers} />
@@ -181,6 +211,24 @@ export function Character({
                 <span className="slotcard__rarity">{c.rarity_label}</span>
                 {c.copies > 1 && <span className="slotcard__copies num">×{c.copies}</span>}
               </button>
+
+              {/* Le retrait explicite. La bascule du serveur retire déjà la
+                  carte au second clic, mais elle le faisait sans le dire : le
+                  seul retour visuel était l'accent du site qui changeait, ce
+                  qui se lit comme un changement de saison et non comme le
+                  résultat d'un clic. Le bouton n'apparaît que sur la carte
+                  équipée — il marque donc aussi l'emplacement occupé. */}
+              {c.equipped && (
+                <button
+                  className="slotcard__unequip"
+                  onClick={async () => {
+                    await api.equipCard(c.key)
+                    load()
+                  }}
+                >
+                  Retirer
+                </button>
+              )}
 
               {/* La Forge : le seul endroit du produit où des Éclats sortent.
                   Le bouton n'apparaît que sur une carte qu'on n'a pas, et reste

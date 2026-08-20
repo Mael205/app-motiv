@@ -90,6 +90,18 @@ export const SeasonBanner = memo(function SeasonBanner({
               {season.day_index}/{season.days_total}
             </span>
           )}
+          {/* La trame (§12.2). Une ligne, en petit, sous le compte des jours :
+              elle dit d'où vient cette saison — « la précédente a été tenue,
+              ça monte » — et c'est tout ce qu'une histoire a besoin de dire
+              quand on ouvre l'app pour décider d'une soirée. */}
+          {season?.acte && (
+            <span
+              className={`banner__voie banner__voie--${season.acte.voie}`}
+              title={season.acte.voie_ligne}
+            >
+              {season.acte.voie_nom} · {season.acte.nom}
+            </span>
+          )}
         </div>
         <button
           className="helpbtn"
@@ -124,7 +136,12 @@ export const SeasonBanner = memo(function SeasonBanner({
 
         <div className="banner__stats">
           <div className="row row--between banner__xp-head">
-            <span className="label">XP vers le niv. {progression.level + 1}</span>
+            <span className="label banner__xp-label">
+              {/* Le préfixe cède avant la valeur. Tronqué d'un bloc, le libellé
+                  donnait « XP vers le ni… » : l'ellipse mangeait le numéro de
+                  niveau, c'est-à-dire la seule partie qui change. */}
+              <span className="banner__xp-prefixe">XP vers le </span>niv. {progression.level + 1}
+            </span>
             <span className="banner__xp-num">
               <span className="num">{progression.into_level}</span>
               <span className="muted num"> / {progression.next_level_xp - progression.level_floor_xp}</span>

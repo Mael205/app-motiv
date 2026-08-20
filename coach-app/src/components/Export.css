@@ -1,0 +1,29 @@
+/* L'export.
+ *
+ * Sobre et en bas du journal : c'est un filet de sécurité, pas une
+ * fonctionnalité qu'on vient chercher. Il doit se trouver le jour où on le
+ * cherche, et ne rien réclamer les autres jours.
+ */
+
+.export {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 2px solid var(--line-strong);
+}
+
+.export__texte {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.export__rate {
+  margin: 0;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--rose) 70%, var(--muted));
+}

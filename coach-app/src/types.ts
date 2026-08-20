@@ -61,6 +61,35 @@ export interface RoadmapStepView {
   state: 'todo' | 'doing' | 'done'
   estimated_sessions: number
   needs_split: boolean
+  /** Ce qui rend l'étape exécutable sans réfléchir (§4.5). Tous facultatifs :
+   *  « appeler le plombier » n'a ni ressource ni charge. Le critère de sortie
+   *  est le seul qui manque vraiment quand il manque — sans lui, on ne sait pas
+   *  quand l'étape est finie. */
+  resource: string
+  url: string
+  scope: string
+  load: string
+  exit_criterion: string
+}
+
+/** Un bloc du parcours : l'échelle des mois, pas celle de la soirée (§4.5). */
+export interface ProjectBlocView {
+  id: number
+  name: string
+  outcome: string
+  resource: string
+  url: string
+  load: string
+  cost: string
+  optional: boolean
+  exit_criterion: string
+}
+
+/** Une ressource écartée, et pourquoi. Évite de refaire l'arbitrage. */
+export interface DiscardedResourceView {
+  id: number
+  name: string
+  reason: string
 }
 
 /** Un projet bloqué par un tiers ou du matériel (§13.5 étendu).
@@ -106,9 +135,13 @@ export interface ProjectDetail {
   completion: number
   weekly_commitment: number
   is_coach_project: boolean
+  objective: string
+  frame: string
   hold: ProjectHold | null
-  current_step: { id: number; label: string; needs_split: boolean } | null
+  current_step: { id: number; label: string; needs_split: boolean; exit_criterion: string } | null
   steps: RoadmapStepView[]
+  parcours: ProjectBlocView[]
+  ecartees: DiscardedResourceView[]
 }
 
 export interface JournalEntry {
@@ -121,12 +154,30 @@ export interface JournalEntry {
   next_action: string
 }
 
+/** Où l'on se tient dans la trame du §12.2 : quelle voie, quel acte.
+ *
+ * La voie descend du résultat de la saison précédente — tenue, on monte ; ratée,
+ * on descend aux braises. Elle ne change **aucune règle** : même mise, même
+ * boss. Elle change ce que la saison raconte, et un mois raté raconté comme une
+ * descente aux forges est plus tenable qu'un mois raté raconté avec les mots
+ * d'un sommet.
+ */
+export interface ActeDeSaison {
+  numero: number
+  nom: string
+  total: number
+  voie: 'cimes' | 'braises'
+  voie_nom: string
+  voie_ligne: string
+}
+
 export interface SeasonState {
   index: number
   key: string
   name: string
   accent: string
   baseline: string
+  acte: ActeDeSaison
   day_index: number
   days_total: number
   days_left: number
@@ -191,11 +242,37 @@ export interface EveningBlock {
 }
 
 export interface Evening {
+  /** La bande dessinée. Elle **s'élargit** à ce qui a réellement eu lieu :
+   *  depuis qu'une séance compte à n'importe quelle heure, une session de 10h
+   *  était dessinée collée au bord gauche, donc à 18h. Une jauge qui affirme
+   *  une heure fausse est pire qu'une jauge absente. */
   start: string
   end: string
+  /** La fenêtre du soir elle-même — quand la soirée se ferme, et quand le
+   *  gardien parlera. Identique aux bornes ci-dessus le plus souvent. */
+  window_start: string
+  window_end: string
+  widened: boolean
   total_minutes: number
   elapsed_ratio: number
   blocks: EveningBlock[]
+}
+
+/** Un morceau de soirée passé sur une étape (§4.1). */
+export interface PlanPortion {
+  step_id: number
+  label: string
+  /** Les minutes qu'on y consacre ce soir. */
+  minutes: number
+  /** Ce qu'il restait à faire sur l'étape avant ce soir. */
+  reste_avant: number
+  /** La part de ce reste que la soirée couvre, de 0 à 100. */
+  pourcentage: number
+  /** L'étape est couverte en entier ce soir. */
+  entiere: boolean
+  /** Le temps estimé est déjà consommé : il reste à la déclarer finie. */
+  a_clore: boolean
+  exit_criterion: string
 }
 
 export interface Proposal {
@@ -204,7 +281,41 @@ export interface Proposal {
   track: 'atelier' | 'corps'
   project: { id: number; name: string; color: string; emblem: string; completion: number }
   minutes: number
-  step: { id: number; label: string; needs_split: boolean } | null
+  /** Ce que le créneau couvre, étape par étape, dans l'ordre de la roadmap.
+   *  Plusieurs entrées = la soirée enchaîne ; la dernière peut être une
+   *  fraction quand l'étape déborde du temps disponible. */
+  plan?: PlanPortion[]
+  /** La dernière étape du plan sera laissée en cours. */
+  plan_coupe?: boolean
+  /** La soirée couvre plus d'une étape. */
+  plan_enchaine?: boolean
+  /** Le bloc suivant du parcours, quand la roadmap vient de se vider. C'est le
+   *  seul moment où la question se pose — et sans lui, un parcours de quatorze
+   *  blocs s'arrêtait au premier. */
+  next_bloc?: { id: number; name: string; resource: string } | null
+  /** Le rendez-vous fixe du jour, s'il y en a un (§11.2). Il vient avec la
+   *  proposition pour que la ponctualité se décide **avant** de démarrer :
+   *  une prime qu'on ne découvre qu'au décompte final ne change rien. */
+  creneau: {
+    heure: string
+    minutes: number
+    /** La demi-heure autour du rendez-vous qui vaut « à l'heure ». */
+    tolerance: number
+    /** Où l'on en est, calculé par le serveur : lui seul sait que la journée
+     *  du coach bascule à 4h, et un client qui comparerait à `new Date()`
+     *  annoncerait « dans 20 heures » un créneau qui vient d'être manqué. */
+    statut?: 'a_venir' | 'maintenant' | 'passe'
+    ecart_minutes?: number
+  } | null
+  step: {
+    id: number
+    label: string
+    needs_split: boolean
+    exit_criterion: string
+    resource: string
+    url: string
+    scope: string
+  } | null
   amorce: string
   reason: string
 }
@@ -251,7 +362,18 @@ export interface RunningSession {
   project: string
   color: string
   started_at: string
+  /** L'objectif annoncé au démarrage. Il monte quand on prolonge, jamais l'inverse. */
   planned_minutes: number
+  extensions?: number
+}
+
+/** Ce que rend une prolongation : le nouvel objectif, et depuis combien de
+ *  temps la séance tourne — c'est ce dont l'anneau a besoin pour repartir. */
+export interface SessionExtended {
+  id: number
+  planned_minutes: number
+  extensions: number
+  elapsed_minutes: number
 }
 
 export interface Quest {
@@ -268,6 +390,11 @@ export interface ParsedStep {
   state: string
   estimated_sessions: number
   needs_split: boolean
+  resource: string
+  url: string
+  scope: string
+  load: string
+  exit_criterion: string
 }
 
 export interface ProjectPreview {
@@ -282,9 +409,16 @@ export interface ProjectPreview {
   color: string
   emblem: string
   weekly_commitment: number
+  objective: string
+  frame: string
   open_steps: number
   steps: ParsedStep[]
+  parcours: Omit<ProjectBlocView, 'id'>[]
+  ecartees: Omit<DiscardedResourceView, 'id'>[]
   warnings: string[]
+  /** Les lignes que le parseur n'a pas su placer. Non vide = il y a plus dans
+   *  le document que ce qui vient d'être lu, et une relecture vaut le coup. */
+  ignored: string[]
 }
 
 export interface ProjectImportResult {
@@ -329,6 +463,46 @@ export interface RoutineEntry {
   week_held: boolean
   slack: number
   shards_if_checked: number
+  /** « avant 7h30 » pour une habitude horaire, vide pour toutes les autres.
+   *  Le §11.9 ancre les routines sur un geste et pas sur une horloge ; se lever
+   *  et se coucher sont les deux exceptions, parce que l'heure *est* l'habitude. */
+  window: string
+  /** Cochée aujourd'hui, mais hors fenêtre : le fait est gardé, il ne compte pas. */
+  late_today: boolean
+  /** Ce que les sondes disent de l'habitude horaire : `corrobore`, `contredit`,
+   *  ou `sans_signal`. Le §6 vaut ici dans les deux sens — une contradiction ne
+   *  retire rien, une corroboration ne paie rien. */
+  corroboration: 'corrobore' | 'contredit' | 'sans_signal'
+  corroboration_line: string
+}
+
+/** Une capacité constatée : datée, binaire, vérifiable par quelqu'un d'autre. */
+export interface PreuveEntry {
+  id: number
+  critere: string
+  projet: string
+  couleur: string
+  obtained_on: string
+}
+
+/** Le troisième axe, à côté du volume et de la fiabilité. Les deux nombres ne
+ *  fusionnent jamais : un score unique monterait en ne faisant que des heures. */
+export interface CapacitePanel {
+  preuves: number
+  heures: number
+  heures_par_preuve: number | null
+  liste: PreuveEntry[]
+}
+
+/** Une chose à faire une fois — ni projet, ni routine. Ne rapporte rien, et
+ *  n'apparaît jamais sur l'écran du soir (§11.1). */
+export interface PonctuelEntry {
+  id: number
+  label: string
+  due_on: string | null
+  done: boolean
+  late: boolean
+  due_today: boolean
 }
 
 export interface RoutineGroup {
@@ -411,11 +585,24 @@ export interface CorpsPanel {
 export interface SessionResult {
   session_id: number
   minutes: number
+  /** L'objectif annoncé au démarrage, et ce qu'il est devenu. Le minuteur ne
+   *  plafonne plus les minutes (elles comptent toutes), il reste la promesse
+   *  qu'on a faite en démarrant — et la clôture dit si elle a été tenue. */
+  objectif: number
+  objectif_tenu: boolean
+  depassement: number
+  extensions: number
   xp: number
   breakdown: {
     base: number
+    /** Ce que les minutes tardives valent en plus. 0 sous 25 minutes. */
+    duration_premium: number
     first_of_day: number
-    early: number
+    /** La prime de ponctualité : le créneau annoncé tenu à la demi-heure près.
+     *  Elle a remplacé le forfait « avant 20h », qui payait l'horloge plutôt
+     *  que la parole donnée. 0 quand aucun créneau n'était déclaré — rien à
+     *  tenir n'est pas un échec. */
+    punctual: number
     streak_multiplier: number
     momentum_multiplier: number
     degressivity: number
@@ -595,6 +782,48 @@ export type Cosmetics = Partial<
   Record<'theme' | 'emblem' | 'frame' | 'title' | 'finisher', CosmeticSlot>
 >
 
+/** Le bilan de la journée écoulée (§13.1).
+ *
+ * Recalculé à chaque lecture côté serveur : une sonde qui remonte ses minutes
+ * en retard doit pouvoir corriger le tableau du matin plutôt que le laisser
+ * faux. Rien n'est stocké, donc rien ne se fige à tort.
+ */
+export interface BilanDuJour {
+  jour: string
+  /** Vrai les jours où il n'y a rien à dire. La règle du silence est calculée
+   *  côté serveur, la même que celle de la notification de la nuit. */
+  silencieux: boolean
+  disponibles: number
+  travaillees: number
+  /** De 0 à 1 : la barre du §13.1, et rien d'autre. */
+  part: number
+  creneau_prevu: boolean
+  creneau_tenu: boolean
+  repartition: { label: string; minutes: number }[]
+  phrase: string
+}
+
+/** Les séries des douze dernières semaines (J6, §16).
+ *
+ * À ne pas confondre avec `TraceLongue`, qui ne rend que des compteurs
+ * monotones : celle-ci descend, et c'est son intérêt.
+ */
+export interface StatsLongues {
+  depuis: string
+  semaines: { debut: string; minutes: number; sessions: number; jours_travailles: number }[]
+  jours: { index: number; label: string; minutes: number; sessions: number; jours_tenus: number }[]
+  projets: { nom: string; couleur: string; minutes: number; sessions: number }[]
+  heures: { heure: number; minutes: number }[]
+  seances: {
+    moyenne: number
+    plus_longue: number
+    total: number
+    longues: number
+    part_longues: number
+  }
+  etapes: number
+}
+
 export interface TraceLongue {
   since: string | null
   days_since: number
@@ -605,9 +834,13 @@ export interface TraceLongue {
 
 export interface SeasonOffer {
   index: number
+  /** La clé de l'identité — c'est elle que l'emblème attend, pas le nom. */
+  key: string
   name: string
   accent: string
   baseline: string
+  /** Où cette saison entre dans la trame, et pourquoi (§12.2). */
+  acte: ActeDeSaison
   starts_on: string
   ends_on: string
   boss: { name: string; hp: number }
@@ -690,6 +923,20 @@ export interface SeasonPhase {
   /** L'année close dont la voie n'a pas été choisie. Passe avant tout le reste. */
   annee: AnneeAccomplie | null
   offer: SeasonOffer | null
+  /** Le mode extra du §12.4 : le boss est tombé avant la fin, la saison
+   *  suivante est engagée et attend sa date. `null` le reste du temps. */
+  extra: ModeExtra | null
+}
+
+/** Ce qu'il reste à attendre après une victoire anticipée, et ce qui est mis
+ *  de côté d'ici là. Le §12.4 : « les jours restants alimentent directement le
+ *  score de la saison suivante ». */
+export interface ModeExtra {
+  name: string
+  accent: string
+  starts_on: string
+  days_until: number
+  minutes: number
 }
 
 /** Où en est le fantôme **à cette heure-ci** (§12.7).

@@ -15,25 +15,48 @@ from forge.rules.seasons import (
 )
 
 
+from forge.rules import seasons  # noqa: E402
+
+
 class TestIdentite:
     def test_une_saison_a_toujours_un_nom_et_un_accent(self):
         for i in range(20):
             identity = pick_identity(i)
             assert identity["name"] and identity["accent"].startswith("#")
 
-    def test_chaque_identite_sort_une_fois_par_an(self):
-        """Garantie plus forte que la précédente, qui écartait seulement les
-        clés déjà vues : arrivé à la neuvième saison, il en reste exactement
-        trois, et on les aura toutes vues à la fin de l'année."""
-        for annee in (1, 2, 3):
-            premier = (annee - 1) * 12 + 1
-            cles = [pick_identity(i)["key"] for i in range(premier, premier + 12)]
-            assert len(set(cles)) == 12
+    def test_chaque_voie_traverse_ses_douze_sans_repetition(self):
+        """Douze saisons sur une même voie, douze noms différents.
 
-    def test_deux_annees_ne_jouent_pas_le_meme_ordre(self):
-        an1 = [pick_identity(i)["key"] for i in range(1, 13)]
-        an2 = [pick_identity(i)["key"] for i in range(13, 25)]
-        assert an1 != an2
+        L'ordre est **fixe** depuis le 20 août 2026, et c'est le contraire de la
+        règle précédente : les identités étaient tirées dans une permutation qui
+        changeait chaque année, pour que deux années ne se ressemblent pas. Ça
+        empêchait la répétition et empêchait aussi toute histoire.
+        """
+        from forge.rules.seasons import TRAME
+
+        for voie, ligne in TRAME.items():
+            cles = [
+                seasons.identite_de_voie(voie, position)["key"]
+                for position in range(len(ligne))
+            ]
+            assert len(set(cles)) == len(ligne), voie
+
+    def test_les_deux_voies_ne_partagent_aucun_nom(self):
+        """Sinon une saison ratée pourrait porter le nom d'un sommet."""
+        from forge.rules.seasons import TRAME, VOIE_BRAISES, VOIE_CIMES
+
+        cimes = {i["key"] for i in TRAME[VOIE_CIMES]}
+        braises = {i["key"] for i in TRAME[VOIE_BRAISES]}
+        assert cimes.isdisjoint(braises)
+
+    def test_on_commence_toujours_par_l_eveil(self):
+        assert pick_identity(1)["key"] == "eveil"
+        assert pick_identity(0)["key"] == "eveil", "l'essai aussi : c'est un éveil"
+
+    def test_une_saison_tenue_monte_une_saison_ratee_descend(self):
+        assert seasons.voie_apres(True) == seasons.VOIE_CIMES
+        assert seasons.voie_apres(False) == seasons.VOIE_BRAISES
+        assert seasons.voie_apres(None) == seasons.VOIE_CIMES, "on commence en haut"
 
     def test_trois_modificateurs_proposes_et_distincts(self):
         propositions = propose_modifiers(0)

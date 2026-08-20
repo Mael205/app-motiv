@@ -125,11 +125,16 @@
   border: 1px solid color-mix(in srgb, var(--rose) 40%, transparent);
 }
 
-/* Une pastille par session estimée : le poids de l'étape se lit sans chiffre. */
+/* Une pastille par session estimée : le poids de l'étape se lit sans chiffre.
+ *
+ * Elles étaient poussées au bord droit par `margin-left: auto`. Sur un écran
+ * de téléphone la distance restait lisible ; sur une carte de bureau, le
+ * libellé de l'étape et son poids se retrouvaient à six cents pixels l'un de
+ * l'autre, et plus rien ne disait qu'ils parlaient de la même étape. Elles
+ * suivent maintenant le libellé. */
 .rm__pips {
   display: inline-flex;
   gap: 3px;
-  margin-left: auto;
 }
 
 .rm__pip {
@@ -141,4 +146,58 @@
 
 .rm__step--doing .rm__pip {
   background: color-mix(in srgb, var(--project) 70%, transparent);
+}
+
+/* La charge annoncée de l'étape — « 6–8 h ». Elle vit à côté des pastilles,
+   qui comptent des sessions : les deux ne mesurent pas la même chose, et l'une
+   dément parfois l'autre. C'est utile qu'on le voie. */
+.rm__load {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* Le plan de l'étape courante. Déplié en permanence, jamais derrière un
+   dépliant : ce qu'on cache un soir de fatigue n'existe pas. Il ne s'affiche
+   que sur une étape à la fois, ce qui suffit à le tenir court. */
+.rm__plan {
+  margin: 7px 0 0;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.025);
+  border-left: 2px solid color-mix(in srgb, var(--project) 35%, transparent);
+}
+
+.rm__plan-line {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.rm__plan-line dt {
+  flex: 0 0 5.6rem;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding-top: 1px;
+}
+
+.rm__plan-line dd {
+  margin: 0;
+  color: var(--text);
+}
+
+/* Le critère de sortie est le seul des trois qui décide de quelque chose :
+   il dit quand s'arrêter. Il porte donc la couleur du projet, pas le gris. */
+.rm__plan-line--exit dd {
+  color: color-mix(in srgb, var(--project) 78%, var(--text));
+}
+
+.rm__plan a {
+  color: var(--project);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--project) 40%, transparent);
 }

@@ -74,12 +74,15 @@ const SIGILS: Record<string, (p: SigilProps) => React.ReactElement> = {
     </Frame>
   ),
 
-  /* Wacken — cornes */
-  wacken: (p) => (
+  /* L'Éveil — un œil qui s'ouvre dans un cercle brisé.
+     La première saison de la voie haute, et celle de l'essai : ce qui dormait
+     se lève. Le cercle est ouvert en haut à dessein — rien n'est refermé. */
+  eveil: (p) => (
     <Frame {...p}>
-      <path {...P} d="M24 34c-8 0-14-5-14-12 0-4 2-8 4-10 0 5 3 8 10 8s10-3 10-8c2 2 4 6 4 10 0 7-6 12-14 12Z" />
-      <path {...P} d="M18 22v4M30 22v4" opacity=".7" />
-      <path {...P} d="M14 38h20" opacity=".5" />
+      <path {...P} d="M34 10a17 17 0 1 1-20 0" />
+      <path {...P} d="M8 24c5-6 11-9 16-9s11 3 16 9c-5 6-11 9-16 9s-11-3-16-9Z" />
+      <circle {...P} cx="24" cy="24" r="4" />
+      <path {...P} d="M24 4v6" opacity=".55" />
     </Frame>
   ),
 
@@ -129,6 +132,115 @@ const SIGILS: Record<string, (p: SigilProps) => React.ReactElement> = {
       <path {...P} d="M24 6v4M24 38v4" opacity=".55" />
     </Frame>
   ),
+
+  /* ---- Second réservoir (J6) --------------------------------------------
+   *
+   * Douze dessins de plus, parce que douze identités de plus. Le repli existe
+   * et fonctionne, mais une saison qui s'ouvre sur le glyphe générique n'a plus
+   * d'identité du tout — et le §12.2 fait de l'emblème la moitié de ce qui
+   * distingue une saison de la précédente.
+   */
+
+  /* Obsidienne — éclat de verre volcanique */
+  obsidienne: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M24 4 38 20 30 44 16 40 10 18 24 4Z" />
+      <path {...P} d="M24 4 22 26l8 18M10 18l12 8 16-6" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Acier froid — lame trempée */
+  acier_froid: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M24 4 30 14v18l-6 6-6-6V14L24 4Z" />
+      <path {...P} d="M14 38h20M24 38v6" />
+      <path {...P} d="M24 10v22" opacity=".5" />
+    </Frame>
+  ),
+
+  /* Méridien — globe et ligne */
+  meridien: (p) => (
+    <Frame {...p}>
+      <circle {...P} cx="24" cy="24" r="17" />
+      <path {...P} d="M24 7c6 5 6 29 0 34-6-5-6-29 0-34Z" />
+      <path {...P} d="M7 24h34" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Sanctuaire — arche */
+  sanctuaire: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M12 42V22a12 12 0 0 1 24 0v20" />
+      <path {...P} d="M18 42V24a6 6 0 0 1 12 0v18" opacity=".6" />
+      <path {...P} d="M8 42h32" />
+    </Frame>
+  ),
+
+  /* Orbite basse — satellite */
+  orbite_basse: (p) => (
+    <Frame {...p}>
+      <circle {...P} cx="24" cy="26" r="9" />
+      <ellipse {...P} cx="24" cy="26" rx="20" ry="8" transform="rotate(-24 24 26)" opacity=".6" />
+      <circle {...P} cx="38" cy="14" r="2.5" />
+    </Frame>
+  ),
+
+  /* Tonnerre — éclair encadré */
+  tonnerre: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M26 6 14 26h8l-4 16 16-22h-9l5-14Z" />
+      <path {...P} d="M8 12c-3 4-3 20 0 24M40 12c3 4 3 20 0 24" opacity=".5" />
+    </Frame>
+  ),
+
+  /* Veine mère — filon */
+  veine_mere: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 40 20 8l8 14 6-6 6 24" />
+      <path {...P} d="M6 44h36" />
+      <path {...P} d="M20 22l6 8" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Quartier nord — immeubles */
+  quartier_nord: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 42V18h10v24M22 42V10h10v32M36 42V24h6v18" />
+      <path {...P} d="M11 24h4M25 18h4M25 28h4" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Cendre haute — braise sous la cendre */
+  cendre_haute: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M24 8c4 8-2 10 0 16 3-2 4-6 4-9 5 6 6 11 6 15a10 10 0 0 1-20 0c0-6 4-13 10-22Z" />
+      <path {...P} d="M10 42h28" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Prisme — décomposition */
+  prisme: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M24 8 40 38H8L24 8Z" />
+      <path {...P} d="M4 26h12M32 22l12-6M32 26h12M32 30l12 6" opacity=".6" />
+    </Frame>
+  ),
+
+  /* Dernière forge — enclume */
+  derniere_forge: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 18h20l8 6h6l-6 8H16l-8-8v-6Z" />
+      <path {...P} d="M20 32v6h-6v4h20v-4h-6v-6" />
+    </Frame>
+  ),
+
+  /* Marche haute — sommet */
+  marche_haute: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M4 40h10V28h10V16h10V6h10" />
+      <path {...P} d="M4 44h40" opacity=".55" />
+    </Frame>
+  ),
 }
 
 const FALLBACK = (p: SigilProps) => (
@@ -153,12 +265,24 @@ export function SeasonOrnament({ seasonKey }: { seasonKey?: string }) {
     purgatoire: 'M0 8h4l3-5 3 10 3-10 3 5h4',
     faille_s: 'M0 8 5 2 10 8 15 14 20 8',
     solstice_noir: 'M0 8a4 4 0 0 1 8 0 4 4 0 0 0 8 0 4 4 0 0 1 4 0',
-    wacken: 'M0 12c4 0 4-8 8-8s4 8 8 8 4-8 4-8',
+    eveil: 'M0 8a6 4 0 0 1 12 0a6 4 0 0 1-12 0M14 8h6',
     dernier_rempart: 'M0 12V6h4v6h4V6h4v6h4V6h4v6',
     aube_rouge: 'M0 12a10 10 0 0 1 20 0',
     nadir: 'M0 4l5 8 5-8 5 8 5-8',
     inferno: 'M0 12 5 2l5 10 5-10 5 10',
     vigie: 'M0 8h6a4 4 0 0 1 8 0h6',
+    obsidienne: 'M0 12 5 4l5 8 5-8 5 8',
+    acier_froid: 'M0 8h5l3-4 3 8 3-4h6',
+    meridien: 'M0 8a10 5 0 0 0 20 0M10 3v10',
+    sanctuaire: 'M0 12V9a5 5 0 0 1 10 0v3M10 12V9a5 5 0 0 1 10 0v3',
+    orbite_basse: 'M0 8a10 4 0 0 0 20 0',
+    tonnerre: 'M0 12 8 2l-2 6h6l-6 4',
+    veine_mere: 'M0 12 6 4l4 6 4-8 6 10',
+    quartier_nord: 'M0 12V7h4v5h4V4h4v8h4V8h4v4',
+    cendre_haute: 'M0 10c4 0 4-6 8-6s4 6 8 6 4-4 4-4',
+    prisme: 'M0 12 6 3l6 9M12 8h8',
+    derniere_forge: 'M0 10h8l3 3h9M4 13h6',
+    marche_haute: 'M0 12h5V9h5V6h5V3h5',
   }
   const d = motifs[seasonKey ?? ''] ?? 'M0 8h20'
 

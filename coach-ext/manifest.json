@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Coach — sonde web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Mesure le temps par catégorie et l'envoie au coach. Aucune URL ne quitte le navigateur.",
   "permissions": [
     "tabs",
@@ -34,7 +34,10 @@
     ],
     "type": "module"
   },
-  "options_page": "src/options.html",
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": true
+  },
   "action": {
     "default_title": "Coach — sonde web",
     "default_popup": "src/options.html"

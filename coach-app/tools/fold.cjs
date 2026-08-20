@@ -6,8 +6,9 @@
  * produit deux fois et qu'aucun test ni `tsc` ne voit.
  */
 const { chromium } = require('playwright')
+const { verdictFold, conclure } = require('./verdict.cjs')
 
-const ORIGIN = process.env.ORIGIN || 'http://localhost:5180'
+const ORIGIN = process.env.ORIGIN || 'http://localhost:5173'
 
 ;(async () => {
   const browser = await chromium.launch()
@@ -59,4 +60,9 @@ const ORIGIN = process.env.ORIGIN || 'http://localhost:5180'
 
   await browser.close()
   console.log(JSON.stringify(resultats, null, 1))
+
+  // Le verdict. La mesure existait depuis le debut, mais elle sortait en 0 meme
+  // quand le bouton passait sous la ligne — c'est-a-dire exactement dans le cas
+  // que cet outil a ete ecrit pour attraper, et qui s'est deja produit deux fois.
+  conclure(verdictFold(resultats))
 })()

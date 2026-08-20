@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -36,7 +36,9 @@ from .models import (
     ActionLink,
     FridgeIdea,
     Garde,
+    Ponctuel,
     Project,
+    ProjectBloc,
     ProjectInterview,
     ProjectRepo,
     ProposedAction,
@@ -80,6 +82,25 @@ def home(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+def proposal(request):
+    """Ce que l'app propose pour un créneau donné (SPEC §4.1).
+
+    Existe pour un seul geste : toucher une durée à l'écran du soir. La réponse
+    n'est pas la même tâche avec un autre chronomètre — c'est l'étape qui tient
+    dans ce temps-là. Renvoyer l'accueil entier pour ça ferait transiter la
+    saison, le boss et les quêtes à chaque effleurement d'un bouton.
+    """
+    brut = request.query_params.get("minutes")
+    try:
+        minutes = max(1, min(services.MAX_SESSION_MINUTES, int(brut))) if brut else None
+    except (TypeError, ValueError):
+        return Response({"detail": "Durée illisible."}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(services.home_state(request.user, minutes=minutes)["proposal"])
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def projects(request):
     today = _today(request)
     payload = []
@@ -87,7 +108,7 @@ def projects(request):
         Project.objects.filter(user=request.user)
         .exclude(status=Project.ARCHIVED)
         .select_related("track")
-        .prefetch_related("steps")
+        .prefetch_related("steps", "parcours", "ecartees")
     ):
         step = project.current_step
         payload.append(
@@ -109,9 +130,18 @@ def projects(request):
                 "completion": project.completion,
                 "weekly_commitment": project.weekly_commitment,
                 "is_coach_project": project.is_coach_project,
+                "objective": project.objective,
+                "frame": project.frame,
                 "hold": services.hold_payload(request.user, project, today=today),
                 "current_step": (
-                    {"id": step.id, "label": step.label, "needs_split": step.needs_split} if step else None
+                    {
+                        "id": step.id,
+                        "label": step.label,
+                        "needs_split": step.needs_split,
+                        "exit_criterion": step.exit_criterion,
+                    }
+                    if step
+                    else None
                 ),
                 "steps": [
                     {
@@ -120,8 +150,30 @@ def projects(request):
                         "state": s.state,
                         "estimated_sessions": s.estimated_sessions,
                         "needs_split": s.needs_split,
+                        "resource": s.resource,
+                        "url": s.url,
+                        "scope": s.scope,
+                        "load": s.load,
+                        "exit_criterion": s.exit_criterion,
                     }
                     for s in project.steps.all()
+                ],
+                "parcours": [
+                    {
+                        "id": b.id,
+                        "name": b.name,
+                        "outcome": b.outcome,
+                        "resource": b.resource,
+                        "url": b.url,
+                        "load": b.load,
+                        "cost": b.cost,
+                        "optional": b.optional,
+                        "exit_criterion": b.exit_criterion,
+                    }
+                    for b in project.parcours.all()
+                ],
+                "ecartees": [
+                    {"id": e.id, "name": e.name, "reason": e.reason} for e in project.ecartees.all()
                 ],
             }
         )
@@ -187,9 +239,42 @@ def end_session(request, session_id: int):
         )
 
     result = services.end_session(
-        session, note=request.data.get("note", ""), next_action=next_action
+        session,
+        note=request.data.get("note", ""),
+        next_action=next_action,
+        difficulty=request.data.get("difficulty"),
     )
+    # Le constat de palier voyage avec la clôture : c'est le seul moment où
+    # quelqu'un vient de se faire une opinion sur la difficulté, donc le seul
+    # où la phrase a une chance d'être lue.
+    result["palier"] = services.palier_de_difficulte(request.user, project=session.project)
     return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def extend_session(request, session_id: int):
+    """Prolonge la séance en cours de quinze minutes (§4.1).
+
+    Le seul geste qui fasse *monter* l'objectif annoncé. Il n'a pas d'inverse :
+    raccourcir une promesse en cours, c'est la clôturer, et le bouton existe.
+    """
+    session = Session.objects.filter(
+        user=request.user, id=session_id, status=Session.RUNNING
+    ).first()
+    if not session:
+        return Response({"detail": "Aucune session en cours."}, status=status.HTTP_404_NOT_FOUND)
+
+    minutes = int(request.data.get("minutes") or services.EXTENSION_MINUTES)
+    if not 1 <= minutes <= 60:
+        return Response(
+            {"detail": "Une prolongation va de 1 à 60 minutes."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        return Response(services.extend_session(session, minutes=minutes))
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
 
 
 @api_view(["POST"])
@@ -221,6 +306,58 @@ def preview_project(request):
     if not markdown.strip():
         return Response({"detail": "Colle d'abord le markdown du projet."}, status=status.HTTP_400_BAD_REQUEST)
     return Response(services.preview_project(markdown))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def open_next_bloc(request, project_id: int):
+    """Referme le bloc courant et écrit les étapes du suivant (§4.5).
+
+    Le geste n'est pas automatique, et c'est délibéré : ouvrir un bloc engage
+    plusieurs semaines de soirées, et le §0.9 veut que l'app décide *une* action
+    à la fois — pas qu'elle rallonge la roadmap dans le dos de quelqu'un pendant
+    qu'il finissait la précédente.
+    """
+    projet = Project.objects.filter(user=request.user, id=project_id).first()
+    if not projet:
+        return Response({"detail": "Projet inconnu."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        return Response(coaching.ouvrir_le_bloc_suivant(projet), status=status.HTTP_201_CREATED)
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+    except coaching.InterviewUnavailable as error:
+        # Le repli est l'assistant : « ajoute une étape » marche sans cette
+        # tâche, une étape à la fois.
+        return Response(
+            {"detail": str(error), "fallback": "assistant"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reread_project(request):
+    """Fait relire un markdown libre par le modèle, et rend l'aperçu (§4.5).
+
+    N'écrit toujours rien : le markdown remis au format revient à l'écran, qui
+    le montre comme n'importe quel autre. La création reste un geste séparé.
+    """
+    markdown = request.data.get("markdown", "")
+    try:
+        propre = coaching.relire_markdown(markdown)
+    except ValueError as error:
+        return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+    except coaching.InterviewUnavailable as error:
+        # Le repli n'est pas « le collage » comme pour l'entretien : le collage,
+        # on y est déjà. C'est le markdown tel qu'il a été tapé, lu par le
+        # parseur — ce que l'écran affiche déjà.
+        return Response(
+            {"detail": str(error), "fallback": "parseur"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    return Response({"markdown": propre, "preview": services.preview_project(propre)})
 
 
 @api_view(["POST"])
@@ -425,6 +562,116 @@ def fridge(request):
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
+def preuves(request):
+    """Le troisième axe : ce qui a été constaté, et non le temps passé.
+
+    ``POST`` déclare une preuve — depuis un bloc de parcours dont le critère de
+    sortie est atteint, ou à la main. Le serveur refuse un critère qui ne dit
+    rien : une preuve qu'on s'accorde soi-même est de l'auto-évaluation.
+    """
+    if request.method == "POST":
+        project = Project.objects.filter(user=request.user, id=request.data.get("project_id")).first()
+        if not project:
+            return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        bloc = None
+        if request.data.get("bloc_id"):
+            bloc = ProjectBloc.objects.filter(project=project, id=request.data["bloc_id"]).first()
+
+        try:
+            preuve = services.declarer_preuve(
+                request.user,
+                project,
+                critere=(request.data.get("critere") or (bloc.exit_criterion if bloc else "")),
+                day=_today(request),
+                bloc=bloc,
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "id": preuve.id,
+                "critere": preuve.critere,
+                "shards": preuve.shards_awarded,
+                "panel": services.capacite_panel(request.user),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    return Response(services.capacite_panel(request.user))
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def ponctuels(request):
+    """Les choses à faire une fois, qui ne sont ni un projet ni une routine.
+
+    Rien ici ne rapporte quoi que ce soit, et rien n'apparaît sur l'écran du
+    soir : le §11.1 veut une décision qui domine, et une liste de courses à
+    côté d'elle en ferait une option. Voir le modèle ``Ponctuel``.
+    """
+    today = _today(request)
+    if request.method == "POST":
+        label = (request.data.get("label") or "").strip()
+        if not label:
+            return Response({"detail": "Texte vide."}, status=status.HTTP_400_BAD_REQUEST)
+        brut = request.data.get("due_on") or None
+        # Parsée ici, jamais laissée en chaîne : Django accepte la chaîne à
+        # l'écriture et la relit en date, mais l'objet en mémoire garde le texte
+        # — et la réponse au client sortait alors avec un champ d'un autre type
+        # que celui de la lecture suivante.
+        due = parse_date(brut) if brut else None
+        if brut and due is None:
+            return Response({"detail": "Date illisible."}, status=status.HTTP_400_BAD_REQUEST)
+        item = Ponctuel.objects.create(
+            user=request.user, label=label, due_on=due, source=request.data.get("source", "app")
+        )
+        return Response(_ponctuel_payload(item, today), status=status.HTTP_201_CREATED)
+
+    # Les faits restent visibles le jour même, puis sortent de la liste. Les
+    # effacer tout de suite priverait du seul retour que la mécanique offre —
+    # voir la ligne barrée —, et les garder pour toujours referait la liste que
+    # personne ne relit.
+    items = Ponctuel.objects.filter(user=request.user).exclude(
+        done_at__lt=timezone.now() - timedelta(days=1)
+    )
+    return Response([_ponctuel_payload(i, today) for i in items])
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def ponctuel_detail(request, ponctuel_id: int):
+    """``POST`` bascule fait / pas fait, ``DELETE`` retire la ligne."""
+    item = Ponctuel.objects.filter(user=request.user, id=ponctuel_id).first()
+    if not item:
+        return Response({"detail": "Introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    item.done_at = None if item.done_at else timezone.now()
+    item.save(update_fields=["done_at"])
+    return Response(_ponctuel_payload(item, _today(request)))
+
+
+def _ponctuel_payload(item: Ponctuel, today: date) -> dict:
+    return {
+        "id": item.id,
+        "label": item.label,
+        "due_on": item.due_on.isoformat() if item.due_on else None,
+        "done": item.done,
+        # « En retard » se dit, il ne se calcule pas côté client : la journée du
+        # coach bascule à 4h, et un client qui comparerait à `new Date()` se
+        # tromperait toutes les nuits entre minuit et 4h.
+        "late": bool(item.due_on and not item.done and item.due_on < today),
+        "due_today": bool(item.due_on and not item.done and item.due_on == today),
+    }
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
 def weekly_review(request):
     """La revue du dimanche (SPEC §5.3, §13.3).
 
@@ -492,6 +739,13 @@ def daily_report(request):
     return Response(
         {
             "jour": jour.isoformat(),
+            # Les jours sans rien à dire se taisent, ici comme dans la
+            # notification de la nuit (§13.1). Un bandeau qui annonce tous les
+            # matins zéro minute travaillée devient un compteur de reproches, et
+            # le §17 l'interdit. Le client n'a donc pas à décider quoi afficher :
+            # la règle du silence est la même des deux côtés parce qu'elle est
+            # calculée d'un seul.
+            "silencieux": bilan.travaillees == 0 and not bilan.repartition,
             "disponibles": bilan.disponibles,
             "travaillees": bilan.travaillees,
             "part": round(bilan.part_travaillee, 3),
@@ -724,6 +978,42 @@ def trace_longue(request):
     §17 n'autorise nulle part.
     """
     return Response(trace.longue(request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def stats_longues(request):
+    """Les séries des douze dernières semaines (J6, §16).
+
+    À distinguer de ``/api/trace`` : celle-ci ne rend que des compteurs qui ne
+    peuvent pas baisser, pour le soir où l'on vient de perdre un streak.
+    Celle-là rend des courbes, qui montent et qui descendent — on ne l'ouvre pas
+    le même soir.
+    """
+    from . import stats
+
+    semaines = int(request.query_params.get("semaines") or stats.SEMAINES)
+    return Response(
+        stats.longues(request.user, today=_today(request), semaines=max(1, min(52, semaines)))
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def export_tout(request):
+    """Tout ce qui a été fait, en un fichier JSON (J6, §16).
+
+    Le nom de fichier porte la date : deux exports côte à côte dans un dossier
+    de téléchargements sans date sont deux fichiers qu'on n'ose plus effacer.
+    """
+    from . import export as export_module
+
+    charge = export_module.tout(request.user)
+    reponse = Response(charge)
+    reponse["Content-Disposition"] = (
+        f'attachment; filename="coach-{request.user.username}-{_today(request)}.json"'
+    )
+    return reponse
 
 
 @api_view(["GET"])
@@ -1286,6 +1576,10 @@ def season_state(request):
             # un geste, sinon c'est l'app qui déclare l'abandon.
             "exit_offer": season_flow.exit_offer(request.user, today=today),
             "offer": None if courante and not a_clore else season_flow.next_offer(request.user, today=today),
+            # Le mode extra du §12.4 : le boss est tombé, la saison suivante est
+            # engagée et attend sa date. Ce que l'on pose d'ici là est mis de
+            # côté pour elle.
+            "extra": season_flow.etat_extra(request.user, today=today),
         }
     )
 

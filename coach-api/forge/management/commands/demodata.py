@@ -16,18 +16,21 @@ effacer, et le §17 interdit de faire disparaître du travail réel.
 from __future__ import annotations
 
 import random
-from datetime import timedelta
+from datetime import time as dt_time, timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from forge import progression, services
 from forge.models import (
+    DiscardedResource,
     Garde,
+    Ponctuel,
     GardeDay,
     Profile,
     Project,
+    ProjectBloc,
     RoadmapStep,
     Routine,
     RoutineCheck,
@@ -58,6 +61,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--clear", action="store_true", help="supprime l'utilisateur demo")
         parser.add_argument(
+            "--force",
+            action="store_true",
+            help="écrase même si le compte demo contient du travail que cette commande n'a pas créé",
+        )
+        parser.add_argument(
             "--ended",
             action="store_true",
             help="termine la saison courante, pour voir la cérémonie du §7.4",
@@ -68,6 +76,31 @@ class Command(BaseCommand):
 
         existant = User.objects.filter(username=DEMO).first()
         if existant:
+            # Le garde-fou qui manquait, et qui a déjà coûté quelque chose.
+            #
+            # Le modèle protège les projets d'une cascade — ``Project.user`` est
+            # en PROTECT, exprès, parce que le §17 interdit d'effacer des heures
+            # de travail par ricochet. Mais cette commande démontait ensuite
+            # tout **explicitement**, ce qui contournait la protection : un vrai
+            # projet rangé sous le compte demo disparaissait au prochain
+            # `demodata`, sans question et sans trace.
+            #
+            # C'est arrivé le 19 août 2026 : une roadmap de 120 étapes vivait
+            # sous ce compte et a été effacée par une régénération de démo.
+            # La commande refuse désormais de toucher à ce qu'elle n'a pas créé.
+            intrus = [
+                p.name
+                for p in Project.objects.filter(user=existant)
+                if p.name not in {nom for nom, *_ in PROJETS}
+            ]
+            if intrus and not options["force"]:
+                raise CommandError(
+                    "Le compte demo contient du travail que cette commande n'a pas créé : "
+                    + ", ".join(f"« {n} »" for n in intrus)
+                    + ". Déplace-le vers ton compte réel, ou relance avec "
+                    "--force pour l'effacer volontairement."
+                )
+
             # ``Track.user`` et ``Project.user`` sont en PROTECT — c'est
             # volontaire côté modèle : personne ne doit pouvoir effacer des
             # heures de travail par une suppression en cascade (§17). Il faut
@@ -111,6 +144,8 @@ class Command(BaseCommand):
                 domain=domaine,
                 slot=slot,
                 weekly_commitment=3,
+                objective=f"{nom} tourne en continu sans intervention pendant une semaine.",
+                frame="Machine perso uniquement, et rien qui coûte plus de 20 € par mois.",
             )
             for i in range(4):
                 RoadmapStep.objects.create(
@@ -119,7 +154,48 @@ class Command(BaseCommand):
                     order=i,
                     state=RoadmapStep.DOING if i == 0 else RoadmapStep.TODO,
                     estimated_sessions=2,
+                    # L'étape courante porte son plan complet : les écrans se
+                    # jugent sur des compteurs pleins, et le plan de §4.5 est
+                    # justement ce qui rallonge la décision du soir. Le laisser
+                    # vide en démo, c'est mesurer un écran qui n'existe pas.
+                    resource="Documentation officielle" if i == 0 else "",
+                    url="https://example.org/docs" if i == 0 else "",
+                    scope="le chapitre 3 seulement, sans les annexes" if i == 0 else "",
+                    load="6–8 h" if i == 0 else "",
+                    exit_criterion=(
+                        "le script tourne deux fois de suite sans erreur" if i == 0 else ""
+                    ),
                 )
+
+            # Un parcours et deux ressources écartées sur le premier projet :
+            # de quoi voir les deux dépliants remplis au moins une fois.
+            if slot == 1:
+                for j, (bloc, resultat, charge) in enumerate(
+                    [
+                        ("Bloc A — Fondamentaux", "Les bases tiennent sans aide", "25–40 h"),
+                        ("Bloc B — Mise en production", "Ça tourne ailleurs que chez moi", "60–80 h"),
+                    ]
+                ):
+                    ProjectBloc.objects.create(
+                        project=projet,
+                        order=j,
+                        name=bloc,
+                        outcome=resultat,
+                        resource="Documentation officielle",
+                        url="https://example.org/docs",
+                        load=charge,
+                        cost="gratuit",
+                        exit_criterion="tu refais l'exercice sans notes",
+                    )
+                for j, (nom_ecarte, raison) in enumerate(
+                    [
+                        ("Un cours vidéo payant", "redondant avec la doc, et 40 € par mois"),
+                        ("Un framework concurrent", "aucune communauté francophone"),
+                    ]
+                ):
+                    DiscardedResource.objects.create(
+                        project=projet, order=j, name=nom_ecarte, reason=raison
+                    )
 
             # Les séances sont étalées sur deux mois pour que l'arbre ait de
             # quoi montrer, et écrites directement : passer par end_session
@@ -170,10 +246,16 @@ class Command(BaseCommand):
         # Routines et gardes : sans elles le rail droit du HUD est vide, et on
         # jugerait une mise en page sur un cas qui n'arrive jamais en vrai.
         piste_entretien, _ = Track.objects.get_or_create(user=user, kind=Track.ENTRETIEN)
-        for nom, ancre, jours, cible in (
-            ("Skincare du matin", routine_rules.REVEIL, [0, 1, 2, 3, 4, 5, 6], 5),
-            ("Étirements", routine_rules.FIN_DE_SESSION, [0, 1, 2, 3, 4], 4),
-            ("Skincare du soir", routine_rules.AVANT_COUCHER, [0, 1, 2, 3, 4, 5, 6], 6),
+        # Deux des cinq portent une fenêtre horaire : c'est la seule façon de
+        # voir le panneau tel qu'il sera vraiment, avec des lignes de longueurs
+        # différentes. Une interface jugée sur des lignes toutes identiques se
+        # conçoit mal.
+        for nom, ancre, jours, cible, limite in (
+            ("Debout", routine_rules.REVEIL, [0, 1, 2, 3, 4, 5, 6], 6, dt_time(7, 30)),
+            ("Skincare du matin", routine_rules.REVEIL, [0, 1, 2, 3, 4, 5, 6], 5, None),
+            ("Étirements", routine_rules.FIN_DE_SESSION, [0, 1, 2, 3, 4], 4, None),
+            ("Skincare du soir", routine_rules.AVANT_COUCHER, [0, 1, 2, 3, 4, 5, 6], 6, None),
+            ("Au lit", routine_rules.AVANT_COUCHER, [0, 1, 2, 3, 4, 5, 6], 5, dt_time(23, 30)),
         ):
             routine = Routine.objects.create(
                 user=user,
@@ -182,11 +264,38 @@ class Command(BaseCommand):
                 anchor=ancre,
                 weekdays=jours,
                 weekly_target=cible,
+                deadline=limite,
             )
             for i in range(cible - 1):
                 RoutineCheck.objects.get_or_create(
                     routine=routine, day=today - timedelta(days=i), defaults={"shards_awarded": 2}
                 )
+
+        # Deux preuves de capacité, pour que le troisième axe ne s'affiche pas
+        # à zéro : un panneau vide se conçoit mal, et celui-ci a justement pour
+        # rôle de relativiser les heures à côté.
+        premier = Project.objects.filter(user=user, slot=1).first()
+        if premier:
+            for critere, recul in (
+                ("les 100 % des labs Apprentice validés, sans writeup", 34),
+                ("le service tourne 7 jours sans intervention", 9),
+            ):
+                services.declarer_preuve(
+                    user, premier, critere=critere, day=today - timedelta(days=recul)
+                )
+
+        # Une difficulté déclarée sur les sessions récentes, pour que la boucle
+        # de pratique délibérée ait de quoi montrer.
+        for i, session in enumerate(Session.objects.filter(user=user).order_by("-started_at")[:6]):
+            session.difficulty = (1, 2, 2, 3, 2, 1)[i]
+            session.save(update_fields=["difficulty"])
+
+        # Trois ponctuels, dont un en retard et un fait : les trois états que
+        # la liste peut prendre. Aucun ne rapporte quoi que ce soit — c'est
+        # justement ce qu'il faut pouvoir vérifier à l'œil.
+        Ponctuel.objects.create(user=user, label="Commander la carte mère", due_on=today + timedelta(days=4))
+        Ponctuel.objects.create(user=user, label="Appeler le garage", due_on=today - timedelta(days=2))
+        Ponctuel.objects.create(user=user, label="Renvoyer le clavier", done_at=timezone.now())
 
         for nom, budget in (("Réseaux sociaux", 2), ("Scroll passif le soir", 2), ("Porno", 1)):
             garde = Garde.objects.create(user=user, name=nom, weekly_budget=budget)

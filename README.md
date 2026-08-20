@@ -6,6 +6,10 @@ La spécification complète est dans [SPEC_COACH.md](SPEC_COACH.md) — elle fai
 sur le code. Toute mécanique retirée doit être vérifiée contre la table de
 traçabilité du §15 avant suppression.
 
+L'inventaire de ce qui existe et de ce qui reste est dans
+[docs/etat-des-lieux.md](docs/etat-des-lieux.md), et l'installation sur PC et
+téléphone dans [docs/installer.md](docs/installer.md).
+
 ## Composants
 
 | Dossier | Rôle | État |
@@ -13,7 +17,7 @@ traçabilité du §15 avant suppression.
 | `coach-api/` | Django 5 + DRF — source de vérité, logique métier | **J0/J1 en cours** |
 | `coach-app/` | React + Vite, PWA installable — PC et mobile | **J0/J1 en cours** |
 | `coach-agent/` | Python, Windows — lancement, sessions fantômes, sondes | **J4 fait** |
-| `coach-ext/` | Extension navigateur — sonde web par domaine | **première version** |
+| `coach-ext/` | Extension navigateur — sonde web par domaine | **signée, permanente** |
 | `coach-mobile/` | Sonde Android — temps d'écran | recette MacroDroid + natif à bâtir |
 
 ## Démarrer en local
@@ -128,11 +132,21 @@ faire à la main — c'est la seule raison pour laquelle il est sûr.
 ## Tests
 
 ```bash
-cd coach-api && .venv/Scripts/python -m pytest      # 522 tests, l'API
-.venv/Scripts/python -m pytest ../coach-agent        # 24 tests, la sonde PC
+cd coach-api && .venv/Scripts/python -m pytest      # 1008 tests, l'API
+.venv/Scripts/python -m pytest ../coach-agent        # 42 tests, la sonde PC
+cd ../coach-app && npm test                          # 21 tests, le front
 ```
 
-546 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
+La suite entière tourne en **20 secondes**. Elle en demandait 440 jusqu'au
+19 août, et la cause n'était pas le code testé : Django 5 hache les mots de
+passe en PBKDF2 à 1,2 million d'itérations — 0,89 seconde par appel sur cette
+machine — et presque chaque test crée un utilisateur dans sa fixture. La suite
+passait donc l'essentiel de son temps à prouver qu'un mot de passe de test est
+bien haché. `forge/tests/conftest.py` bascule sur MD5 le temps de la session,
+et rien d'autre n'a changé. Une suite qui prend sept minutes n'est plus lancée
+avant de commiter, ce qui coûte beaucoup plus cher que ce qu'elle protège.
+
+1071 tests couvrent ce qu'un bug détruirait en premier : l'évaluation du streak et
 des boucliers dans ses trois états de journée, la bascule de journée à 4h, le
 calcul d'XP avec sa dégressivité, les saisons, le parcours complet d'une session,
 la lecture du markdown de création de projet, les deux limites dures de
@@ -161,6 +175,21 @@ qu'on n'essaie jamais à la main.
 La logique vit dans `coach-api/forge/rules/`, sans aucun import Django, et n'est
 dupliquée nulle part ailleurs — surtout pas côté client.
 
+Les vingt et un tests du front (vitest, jsdom) ne dupliquent aucune règle métier :
+ils gardent les deux seules choses que le client décide seul. D'abord la
+séparation des accents — la saison peint `--accent`, la carte thème équipée peint
+`--perso`, et l'un ne prend jamais la place de l'autre. Ce test-là existe parce
+que la première version du repli était écrite en CSS, qu'elle passait `tsc` et le
+lint, et qu'elle était fausse : `--perso: var(--accent)` déclaré sur `:root` se
+résout contre l'or par défaut et non contre la saison, puisque l'accent de saison
+est posé en style inline sur le `<body>`. Seule une capture d'écran l'a montré.
+
+Ensuite les règles de verdict des outils de `tools/`, sorties dans
+`tools/verdict.cjs` pour être testables sans navigateur. Le cas vérifié n'est pas
+celui qui passe, c'est celui qui **échoue** : un débordement, un bouton sous la
+ligne de flottaison, une séquence muette. C'était le seul des deux qui n'avait
+jamais été essayé.
+
 ## Ce qui est déjà là
 
 - Streak, boucliers, trois états de journée, règle « jamais deux fois d'affilée »,
@@ -177,10 +206,89 @@ dupliquée nulle part ailleurs — surtout pas côté client.
 - XP avec bonus de première session, bonus avant 20h, multiplicateurs de streak
   et de momentum, **et le plafond de régime** qui éteint la récompense au-delà de
   trois sessions par jour.
-- Niveaux, rangs F→SS, saisons de 4 semaines avec identité tirée d'un réservoir,
-  boss dont la vie descend avec le travail réel, hauts faits.
+- **La durée annoncée est un objectif, pas un plafond (§4.1).** Une séance compte
+  ce qu'elle a duré et se clôture **à tout moment** — avant le terme, après, bien
+  après. Auparavant les minutes étaient rognées à la durée prévue : quarante
+  minutes sur un minuteur de vingt-cinq en perdaient quinze, en silence, ce qui
+  faisait de la clôture le seul endroit du produit où du travail réel
+  disparaissait. Le minuteur garde trois rôles : il porte la promesse faite au
+  démarrage et la clôture dit si elle a été tenue, il sert de repère à la
+  détection de session fantôme (§8.7), et le bouton **« +15 minutes »** le
+  *rehausse* au lieu de l'effacer. Un garde-fou dur à quatre heures empêche une
+  séance oubliée toute la nuit de créditer une nuit de travail.
+- **Une séance longue vaut plus que la même durée coupée en deux.** Les minutes
+  au-delà de 25 comptent une fois et demie, celles au-delà de 45 une fois trois
+  quarts, et la prime s'arrête là. Le calibrage a un critère, pas un goût :
+  couper une soirée en deux paie **deux fois** les forfaits — première session,
+  avant 20h —, donc une prime plus faible que ce que le fractionnement duplique
+  ferait dire à la règle le contraire de ce qu'elle annonce ; un test tient cette
+  propriété. Le plafond de régime n'est pas touché : il compte des sessions, et
+  prolonger n'en ajoute pas une.
+- **L'heure annoncée pèse (§11.2).** Corollaire de ce qui précède : une séance
+  comptant à n'importe quelle heure, un rendez-vous que personne ne constate
+  n'est plus un rendez-vous. La **prime de ponctualité** remplace le forfait
+  « avant 20h » — elle paie le créneau tenu à la demi-heure près, à n'importe
+  quelle heure, là où l'ancienne payait l'horloge et ne pouvait jamais toucher
+  un créneau de 21h. Le **gardien de créneau** constate vingt minutes après :
+  « 20h30 est passé, rien de lancé », avec la tâche et les deux boutons du
+  §11.7. **Aucun malus** dans l'un ni dans l'autre : sans créneau déclaré il n'y
+  a rien à tenir, et travailler hors rendez-vous ne coûte rien — c'est l'absence
+  de promesse, pas un échec.
+- Niveaux, rangs F→SS, saisons de 4 semaines avec identité tirée d'un réservoir
+  de **vingt-quatre identités et vingt-quatre boss** — deux ans avant qu'un nom
+  revienne, là où douze faisaient de la deuxième année une rotation de la
+  première —, boss dont la vie descend avec le travail réel, hauts faits.
 - Piste Entretien : routines courtes ancrées sur un geste, mesurées à la semaine,
   sans streak cassable, payées en Éclats et jamais en XP (§11.9).
+- **Habitudes horaires** : une routine peut porter une fenêtre — « debout avant
+  7h30 », « au lit avant 23h30 ». Hors fenêtre, la coche est **gardée et ne
+  compte pas** : ni semaine, ni Éclats. Le §11.9 ancre les routines sur un geste
+  et pas sur une horloge, et il a raison — mais deux habitudes échappent à la
+  règle parce que l'heure *est* l'habitude. La comparaison se fait en minutes
+  depuis la bascule de journée, seule façon correcte : une coche « au lit » à
+  00h20 est **tard** dans la journée d'hier, pas tôt dans celle d'aujourd'hui.
+  Les sondes **cochent même toutes seules** quand elles ont la preuve : une
+  activité observée à 7h05 vaut mieux qu'un tap, qu'on peut faire en se
+  recouchant. Elles ne cochent jamais sur un silence, ne décochent jamais, et
+  attendent la bascule de 4h pour juger un coucher — avant, l'absence
+  d'activité après 23h30 ne prouve rien, il est 22h. Elles **corroborent ou
+  contredisent** sinon, sans jamais rien retirer ni rien payer : le §6 interdit qu'une preuve d'activité invalide une
+  déclaration, et un PC resté allumé la nuit suffirait à produire une fausse
+  accusation. Le constat est affiché comme un fait, sans adjectif.
+- **La capacité, troisième axe (§4.4 étendu)** : l'XP mesure le volume, le rang
+  mesure la fiabilité, et ni l'un ni l'autre ne dit qu'on est devenu meilleur —
+  quarante heures de mauvaise pratique donnent le même titre d'arbre que
+  quarante heures de bonne. Une **preuve** est un fait daté, binaire et
+  constatable par quelqu'un d'autre : « les 100 % de labs Apprentice validés »,
+  pas « j'ai progressé ». Elle vient du critère de sortie d'un bloc de parcours,
+  écrit **à froid** des mois avant d'être atteint — la seule façon de ne pas
+  déplacer la barre après coup. Elle paie en Éclats et jamais en XP : une
+  capacité n'est pas un volume. Preuves et heures s'affichent côte à côte et ne
+  fusionnent jamais.
+- **La difficulté ressentie**, déclarée au debrief en un tap. Elle n'entre dans
+  **aucun** calcul, et c'est ce qui permet d'y répondre honnêtement. Trois
+  sessions d'affilée « trop facile » déclenchent le seul constat du système
+  provoqué par une bonne nouvelle apparente : sur tous les autres compteurs,
+  c'est une belle série ; en réalité, on a cessé d'apprendre.
+- **Ponctuel** : les choses à faire une fois — commander, appeler, poster. Ni
+  XP, ni Éclats, ni coche, ni streak, et **jamais sur l'écran du soir**. La
+  saisie tient en un champ : l'échéance est repliée derrière trois raccourcis,
+  le focus reste après validation, et la liste se groupe — en retard,
+  aujourd'hui, plus tard, sans date. Ce qui est devenu plus rapide, c'est
+  d'écrire ; ce qui n'a **pas** été rendu plus satisfaisant, c'est de cocher —
+  pas de vert, pas d'animation, pas de son. Une course cochée ne doit jamais
+  ressembler à une session faite. Le §0
+  refuse la todo-list, et cette liste n'en devient une que si on lui donne de la
+  valeur : elle n'en a aucune, par construction et par test. Elle existe pour la
+  raison inverse — une course qu'on garde en tête occupe la place d'une session.
+- **Un plan de travail, pas une liste de tâches (§4.5)** : un projet porte son
+  objectif — sa condition de fin —, son cadre, son **parcours** en blocs de
+  plusieurs mois, les ressources **écartées** avec leur raison, et cinq attributs
+  par étape : ressource, adresse, périmètre, charge, **critère de sortie**. Ce
+  dernier remonte jusqu'à la décision du soir : « fini quand » s'affiche avant
+  de démarrer, même sans modèle. Une étape qui dit « réviser le réseau » sans
+  ressource ni critère est une intention, et le soir venu elle demande de décider
+  quoi faire — ce que le §4.5 refuse.
 - **Entretien de projet dans l'app (§4.5)** : le coach interroge une question à
   la fois, puis rend le projet en **champs structurés** que le serveur met en
   forme. Ce dernier point vient d'un vrai raté — un modèle à qui l'on demande ce
@@ -239,12 +347,41 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   reliques gagnées par haut fait et plafonnées à trois, et une jauge de
   momentum qui **tiédit sans s'éteindre** : deux jours manqués pour effacer un
   jour fait, jamais l'inverse.
+- **Ce qui déclenche un tirage, et sur quel mode.** Ce qui est rare se donne, ce
+  qui est fréquent se tire : une étape terminée rend une carte garantie, une
+  séance longue en rend une avec une probabilité qui monte avec les minutes
+  (nulle sous 25 min, plafonnée à un quart). Et **l'effort incline le tirage sans
+  l'acheter** : les heures posées sur une étape avant de la finir déplacent une
+  part des poids vers le rare et l'épique, plafonnées à cinq heures — au-delà,
+  une étape n'est plus longue, elle est bloquée, et le §13.5 a déjà un constat
+  pour ça. Le déclencheur reste **terminer** : rien ne tombe pour avoir peiné
+  sans finir.
 - **Modificateurs de saison appliqués (§12.5)** : « Aube » paie le matin,
   « Marathon » paie les longues et ferme le mode dégradé, « Fragmentation »
   ouvre une quatrième session à plein tarif sans supprimer le plafond, « Siège »
   gonfle le boss et double la mise. Une clé inconnue reste neutre, et le neutre
   calcule exactement comme avant — ajouter la mécanique ne change pas les
   parties déjà jouées.
+- **Une trame en deux voies (§12.2).** Les vingt-quatre identités de saison ne
+  sont plus tirées au sort : elles forment une histoire, et c'est le résultat de
+  la saison précédente qui décide de la voie — la **Voie des Cimes** après une
+  saison tenue (L'Éveil, la faille, le méridien franchi, le sommet), la **Voie
+  des Braises** après une ratée (Nadir, le purgatoire, le rempart, l'enclume).
+  Chaque voie avance à son rythme : on reprend la basse là où on l'avait
+  laissée, donc une année en dents de scie tricote les deux sans qu'aucun
+  tirage n'intervienne. **La voie basse ne retire rien** — même mise, même boss,
+  mêmes règles : le §17 interdit d'ajouter une sanction, et le décor n'est pas
+  une punition. Le boss, lui, reste tiré : la trame dit ce qu'on traverse, pas
+  qui l'on affronte.
+- **Le boss abattu, et le mode extra (§12.4).** Tuer le boss clôt la saison le
+  jour même : titre, mise résolue, cérémonie. La suivante est engagée aussitôt
+  mais démarre à sa date prévue, et les jours entre les deux sont des **jours
+  extra** — ce qu'on y pose est mis de côté pour elle. Un panneau le dit à
+  l'accueil, parce qu'une récompense qu'on ne distingue pas d'une panne est une
+  punition. La vie du boss suivant suit les **dégâts réellement infligés** et
+  non les minutes seules : les étapes de roadmap valent soixante points, et
+  mesurer en minutes faisait rétrécir le boss à chaque saison gagnée par
+  l'avancement — l'inverse de ce que le ×1,05 promet.
 - **Fantôme de saison (§12.7)** : deux courbes cumulées côte à côte, la tienne
   s'arrêtant aujourd'hui et celle du fantôme allant jusqu'au bout — on voit où
   l'adversaire *sera*. Comparé en minutes travaillées et non en XP : l'XP porte
@@ -307,6 +444,43 @@ dupliquée nulle part ailleurs — surtout pas côté client.
   pour une légendaire. Une commune qui s'ouvrirait comme une légendaire
   dévaluerait la légendaire.
 
+- **Le canal entrant est complet (§11.7).** Le bot Telegram de la spec a été
+  remplacé par des **liens signés** : une adresse courte, un secret qui n'existe
+  qu'à l'émission, un seul geste décidé à l'avance, aucune lecture de la base, et
+  un second clic qui dit « déjà fait » plutôt qu'« erreur ». Cinq gestes —
+  frigo, accusé de lecture d'un bilan, réponse à une question de revue, démarrer
+  la séance proposée, reporter le gardien.
+  - Le **gardien du soir porte deux boutons** : « Démarrer 10 min » et
+    « Reporter 15 min ». Le service worker n'a aucun jeton — il ne partage ni le
+    stockage local ni la session de l'app —, donc chaque bouton arrive avec son
+    lien signé, qui expire avec la soirée. Le report est tenu par l'ordonnanceur
+    du serveur, jamais par le worker qui dort bien avant l'échéance, et **ne part
+    pas s'il arrive en retard**.
+  - La **cible de partage Android** met le coach dans le menu « Partager » du
+    téléphone. Ce qui y arrive va au frigo, jamais en projet — un projet coûte un
+    slot (§4).
+  - La PWA **s'abonne enfin au Web Push** : `pushKey` et `subscribePush`
+    existaient et personne ne les appelait, donc le gardien ne partait que sur
+    Discord. La permission se demande sur un geste, dans le journal ; l'abonnement
+    se répare tout seul à chaque ouverture, parce qu'il expire de lui-même.
+- **Le bilan quotidien a un écran (§13.1).** Une tuile paraît sur l'accueil avant
+  l'ouverture de la fenêtre du soir, puis disparaît : le matin il n'y a rien à
+  décider, donc le §11.1 n'est pas entamé. Elle ne demande rien, se referme d'un
+  « vu » qui tient jusqu'au lendemain, et se tait les jours sans rien à dire — la
+  règle du silence est calculée côté serveur, la même que celle de la
+  notification de la nuit.
+- **La revue du dimanche se répond depuis la notification (§5.3).** Une question
+  part avec son fait daté et son lien signé ; la réponse atterrit dans la revue.
+  Une seule question par lien : une notification porte une phrase, pas un
+  questionnaire. Sans `public_base_url`, rien ne part — poser une question sans
+  moyen d'y répondre n'ajoute qu'une chose à faire plus tard.
+- **J6, le confort (§16)** : les **séries des douze dernières semaines** sur la
+  fiche de personnage — par semaine, par soir, par heure de démarrage, par
+  projet —, à distinguer de la trace longue qui ne rend que des compteurs
+  incapables de baisser ; l'**export** JSON complet, qui contient tout le travail
+  et **aucun secret** ; un catalogue de cartes porté à **cent** ; et le réservoir
+  de saisons doublé.
+
 ## Regarder l'interface, et la mesurer
 
 Six scripts Playwright dans [coach-app/tools/](coach-app/tools/) capturent l'app
@@ -329,6 +503,13 @@ chaque seconde par l'horloge du soir ne se voyaient pas du tout, et coûtaient u
 recalcul de mise en page par image pendant toute la soirée. Et un son ne se
 teste pas à l'oreille sur la machine du jour : on compte les voix qu'il
 programme.
+
+**Trois d'entre eux rendent un verdict**, et pas seulement une mesure :
+`audit.cjs`, `fold.cjs` et `sound.cjs` sortent en 1 quand ils trouvent un défaut.
+Ils imprimaient auparavant du JSON et sortaient en 0 quoi qu'ils trouvent, ce qui
+en faisait des instruments à lire plutôt que des portes à passer — inutilisables
+en CI, et sans effet le jour où plus personne ne lit la sortie. Les règles de
+décision vivent dans `tools/verdict.cjs`, et sont couvertes par `npm test`.
 
 L'utilisateur `demo` (`manage.py demodata`) sert à ça : une interface de jeu
 jugée sur des compteurs à zéro se conçoit mal, parce que les problèmes de

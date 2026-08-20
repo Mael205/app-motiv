@@ -87,6 +87,34 @@
   background: rgba(232, 163, 61, 0.07);
 }
 
+/* Ce qui n'a pas été lu. Même famille visuelle que les avertissements — c'en
+   est un —, mais avec les lignes fautives citées : un compte seul ne dit pas
+   s'il s'agit de bruit de mise en forme ou de la moitié du parcours. */
+.newproject__unread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(232, 163, 61, 0.07);
+}
+
+.newproject__unread-lines {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-family: var(--mono, monospace);
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+.newproject__unread-lines li {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
 .newproject__error {
   font-size: 12.5px;
   color: var(--rose);
@@ -105,4 +133,15 @@
 .newproject__create:disabled {
   color: var(--dim);
   background: var(--line-strong);
+}
+
+/* L'objectif tel qu'il a été compris. En évidence dans l'aperçu, parce que
+   c'est la ligne qu'on relit avant de valider : une roadmap juste sur un
+   objectif faux se corrige beaucoup plus tard. */
+.newproject__objective {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  border-left: 2px solid rgba(255, 255, 255, 0.16);
+  padding-left: 0.7rem;
 }

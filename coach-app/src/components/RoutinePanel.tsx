@@ -54,15 +54,43 @@ export function RoutinePanel({ initial }: { initial: EntretienPanel }) {
               <li key={routine.id}>
                 <button
                   type="button"
-                  className={`routine${routine.checked ? ' routine--done' : ''}`}
+                  className={`routine${routine.checked ? ' routine--done' : ''}${
+                    routine.late_today ? ' routine--late' : ''
+                  }`}
                   onClick={() => toggle(routine.id, routine.checked)}
                   disabled={busy === routine.id}
                   aria-pressed={routine.checked}
                 >
                   <span className="routine__mark" aria-hidden>
-                    {routine.checked ? '◆' : '◇'}
+                    {routine.checked ? '◆' : routine.late_today ? '◈' : '◇'}
                   </span>
-                  <span className="routine__name">{routine.name}</span>
+                  <span className="routine__name">
+                    {routine.name}
+                    {/* La fenêtre est écrite à côté du nom, pas dans une
+                        infobulle : une contrainte horaire qu'il faut survoler
+                        pour connaître n'existe pas sur téléphone. */}
+                    {routine.window && (
+                      <span className="routine__window">
+                        {routine.late_today ? `hors fenêtre — ${routine.window}` : routine.window}
+                        {/* Ce que les sondes ont vu, et rien de plus. Une
+                            contradiction ne retire rien — ni Éclats, ni semaine
+                            tenue (§6) : un PC resté allumé la nuit suffirait à
+                            produire une fausse accusation, et une sanction
+                            automatique là-dessus serait désinstallée dans la
+                            semaine. C'est un fait, pas un verdict. */}
+                        {routine.corroboration !== 'sans_signal' && (
+                          <span
+                            className={`routine__sonde routine__sonde--${routine.corroboration}`}
+                            title={routine.corroboration_line}
+                          >
+                            {routine.corroboration === 'corrobore'
+                              ? '· sondes d’accord'
+                              : '· sondes en désaccord'}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </span>
                   <span
                     className={`routine__week${routine.week_held ? ' routine__week--held' : ''}`}
                     title={

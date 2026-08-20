@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 import os
 
+from corsheaders.defaults import default_headers as cors_default_headers
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -106,6 +107,18 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
     o for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o
 ]
+
+# ``X-Probe-Token`` doit être autorisé explicitement, et son absence a coûté
+# cher : la liste par défaut de django-cors-headers ne contient que les
+# en-têtes usuels, donc le préflight d'une sonde navigateur répondait **200 sans
+# autoriser l'en-tête**. Le navigateur n'envoyait alors jamais la vraie requête,
+# et le journal du serveur ne montrait que des `OPTIONS` — aucune erreur, aucun
+# refus visible, simplement rien.
+#
+# Le défaut ne touchait que les sondes qui vivent dans un navigateur :
+# l'agent PC parle en Python, donc sans CORS, et il marchait. C'est ce qui l'a
+# rendu invisible.
+CORS_ALLOW_HEADERS = (*cors_default_headers, "x-probe-token")
 
 # Réglages métier — les valeurs qui ne dépendent pas d'un utilisateur précis.
 COACH = {

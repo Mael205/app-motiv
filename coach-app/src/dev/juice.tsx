@@ -36,7 +36,8 @@ const CARDS: LootCardDrawn[] = [
 
 const RESULT: SessionResult = {
   session_id: 1, minutes: 50, xp: 118,
-  breakdown: { base: 50, first_of_day: 20, early: 10, streak_multiplier: 1.3,
+  objectif: 50, objectif_tenu: true, depassement: 0, extensions: 0,
+  breakdown: { base: 50, duration_premium: 14, first_of_day: 20, punctual: 10, streak_multiplier: 1.3,
     momentum_multiplier: 1.25, degressivity: 1, base_total: 118, crit: false,
     crit_multiplier: 1, crit_bonus: 0, total: 118, notes: [] },
   boss_damage: 62,

@@ -38,7 +38,17 @@ export const EveningGauge = memo(function EveningGauge({
   }
 
   const workedMinutes = evening.blocks.reduce((sum, b) => sum + b.minutes, 0)
-  const remainingMinutes = Math.max(0, Math.round((1 - elapsed) * evening.total_minutes))
+  /** Ce qu'il reste **de la fenêtre du soir**, et non de la bande dessinée.
+   *
+   *  Les deux ont divergé le jour où la bande a commencé à s'élargir aux
+   *  séances hors fenêtre. Deux bornes, et il faut les deux : le compte s'arrête
+   *  à zéro quand la fenêtre est passée, et il ne dépasse jamais la durée de la
+   *  fenêtre quand on regarde l'écran le matin — sinon « 856 min restantes »
+   *  s'affiche à 8h43 pour une soirée de cinq heures. */
+  const fenetreDebut = new Date(evening.window_start ?? evening.start)
+  const fenetreFin = new Date(evening.window_end ?? evening.end)
+  const depuis = Math.max(now.getTime(), fenetreDebut.getTime())
+  const remainingMinutes = Math.max(0, Math.round((fenetreFin.getTime() - depuis) / 60000))
 
   // Le fantôme en direct (§12.7). Deux barres dans la **même unité** — des
   // minutes de ce soir — parce que c'est la seule comparaison qu'une jauge de
@@ -135,7 +145,11 @@ export const EveningGauge = memo(function EveningGauge({
           )}
         </span>
         <span className="muted gauge__hint">
-          {start.getHours()}h — {end.getHours()}h
+          {/* La fenêtre annoncée, toujours — c'est elle qui dit quand la soirée
+              se ferme. Quand la bande a dû s'élargir, on le dit plutôt que de
+              laisser croire que la fenêtre a bougé. */}
+          {new Date(evening.window_start ?? evening.start).getHours()}h —{' '}
+          {fenetreFin.getHours()}h{evening.widened ? ' · hors fenêtre inclus' : ''}
         </span>
       </footer>
     </section>

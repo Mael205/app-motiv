@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ProjectInterview } from './ProjectInterview'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import { PROJECT_PROMPT } from '../lib/projectPrompt'
 import type { ProjectPreview } from '../types'
 import './NewProject.css'
@@ -46,6 +46,32 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
       setPreview(await api.previewProject(markdown))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lecture impossible.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Faire ranger le document par le coach quand le parseur a laissé des restes.
+   *
+   * On remplace le markdown par celui qui revient : la personne voit le format
+   * canonique et peut le corriger avant de créer. Le cacher donnerait un aperçu
+   * sans rapport visible avec ce qui est dans la zone de texte.
+   */
+  async function reread() {
+    setBusy(true)
+    setError('')
+    try {
+      const recu = await api.rereadProject(markdown)
+      setMarkdown(recu.markdown)
+      setPreview(recu.preview)
+    } catch (e) {
+      setError(
+        e instanceof ApiError && e.status === 503
+          ? `Relecture indisponible (${e.message}). Ce qui est lu ci-dessous reste créable tel quel.`
+          : e instanceof Error
+            ? e.message
+            : 'Relecture impossible.',
+      )
     } finally {
       setBusy(false)
     }
@@ -151,6 +177,19 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
             {preview.repo_path && ` · ${preview.repo_path}`}
           </p>
 
+          {/* Ce qui a été compris au-delà de la liste d'étapes. Un aperçu qui
+              cache la moitié du document laisse valider une roadmap qu'on n'a
+              pas vue — et l'objectif est justement la partie qu'un modèle rate
+              le plus souvent. */}
+          {preview.objective && <p className="newproject__objective">{preview.objective}</p>}
+          {(preview.parcours.length > 0 || preview.ecartees.length > 0) && (
+            <p className="label">
+              {preview.parcours.length > 0 && `${preview.parcours.length} bloc(s) de parcours`}
+              {preview.parcours.length > 0 && preview.ecartees.length > 0 && ' · '}
+              {preview.ecartees.length > 0 && `${preview.ecartees.length} ressource(s) écartée(s)`}
+            </p>
+          )}
+
           <ul className="newproject__steps">
             {preview.steps.map((step, i) => (
               <li key={i} className={step.needs_split ? 'newproject__step--split' : undefined}>
@@ -162,6 +201,26 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
               </li>
             ))}
           </ul>
+
+          {/* Ce que le parseur n'a pas su placer, et la porte de sortie. Le
+              montrer est le point important : un document à moitié lu se
+              présentait comme parfaitement lu, et on créait un projet amputé
+              sans jamais l'apprendre. */}
+          {preview.ignored.length > 0 && (
+            <div className="newproject__unread">
+              <p className="label">
+                {preview.ignored.length} ligne(s) non comprises, perdues si tu crées maintenant
+              </p>
+              <ul className="newproject__unread-lines">
+                {preview.ignored.slice(0, 5).map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+              <button className="ghost" onClick={reread} disabled={busy}>
+                {busy ? 'Le coach relit…' : 'Faire relire par le coach'}
+              </button>
+            </div>
+          )}
 
           {preview.warnings.length > 0 && (
             <ul className="newproject__warnings">

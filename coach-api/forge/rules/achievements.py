@@ -49,6 +49,7 @@ FAITS = (
     "etapes_dans_une_saison",
     "projets_termines",
     "sessions_avant_20h",
+    "sessions_a_l_heure",
     "sessions_longues",
     "semaines_sans_scroll",
     "branches_dans_une_semaine",
@@ -128,6 +129,14 @@ CATALOGUE: tuple[Achievement, ...] = (
         "leve_tot", "Lève-tôt",
         "Cinquante sessions démarrées avant vingt heures.",
         "sessions_avant_20h", 50,
+    ),
+    # Le pendant du précédent depuis que le barème a changé de sujet : celui-ci
+    # compte les rendez-vous **tenus**, pas les heures matinales. Les deux
+    # cohabitent — l'un décrit un rythme, l'autre une parole.
+    Achievement(
+        "ponctuel", "Ponctuel",
+        "Cinquante séances démarrées à l'heure dite.",
+        "sessions_a_l_heure", 50,
     ),
     Achievement(
         "longue_haleine", "Longue haleine",

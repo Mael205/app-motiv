@@ -1,0 +1,9 @@
+# Les paquets produits par web-ext, signés ou non. Un .xpi signé porte une
+# signature liée à un compte : il n'a rien à faire dans un dépôt public, et il
+# se refabrique en une commande.
+web-ext-artifacts/
+node_modules/
+
+# L'identifiant d'envoi vers addons.mozilla.org. Lié au compte qui signe, donc
+# personnel, et refabriqué tout seul à la prochaine signature.
+.amo-upload-uuid

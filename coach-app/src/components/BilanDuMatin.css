@@ -1,0 +1,89 @@
+/* La tuile du bilan quotidien (§13.1).
+ *
+ * Elle est **plus calme que tout ce qui l'entoure**, et c'est sa seule
+ * exigence visuelle. Un bilan qui attirerait l'œil autant que la décision du
+ * soir serait un deuxième centre d'attention sur un écran qui n'en admet qu'un
+ * (§11.1) ; un bilan qui ressemblerait à une alerte se ferait fermer avant
+ * d'être lu.
+ *
+ * D'où : pas de couleur d'accent, pas de bordure lumineuse, pas d'icône. Une
+ * plaque sombre, une barre, une phrase. Le seul élément coloré possible est la
+ * part travaillée, et elle emprunte le gris-clair du texte plutôt que l'or —
+ * l'or est la couleur de ce qu'on fait, pas de ce qu'on a fait.
+ */
+
+.bilanj {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.bilanj__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* « vu » est écrit en minuscules et sans cadre : c'est un geste de fermeture,
+   pas une validation. Un bouton plein ici demanderait à être appuyé, et le
+   §13.1 tient à ce que ce bloc ne demande rien. */
+.bilanj__vu {
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  color: var(--dim);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.bilanj__vu:hover,
+.bilanj__vu:focus-visible {
+  color: var(--muted);
+}
+
+.bilanj__barre {
+  height: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bilanj__part {
+  height: 100%;
+  background: color-mix(in srgb, var(--text) 55%, transparent);
+  transform-origin: left;
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bilanj__phrase {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.bilanj__repartition {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bilanj__repartition li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bilanj__repartition .num {
+  color: var(--dim);
+}

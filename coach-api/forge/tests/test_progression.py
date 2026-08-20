@@ -221,7 +221,7 @@ class TestReliques:
         assert equipees == 3
 
     def test_le_refus_dit_pourquoi(self, user):
-        for cle in ("increvable", "retour_du_neant", "leve_tot", "ermite"):
+        for cle in ("increvable", "retour_du_neant", "ponctuel", "ermite"):
             progression.grant_relics_for(user, [cle])
         for relique in list(OwnedRelic.objects.filter(user=user))[:3]:
             progression.toggle_relic(user, relique.key)

@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api, login, storedToken } from './api'
-import type { AnneeAccomplie, HomeState, SeasonOffer, SeasonPhase, SeasonReport } from './types'
+import type {
+  AnneeAccomplie,
+  HomeState,
+  ModeExtra,
+  SeasonOffer,
+  SeasonPhase,
+  SeasonReport,
+} from './types'
 import { Comeback } from './components/Comeback'
 import { SeasonCeremony } from './components/SeasonCeremony'
 import { Home } from './screens/Home'
@@ -10,8 +17,12 @@ import { Projects } from './screens/Projects'
 import { SessionScreen } from './screens/SessionScreen'
 import { Ascendance } from './components/Ascendance'
 import { Assistant, AssistantButton } from './components/Assistant'
+import { Partage } from './components/Partage'
 import { TabBar, type Tab } from './components/TabBar'
 import { TimezoneNotice } from './components/TimezoneNotice'
+import { applySeasonTheme } from './accents'
+import { reparerLAbonnement } from './push'
+import { animerEntree } from './juice'
 import './App.css'
 
 export default function App() {
@@ -27,18 +38,27 @@ export default function App() {
   // La porte de sortie du §14. Gardée à part de la cérémonie : celle-ci
   // s'impose, celle-là se propose et peut rester ignorée des semaines.
   const [exitOffer, setExitOffer] = useState<SeasonPhase['exit_offer']>(null)
+  /** Le mode extra du §12.4 : le boss est tombé, la saison suivante attend sa
+   *  date. Sans cet état, l'écran ne montrait plus ni saison ni explication —
+   *  et l'offre se reproposait en boucle. */
+  const [extra, setExtra] = useState<ModeExtra | null>(null)
 
   const checkSeason = useCallback(async () => {
     try {
       const etat = await api.seasonState()
       setExitOffer(etat.exit_offer)
+      setExtra(etat.extra)
       // L'année close dont la voie n'a pas été tranchée passe avant tout : une
       // treizième saison ouverte sans ascendance repartirait sur l'ancienne
       // échelle d'XP, et le choix serait perdu.
       setAnnee(etat.annee)
       if (etat.pending_close) {
         const bilan = await api.closeSeason()
-        setCeremony({ report: bilan, offer: bilan.offer ?? etat.offer! })
+        // L'offre peut manquer : une saison suivante déjà engagée qui attend sa
+        // date n'est plus re-proposée (mode extra du §12.4). La cérémonie ne se
+        // monte alors pas, plutôt que de se monter sans ce qu'elle demande.
+        const offre = bilan.offer ?? etat.offer
+        setCeremony(offre ? { report: bilan, offer: offre } : null)
       } else if (!etat.running && etat.offer) {
         setCeremony({ report: null, offer: etat.offer })
       } else {
@@ -60,6 +80,14 @@ export default function App() {
       else setError(e instanceof Error ? e.message : 'Le serveur ne répond pas.')
     }
   }, [])
+
+  /** Un abonnement Web Push expire tout seul au bout de quelques semaines, et
+   *  personne ne s'en aperçoit : les notifications cessent simplement d'arriver.
+   *  On le répare à chaque ouverture, en silence et **sans jamais demander la
+   *  permission** — celle-ci se demande sur un geste, dans le journal. */
+  useEffect(() => {
+    if (authed) reparerLAbonnement()
+  }, [authed])
 
   useEffect(() => {
     if (!authed) return
@@ -155,10 +183,21 @@ export default function App() {
             la journée à laquelle une session sera comptée. */}
         <TimezoneNotice />
 
-        {tab === 'soir' && <Home state={state} onStarted={load} />}
-        {tab === 'projets' && <Projects onChanged={load} />}
-        {tab === 'perso' && <Character locked={locked} phantom={state.phantom} />}
-        {tab === 'journal' && <Journal />}
+        {/* Les quatre onglets se remplaçaient sans transition : le contenu
+            changeait entre deux images, et rien ne disait ni qu'il avait
+            changé, ni d'où il venait. C'est de l'orientation, pas de la
+            décoration, et le §7 l'autorise à ce titre.
+
+            Pas de `key` ici : le conteneur doit survivre au changement
+            d'onglet pour se souvenir duquel on vient, et c'est ce souvenir qui
+            donne sa direction à l'entrée. Ce sont les écrans à l'intérieur qui
+            se remontent, puisque leur type change. */}
+        <ScreenTransition tab={tab}>
+          {tab === 'soir' && <Home state={state} extra={extra} onStarted={load} />}
+          {tab === 'projets' && <Projects onChanged={load} />}
+          {tab === 'perso' && <Character locked={locked} phantom={state.phantom} />}
+          {tab === 'journal' && <Journal />}
+        </ScreenTransition>
       </main>
       {/* La vitrine fermée grise l'onglet mais ne le retire pas : un onglet qui
           disparaît se lit comme une panne, et le §14 veut une sanction lisible
@@ -169,34 +208,16 @@ export default function App() {
           l'on va, lui est quelque chose qu'on appelle. Un cinquième onglet en
           aurait fait une destination, donc un endroit où traîner un soir de
           fatigue — ce que le §11.1 cherche à éviter. */}
+      {/* Ce qui arrive du menu « Partager » d'Android. Au-dessus des onglets et
+          hors de tous : un partage ne vient d'aucun écran. */}
+      <Partage />
+
       {!assistant && <AssistantButton onOpen={() => setAssistant(true)} />}
       {assistant && (
         <Assistant onClose={() => setAssistant(false)} onApplied={load} />
       )}
     </>
   )
-}
-
-/** L'accent de saison surcharge une seule variable. Le mode terne est la
- *  sanction de palier 1 : l'interface s'éteint jusqu'à la prochaine session. */
-function applySeasonTheme(home: HomeState) {
-  const root = document.body
-  if (home.season) root.style.setProperty('--accent', home.season.accent)
-
-  // Le thème équipé **passe devant l'accent de saison**, et c'est tout
-  // l'intérêt d'équiper une carte : sans ça, la couleur choisie n'apparaîtrait
-  // que pendant les deux jours de pause entre deux saisons. La saison garde son
-  // sceau, son nom et sa baseline — elle perd seulement la teinte.
-  const theme = home.cosmetics?.theme?.value
-  if (theme) root.style.setProperty('--accent', theme)
-
-  // Le cadre d'avatar est une classe sur le document : la fiche de personnage
-  // et le bandeau le lisent tous les deux, et une variable CSS ne saurait pas
-  // porter une texture.
-  root.dataset.frame = home.cosmetics?.frame?.value ?? ''
-  root.dataset.finisher = home.cosmetics?.finisher?.value ?? ''
-
-  root.classList.toggle('terne', home.streak.sanction_level >= 1 && !home.validated_today)
 }
 
 function LoginScreen({ onDone }: { onDone: () => void }) {
@@ -220,14 +241,12 @@ function LoginScreen({ onDone }: { onDone: () => void }) {
       <p className="muted">Le cadre, pas les encouragements.</p>
       <form className="stack boot__form" onSubmit={submit}>
         <input
-          className="fridge__input"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Utilisateur"
           aria-label="Utilisateur"
         />
         <input
-          className="fridge__input"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -239,6 +258,49 @@ function LoginScreen({ onDone }: { onDone: () => void }) {
           Entrer
         </button>
       </form>
+    </div>
+  )
+}
+
+/** L'ordre des onglets, tel qu'il est peint dans la barre. Il sert à savoir de
+ *  quel côté un écran arrive : c'est ce qui rend la barre spatiale. */
+const ORDRE: Tab[] = ['soir', 'projets', 'perso', 'journal']
+
+/** L'entrée d'un écran d'onglet.
+ *
+ * Un seul mouvement, sur le conteneur, et il vient du côté d'où l'on vient :
+ * aller vers la droite de la barre fait entrer l'écran par la droite. Un fondu
+ * seul disait « autre chose » ; la direction dit « autre chose, **par là** »,
+ * et c'est ce qui fait qu'on garde la carte des quatre onglets en tête.
+ *
+ * Pas de cascade par section — les onglets Projets et Personnage en portent
+ * plus de dix, et un décalage par section ferait attendre une demi-seconde
+ * avant que le bas de l'écran existe. Ce sont les cartes elles-mêmes qui se
+ * lèvent au défilement, une fois l'écran posé.
+ *
+ * Sur le conteneur et non sur son contenu : Projets et Journal affichent
+ * « Chargement… » avant leurs données, et animer le contenu revenait à animer
+ * ce mot puis à laisser le reste surgir d'un coup.
+ *
+ * `prefers-reduced-motion` est géré dans `animerEntree`, qui pose alors l'état
+ * final sans animer.
+ */
+function ScreenTransition({ tab, children }: { tab: Tab; children: React.ReactNode }) {
+  const boite = useRef<HTMLDivElement>(null)
+  const precedent = useRef<Tab | null>(null)
+
+  useEffect(() => {
+    if (!boite.current) return
+    const avant = precedent.current
+    precedent.current = tab
+    // Zéro au premier montage : rien ne précède, donc rien n'a de côté.
+    const sens = avant === null ? 0 : Math.sign(ORDRE.indexOf(tab) - ORDRE.indexOf(avant))
+    return animerEntree(boite.current, sens)
+  }, [tab])
+
+  return (
+    <div className="screen" ref={boite}>
+      {children}
     </div>
   )
 }

@@ -33,6 +33,13 @@ class Notification:
     kind: str = "info"          # gardien | creneau | sanction | bilan | info
     action_label: str = ""
     action_url: str = ""
+    # Les boutons d'une notification Web Push (§11.7). Chaque entrée est
+    # ``{"action", "title", "post"}`` : le service worker appelle ``post`` et
+    # n'a rien à décider. C'est la condition pour qu'un bouton de notification
+    # soit fiable — le worker peut être réveillé sans l'app, sans jeton, et sans
+    # réseau stable ; tout ce qui demanderait un état local échouerait un soir
+    # sur deux, c'est-à-dire toujours au mauvais moment.
+    actions: tuple[dict, ...] = ()
 
     def as_dict(self) -> dict:
         return {
@@ -41,6 +48,7 @@ class Notification:
             "kind": self.kind,
             "action_label": self.action_label,
             "action_url": self.action_url,
+            "actions": list(self.actions),
         }
 
 

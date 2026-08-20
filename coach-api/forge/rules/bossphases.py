@@ -89,6 +89,70 @@ PHASES: dict[str, tuple[tuple[str, str], ...]] = {
         ("Juste La Fin De La Saison", "Il négocie par blocs de six heures."),
         ("Le Générique", "Plus rien à lancer. Il faut se lever."),
     ),
+
+    # -- Second réservoir de boss (J6). Même règle d'écriture : chacun nomme une
+    # façon précise de ne pas travailler, et la troisième phase lui retire son
+    # dernier argument.
+    "encore_cinq": (
+        ("Encore Cinq Minutes", "Le réveil a sonné. Il propose un arrangement."),
+        ("Encore Vingt Minutes", "L'arrangement s'est renégocié tout seul."),
+        ("Onze Heures", "Plus rien à gratter. La matinée est passée."),
+    ),
+    "grand_nettoyage": (
+        ("Le Grand Nettoyage", "Le bureau d'abord. On ne travaille pas dans le désordre."),
+        ("Le Tri Des Dossiers", "Il range des choses que personne ne rouvrira."),
+        ("Le Bureau Vide", "Tout est propre. Il ne reste que le travail."),
+    ),
+    "tutoriel_sans_fin": (
+        ("Le Tutoriel Sans Fin", "Un dernier avant de commencer pour de vrai."),
+        ("La Playlist Complète", "Sept heures de vidéos, zéro ligne écrite."),
+        ("Le Chapitre Un", "Il n'y a plus rien à regarder. Il faut faire."),
+    ),
+    "outil_parfait": (
+        ("L'Outil Parfait", "Celui-ci sera enfin le bon."),
+        ("La Configuration", "Deux jours de réglages pour un projet d'une heure."),
+        ("L'Éditeur Ouvert", "L'outil est prêt depuis longtemps. Pas lui."),
+    ),
+    "veille_technologique": (
+        ("La Veille Technologique", "Se tenir au courant, c'est déjà travailler."),
+        ("Les Quarante Onglets", "Il collectionne ce qu'il ne lira pas."),
+        ("L'Onglet Fermé", "Savoir ce qui existe n'a jamais rien construit."),
+    ),
+    "pas_le_bon_moment": (
+        ("Pas Le Bon Moment", "Trop tard ce soir, trop tôt demain."),
+        ("La Semaine Prochaine", "Il déplace, il n'annule jamais."),
+        ("Maintenant", "Il n'a plus de date à proposer."),
+    ),
+    "quand_j_aurai": (
+        ("Quand J'aurai Le Temps", "Il en manque toujours d'exactement une heure."),
+        ("Quand Ce Sera Calme", "Le calme est un état qui n'arrive pas."),
+        ("Ce Soir", "Le temps est là. C'était la seule condition."),
+    ),
+    "second_ecran": (
+        ("Le Second Écran", "Une vidéo à côté. Ça n'empêche pas de travailler."),
+        ("Le Troisième Onglet", "La session dure, le travail non."),
+        ("L'Écran Noir", "Il ne reste qu'un écran, et il est vide."),
+    ),
+    "refonte_totale": (
+        ("La Refonte Totale", "Tout reprendre depuis zéro, proprement cette fois."),
+        ("La Deuxième Refonte", "Le zéro a été atteint deux fois."),
+        ("Ce Qui Existe", "Il n'y a plus rien à jeter. Il faut finir."),
+    ),
+    "avis_des_autres": (
+        ("L'Avis Des Autres", "Il faut demander avant de se lancer."),
+        ("Le Consensus", "Six avis, aucune décision."),
+        ("Le Sien", "Il n'y a plus personne à qui demander."),
+    ),
+    "dimanche_soir": (
+        ("Dimanche Soir", "La semaine est finie, la suivante n'a pas commencé."),
+        ("Le Bilan Reporté", "Il préfère compter lundi."),
+        ("Vingt Heures", "La semaine se décide maintenant, pas demain."),
+    ),
+    "presque_fini": (
+        ("Presque Fini", "Il ne reste qu'un détail. Depuis trois semaines."),
+        ("Le Dernier Détail", "Le détail en cache un autre, exprès."),
+        ("Livré", "Il n'y a plus de détail. Il y a une chose finie."),
+    ),
 }
 
 # Gabarit pour un boss non décrit. Volontairement sobre : un gabarit qui essaie

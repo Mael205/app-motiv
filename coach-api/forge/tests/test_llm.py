@@ -223,7 +223,12 @@ class TestSelectionDuFournisseur:
 
     def test_la_porte_generique_dispatche(self):
         assert gate(Task.BRIEFING, briefing(), projets_connus=PROJETS)["minutes"] == 25
-        assert gate(Task.DECOUPAGE, {"libre": "passe tel quel"}) == {"libre": "passe tel quel"}
+
+    def test_le_decoupage_passe_par_les_memes_exigences_que_l_entretien(self):
+        """Ce sont les mêmes soirées : la roadmap ne doit pas devenir floue au
+        bloc 4 après avoir été nette au bloc 1."""
+        with pytest.raises(QualityGateFailed, match="au moins 4 étapes"):
+            gate(Task.DECOUPAGE, {"probleme": "", "etapes": []})
 
 
 class TestBudgetDeSortie:
@@ -271,15 +276,36 @@ class TestBackendCLI:
 
     def test_aucun_outil_n_est_pretee_au_modele(self):
         """Le §8 interdit au serveur de faire exécuter quoi que ce soit."""
-        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system="s")
+        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system_file="/tmp/system.txt")
 
         assert argv[argv.index("--allowedTools") + 1] == ""
         for interdit in ("Bash", "Edit", "Write", "Read"):
             assert interdit in argv
 
+    def test_l_entretien_a_le_droit_de_chercher_ses_sources(self):
+        """La seule tâche qui cherche, et seulement de quoi chercher (§4.5)."""
+        argv = ClaudeCodeBackend(executable="claude")._argv(
+            route_for(Task.ENTRETIEN_PROJET), system_file="/tmp/system.txt"
+        )
+        permis = argv[argv.index("--allowedTools") + 1]
+
+        assert "WebSearch" in permis and "WebFetch" in permis
+        # Chercher n'ouvre rien d'autre : le §8 tient sur ce qui s'exécute.
+        for interdit in ("Bash", "Edit", "Write", "Read"):
+            assert interdit in argv
+
+    def test_la_relecture_d_un_markdown_ne_cherche_pas(self):
+        """Elle range un document fourni : il n'y a rien à aller chercher."""
+        argv = ClaudeCodeBackend(executable="claude")._argv(
+            route_for(Task.IMPORT_MARKDOWN), system_file="/tmp/system.txt"
+        )
+
+        assert argv[argv.index("--allowedTools") + 1] == ""
+        assert "WebSearch" in argv
+
     def test_les_reglages_du_depot_sont_ignores(self):
         """Le prompt contient du texte écrit par l'utilisateur et par un modèle."""
-        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system="s")
+        argv = ClaudeCodeBackend(executable="claude")._argv(route_for(Task.BRIEFING), system_file="/tmp/system.txt")
 
         assert argv[argv.index("--setting-sources") + 1] == ""
         assert "--strict-mcp-config" in argv
@@ -290,3 +316,38 @@ class TestBackendCLI:
             ClaudeCodeBackend(executable="claude").converse(
                 task=Task.BRIEFING, system="s", messages=[], tools=[{"name": "x"}]
             )
+
+
+class TestPromptSystemHorsLigneDeCommande:
+    """Le prompt système passe par un fichier, jamais par argv (§5.6).
+
+    Sur Windows le CLI `claude` est un shim npm `.cmd` : l'appel traverse
+    cmd.exe et sa limite de 8191 caractères, pas les 32767 du système. Le
+    prompt d'entretien en fait plus de 8000 à lui seul — l'appel échouait sur
+    « La ligne de commande est trop longue », un message qui ne dit nulle part
+    qu'il parle du prompt. La limite était frôlée depuis le début : le premier
+    paragraphe ajouté l'a franchie.
+    """
+
+    def test_le_prompt_ne_passe_pas_en_argument(self):
+        from forge.llm.claude_code import ClaudeCodeBackend
+        from forge.llm.router import route_for
+
+        argv = ClaudeCodeBackend(executable="claude")._argv(
+            route_for(Task.BRIEFING), system_file="/tmp/system.txt"
+        )
+
+        assert "--system-prompt" not in argv
+        assert argv[argv.index("--system-prompt-file") + 1] == "/tmp/system.txt"
+
+    def test_les_prompts_reels_depassent_la_limite_de_cmd(self):
+        """Le test qui explique pourquoi le fichier n'est pas un raffinement."""
+        import json
+
+        from forge.llm import prompts
+
+        systeme = prompts.SYSTEM_ENTRETIEN
+        schema = json.dumps(prompts.SCHEMA_ENTRETIEN, ensure_ascii=False, indent=2)
+
+        assert len(systeme) > 8191, "si ce test tombe, le prompt a maigri — vérifier pourquoi"
+        assert len(systeme) + len(schema) > 8191

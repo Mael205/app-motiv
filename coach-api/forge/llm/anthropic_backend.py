@@ -34,6 +34,14 @@ logger = logging.getLogger(__name__)
 # est juste calibrée par défaut.
 RAFFINEMENTS = ("effort", "fallbacks")
 
+# Le plafond de recherches d'un seul appel. Dix suffisent à vérifier les
+# ressources d'un parcours ; au-delà, le modèle fouille au lieu de trancher, et
+# l'entretien se met à durer plus longtemps que la séance qu'il prépare.
+MAX_RECHERCHES = 10
+
+# Un tour suspendu se relance, mais pas indéfiniment.
+MAX_REPRISES = 3
+
 
 class AnthropicBackend(LLMProvider):
     """Fournisseur distant. Ne connaît ni la porte de qualité ni les règles métier."""
@@ -133,15 +141,36 @@ class AnthropicBackend(LLMProvider):
         config = params.setdefault("output_config", {})
         config["format"] = {"type": "json_schema", "schema": schema}
 
+        if getattr(route, "recherche_web", False):
+            # Outil serveur : il s'exécute chez Anthropic, rien ne tourne ici.
+            params["tools"] = [
+                {"type": "web_search_20260209", "name": "web_search", "max_uses": MAX_RECHERCHES}
+            ]
+
         response = self._send(params)
+
+        # ``pause_turn`` : le modèle a suspendu son tour au milieu de ses
+        # recherches. On le relance avec ce qu'il a déjà produit. Sans cette
+        # boucle, une roadmap documentée revient à moitié écrite — et l'échec
+        # ressemble à un mauvais prompt alors que c'est un tour interrompu.
+        reprises = 0
+        while getattr(response, "stop_reason", "") == "pause_turn" and reprises < MAX_REPRISES:
+            params["messages"] = [
+                *params["messages"],
+                {"role": "assistant", "content": response.content},
+            ]
+            response = self._send(params)
+            reprises += 1
+
         stop = getattr(response, "stop_reason", "end_turn")
         if stop == "refusal":
             return LLMResponse(content={}, model=route.model, task=task, stop_reason="refusal")
 
-        texte = next(
-            (b.text for b in response.content if getattr(b, "type", None) == "text"),
-            "",
-        )
+        # Le **dernier** bloc de texte, pas le premier : quand le modèle a
+        # cherché, les blocs qui précèdent sont ses commentaires de recherche,
+        # et c'est le dernier qui porte le JSON demandé.
+        textes = [b.text for b in response.content if getattr(b, "type", None) == "text"]
+        texte = textes[-1] if textes else ""
         try:
             contenu = json.loads(texte)
         except ValueError as error:

@@ -46,6 +46,15 @@ TIMEOUT_SECONDS = 150
 # forme dont le modèle n'est pas averti.
 CLOTURE_MARKDOWN = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
+# Tout ce que le CLI sait faire et qu'on lui retire par défaut. La liste est
+# écrite en dur plutôt que déduite : un outil ajouté au CLI demain doit être
+# refusé explicitement, pas autorisé par oubli.
+OUTILS_COUPES = ("Bash", "Edit", "Write", "Read", "WebFetch", "WebSearch")
+
+# Ce qu'une tâche qui cherche ses sources récupère. Rien de plus : ni lecture
+# du disque, ni exécution.
+OUTILS_RECHERCHE = ("WebSearch", "WebFetch")
+
 
 def cli_path() -> str | None:
     """Le chemin du CLI, ou ``None`` s'il n'est pas installé."""
@@ -70,7 +79,16 @@ class ClaudeCodeBackend(LLMProvider):
             )
         return chemin
 
-    def _argv(self, route, *, system: str) -> list[str]:
+    def _argv(self, route, *, system_file: str) -> list[str]:
+        # Ce que la tâche a le droit d'utiliser. La recherche est le seul outil
+        # jamais prêté, et le §8 tient quand même : chercher et lire une page
+        # publique ne fait rien **exécuter** sur cette machine. Bash, Read,
+        # Write et Edit restent coupés pour toutes les tâches, sans exception —
+        # c'est la lecture du disque et l'exécution qui étaient interdites, pas
+        # l'accès à une documentation publique.
+        permis = OUTILS_RECHERCHE if getattr(route, "recherche_web", False) else ()
+        interdits = [outil for outil in OUTILS_COUPES if outil not in permis]
+
         return [
             self._resolve(),
             "--print",
@@ -81,10 +99,18 @@ class ClaudeCodeBackend(LLMProvider):
             # et la différence ne se voit qu'au bout de trois semaines de travail
             # sur des étapes mal découpées.
             "--effort", route.effort,
-            "--system-prompt", system,
-            # Aucun outil : ce backend produit du texte, il n'agit pas.
-            "--allowedTools", "",
-            "--disallowedTools", "Bash", "Edit", "Write", "Read", "WebFetch", "WebSearch",
+            # Le prompt système passe par un **fichier**, jamais par la ligne de
+            # commande. Sur Windows le CLI est un shim npm `.cmd`, donc l'appel
+            # traverse cmd.exe et sa limite de 8191 caractères — pas les 32767
+            # du système. SYSTEM_ENTRETIEN en fait 8502 à lui seul : l'appel
+            # échouait sur « La ligne de commande est trop longue », un message
+            # qui ne dit pas qu'il parle du prompt. La limite était frôlée depuis
+            # le début ; le premier paragraphe ajouté la franchissait.
+            "--system-prompt-file", system_file,
+            # Ce backend produit du texte, il n'agit pas. La seule exception est
+            # la recherche, et seulement pour les tâches qui la demandent.
+            "--allowedTools", ",".join(permis),
+            "--disallowedTools", *interdits,
             "--permission-mode", "default",
             # Ni les réglages du dépôt, ni ses serveurs MCP, ni son CLAUDE.md.
             "--setting-sources", "",
@@ -93,11 +119,15 @@ class ClaudeCodeBackend(LLMProvider):
         ]
 
     def _run(self, route, *, system: str, prompt: str) -> dict:
-        argv = self._argv(route, system=system)
-
         # Un dossier vide et jetable : le CLI découvre son contexte depuis son
-        # répertoire courant, et il n'a rien à découvrir ici.
+        # répertoire courant, et il n'a rien à découvrir ici. Il sert aussi à
+        # porter le fichier de prompt système, qui disparaît avec lui.
         with tempfile.TemporaryDirectory(prefix="coach-llm-") as neutre:
+            chemin_system = os.path.join(neutre, "system.txt")
+            with open(chemin_system, "w", encoding="utf-8") as fichier:
+                fichier.write(system)
+
+            argv = self._argv(route, system_file=chemin_system)
             try:
                 acheve = subprocess.run(
                     argv,
@@ -106,13 +136,17 @@ class ClaudeCodeBackend(LLMProvider):
                     text=True,
                     encoding="utf-8",
                     errors="replace",
-                    timeout=self._timeout,
+                    # Le délai vient de la route : chaque tâche a son urgence.
+                    # Un délai unique obligeait à choisir entre couper
+                    # l'entretien à mi-parcours et laisser le briefing figer
+                    # l'accueil pendant sept minutes.
+                    timeout=getattr(route, "timeout", None) or self._timeout,
                     cwd=neutre,
                     env={**os.environ, "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"},
                 )
             except subprocess.TimeoutExpired as error:
                 raise LLMUnavailable(
-                    f"le CLI n'a pas répondu en {self._timeout} s — briefing abandonné"
+                    f"le CLI n'a pas répondu en {getattr(route, 'timeout', None) or self._timeout} s"
                 ) from error
             except OSError as error:
                 raise LLMUnavailable(f"impossible de lancer le CLI : {error}") from error

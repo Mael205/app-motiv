@@ -42,7 +42,7 @@ Ces points ont été tranchés avec l'utilisateur. Ne pas les rouvrir sans raiso
 | Jour off déclaré | État **neutre** : ni validé ni raté, ne consomme pas de bouclier, **mais remet à zéro la progression vers le prochain bouclier** |
 | Projet « coach » | **Hors slot, aucune restriction, aucun quota bloquant.** Ses heures sont mesurées et affichées, rien de plus (§11.6) |
 | LLM | **Hybride local/distant** avec porte de qualité obligatoire (§5.6) |
-| Notifications | **Natives sur les deux surfaces** : Windows via l'agent, Web Push sur le téléphone. Telegram en redondance et en canal d'entrée rapide |
+| Notifications | **Natives sur les deux surfaces** : Windows via l'agent, Web Push sur le téléphone, avec boutons d'action. Webhook Discord en redondance ; le canal d'entrée est un lien signé (§11.7) |
 | Mesure d'activité PC | **Intégration d'ActivityWatch** (open source, local) plutôt qu'une réimplémentation |
 | Mesure d'usage mobile | **Mini-app Android compagnon** lisant `UsageStatsManager` |
 | Blocage YouTube | **Extension navigateur**, Shorts et feed d'accueil uniquement |
@@ -87,7 +87,7 @@ coach-mobile/   Android, Kotlin, minimal          → temps d'écran via UsageSt
 **Notifications — réponse à « comme une appli normale » :** oui, ce sont de vraies notifications système sur les deux surfaces.
 - **PC :** l'agent local envoie des notifications Windows natives (toasts avec boutons d'action). Fiabilité totale, aucun serveur impliqué, elles marchent même si le navigateur est fermé.
 - **Téléphone :** Web Push via le service worker de la PWA installée. Ce sont de vraies notifications Android, avec icône, actions et son. Deux limites connues : l'optimisation de batterie d'Android peut les retarder de quelques minutes, et une notification programmée exige que le serveur soit réveillé à l'heure dite.
-- **Filet de sécurité :** Telegram double les notifications critiques (gardien de 21h30, rappel de créneau) et sert de canal d'entrée rapide (valider une session, jeter une idée au frigo, envoyer un vocal) sans ouvrir l'app.
+- **Filet de sécurité :** un webhook Discord double les notifications critiques (gardien de 21h30, rappel de créneau), et le canal d'entrée est le lien signé du §11.7 — démarrer la séance proposée, reporter le gardien, jeter une idée au frigo, répondre à la revue, sans ouvrir l'app ni créer de compte.
 - Le serveur planifie ses déclencheurs avec un vrai ordonnanceur persistant (Celery beat ou APScheduler + table de jobs) ; un cron externe de ping empêche le free tier de s'endormir avant 21h30.
 
 **Hébergement, budget quasi nul :** Postgres managé gratuit (Neon / Supabase), API sur Fly.io ou Railway free tier, front en statique (Cloudflare Pages). Documente le déploiement dans `DEPLOY.md`. Seul coût réel possible : les appels au modèle distant (§5.6), de l'ordre de 1 à 3 €/mois, réductible à zéro quand le local suffit.
@@ -105,6 +105,17 @@ coach-mobile/   Android, Kotlin, minimal          → temps d'écran via UsageSt
 - Durées proposées : 10 (dégradé) / 25 / 50. Pas plus de 50.
 - **Le mode dégradé garde son bonus de première session du jour** (décision assumée : le point dur est le démarrage, pas la durée ; récompenser fortement le fait de s'y mettre est le comportement qu'on cherche à installer).
 - **Bouton « prolonger »** : à la fin d'un dégradé, une proposition unique de continuer 15 min de plus. Accepter convertit la session en session normale et complète l'XP. C'est le vrai levier : une fois lancé, continuer est facile.
+
+**La durée annoncée est un objectif, pas un plafond** *(tranché le 19 août 2026)*. Trois règles qui vont ensemble :
+
+- **Une séance compte ce qu'elle a duré.** Les minutes travaillées au-delà de la durée annoncée sont créditées. Jusqu'ici elles étaient rognées en silence : quarante minutes sur un minuteur de vingt-cinq en perdaient quinze, ce qui faisait de la clôture le seul endroit du produit où du travail réel disparaissait. Un garde-fou dur subsiste à **quatre heures** — au-delà, ce n'est plus une séance, c'est une session oubliée toute la nuit, et le §17 interdit de payer du temps non travaillé autant que d'effacer du temps travaillé.
+- **Une séance se clôture à tout moment**, avant ou après le terme. Le minuteur garde son rôle : il porte la promesse faite au démarrage, il sert de repère au fantôme du §8.7, et la clôture dit si l'objectif a été tenu — un constat, jamais une sanction. Prolonger **rehausse** cette promesse ; c'est ce qui distingue le bouton du simple fait de continuer à travailler.
+**L'heure annoncée pèse, sans jamais punir celle qu'on ne tient pas** *(tranché le 20 août 2026)*. Corollaire direct de ce qui précède : si une séance compte à n'importe quelle heure, un rendez-vous que personne ne constate n'est plus un rendez-vous, c'est une préférence — et le §11.2 fait pourtant des créneaux fixes le cœur du dispositif. Deux mécaniques, et **aucun malus** dans l'une ni dans l'autre :
+
+- **La prime de ponctualité remplace le forfait « avant 20h ».** Démarrer dans la demi-heure autour de son créneau rapporte le même forfait qu'avant, à n'importe quelle heure : un créneau de 22h tenu vaut exactement un créneau de 18h tenu. L'ancienne règle payait *l'horloge* — 19h58 payait, 20h02 non, et un créneau déclaré à 21h ne pouvait jamais y toucher —, ce qui contredisait à voix haute une app qui annonce une heure précise. Sans créneau déclaré ce jour-là, il n'y a rien à tenir : pas de prime, et **pas de perte** — c'est l'absence de promesse, pas un échec (§17). La tolérance est symétrique : démarrer trois heures en avance n'est pas tenir un rendez-vous, sinon la prime redeviendrait « avant l'heure ».
+- **Le gardien de créneau** tombe vingt minutes après un rendez-vous passé sans que rien n'ait démarré : *« 20h30 est passé, rien de lancé »*, avec la tâche et les deux boutons du §11.7. Il ne parle ni de streak ni de boucliers — l'enjeu de la journée appartient au gardien du soir, une fois, en fin de fenêtre. Il se tait si une séance tourne ou si le projet a déjà eu la sienne dans la journée, même décalée : le rendez-vous a été honoré.
+
+- **Une séance longue vaut plus que la même durée coupée en deux** *(prime de durée)*. Les minutes au-delà de 25 comptent une fois et demie, celles au-delà de 45 une fois trois quarts, et la prime s'arrête là — au-delà, récompenser la durée reviendrait à payer la veillée que le §14 sanctionne. Le calibrage a un critère : couper une soirée en deux paie **deux fois** les forfaits (première session, avant 20h), et la prime doit dépasser ce que le fractionnement duplique, sinon la règle dit le contraire de ce qu'elle annonce. Le plafond de régime du §0.2 n'est pas touché : il compte des sessions, et prolonger n'en ajoute pas une.
 
 ### 4.2 Le streak et les boucliers
 
@@ -124,7 +135,7 @@ L'anti-fragilité est la mécanique la plus importante du produit.
 
 - **Maximum 3 projets actifs.** Hard limit. C'est le cœur du dispositif anti-dispersion.
 - **Maximum 2 slots par domaine.** Deuxième limite dure : trois projets de code dans les trois slots, c'est une seule vie déguisée en trois. Le troisième slot doit venir d'un autre domaine — `code`, `corps`, `creatif`, `savoir`, `pratique`. Un projet qui ne trouve pas de slot compatible part au frigo, comme un quatrième projet. La règle se vérifie au moment où un projet prend un slot, pas après coup.
-- **Le frigo** : capture illimitée d'idées de projets. Champ libre, 5 secondes, accessible en un tap depuis le téléphone ou en un message Telegram.
+- **Le frigo** : capture illimitée d'idées de projets. Champ libre, 5 secondes, accessible en un tap depuis le téléphone — par un lien épinglé sur l'écran d'accueil, ou par le menu « Partager » d'Android (§11.7).
 - **Échange de slot uniquement le dimanche.** Le reste de la semaine, le bouton est désactivé avec la date du prochain créneau. Un projet sorti d'un slot va en archive, pas à la poubelle : ses heures et son journal restent.
 - **Exception : un projet terminé se remplace immédiatement.** Le dimanche protège contre l'abandon d'un projet pour un autre plus excitant — pas contre la réussite. Quand la roadmap d'un projet est intégralement faite, son slot se libère le jour même et peut être repris sans attendre. Le slot peut aussi être **laissé vacant** ; il le reste jusqu'au dimanche, où il doit être rempli. Un slot vide indéfiniment serait une limite de 3 déguisée en limite de 2.
 - Pour éviter qu'une roadmap d'une seule étape serve à débloquer un échange, un projet n'est « terminé » que s'il a **au moins une session enregistrée**. Le système ne sanctionne pas la triche, il ne la rend simplement pas rentable.
@@ -224,7 +235,7 @@ Il veut parfois scroller avant de bosser. Ne pas l'interdire — le cadrer.
 - **Une fois par semaine, dimanche soir.** Jamais de notification à un tiers lors d'un échec individuel.
 - Contenu : streak, heures par projet, étapes terminées, engagements tenus vs pris, avancement du boss de saison, titre courant, une phrase de synthèse écrite par l'IA (factuelle, pas humiliante).
 - **N'y figure pas :** la qualité de session, le temps d'écran, les fuites de temps. Ces signaux sont bruités ; les envoyer à un tiers transforme du bruit en jugement social et donnerait une bonne raison de couper le bilan.
-- Envoi par email ou webhook (Discord/Telegram). Le destinataire est configuré une fois, et **le désactiver demande une confirmation à 24h de délai**. C'est le seul mécanisme volontairement difficile à désarmer du produit.
+- Envoi par email ou webhook Discord. Le destinataire est configuré une fois, et **le désactiver demande une confirmation à 24h de délai**. C'est le seul mécanisme volontairement difficile à désarmer du produit.
 - **Accusé de lecture** : un bouton "vu" dans le message. Si l'ami ne lit pas 3 semaines de suite, l'app le signale et propose un autre destinataire — un contrôleur qui ne regarde pas ne contrôle rien.
 
 ---
@@ -472,6 +483,10 @@ AgentEvent(id, user, type, payload, created_at)                          # appen
 - Export `.ics`, notification native 10 min avant sur les deux surfaces.
 - Le gardien du soir (§5.4) ne se déclenche que si le créneau du jour a été manqué.
 
+**Ce qui fait qu'une heure annoncée pèse** *(20 août 2026)*. Le créneau était un post-it : le tenir ne rapportait rien, le manquer ne se disait qu'au bilan du lendemain matin ou à la revue du dimanche, six jours plus tard. Depuis qu'une séance compte à n'importe quelle heure (§4.1), ce post-it pouvait s'ignorer sans conséquence. Il porte maintenant deux choses, décrites au §4.1 : la **prime de ponctualité**, qui paie le rendez-vous tenu et non l'horloge, et le **gardien de créneau**, qui constate vingt minutes après. Ni l'un ni l'autre ne retire quoi que ce soit à qui travaille en dehors — le §17 interdit d'ajouter une punition, et le soir où l'on rentre à 22h est précisément celui qui décide du streak.
+
+L'écran de décision porte donc, sous le nom du projet, où l'on en est du rendez-vous : *« C'est l'heure »*, *« Dans 12 min »*, *« Passé de 46 min »*. Une prime qu'on ne découvrirait qu'au décompte final ne changerait aucun comportement.
+
 ### 11.3 L'amorce
 
 Le démarrage à froid est le coût le plus élevé du système. On le paie à la fin de la session précédente, quand le contexte est encore chaud.
@@ -507,11 +522,32 @@ Ce projet est excitant, technique, avec de l'IA dedans : exactement le profil de
 - Le système se contente d'**afficher la part** des heures du mois allée dans le coach. Information, pas barrière.
 - Une bascule `coach_quota_enabled` existe dans les réglages, désactivée par défaut. Le jour où il veut se mettre la contrainte, elle s'active sans redéveloppement.
 
-### 11.7 Canal Telegram et debrief vocal
+### 11.7 Le canal entrant — agir sans ouvrir l'app
 
-- Bot Telegram en redondance de notification et en canal d'entrée rapide : valider une session, jeter une idée au frigo, envoyer un vocal, demander l'état du jour — sans ouvrir l'app.
-- **Debrief par message vocal** : transcription locale (Whisper) puis structuration par l'IA.
-- Le frigo doit être alimentable en une phrase vocale, à tout moment.
+*Réécrit le 20 août 2026. La version d'origine confiait ce rôle à un bot Telegram ; il n'a jamais été construit, et il ne le sera pas. Ce qui suit décrit ce qui existe et pourquoi c'est mieux — la fin de la section garde ce qui reste à faire.*
+
+**Le besoin, inchangé.** Tout ce qui sort du coach a un canal : Web Push, webhook Discord, notification Windows. Rien n'y rentrait. Trois mécaniques écrites ailleurs dans cette spec s'en trouvaient bloquées : l'accusé de lecture du bilan de l'ami (§4.7), les questions de la revue du dimanche (§5.3), et la capture d'une idée au frigo sans ouvrir l'app. Toutes trois demandent la même chose — **agir sans ouvrir l'app** — et le soir où le gardien tombe est précisément le soir où l'on n'ouvre rien.
+
+**Pourquoi pas un bot.** Un bot suppose un compte, une application de messagerie de plus, un jeton de longue durée à garder, et un service tiers dans le chemin critique d'un gardien du soir. Trois surfaces à maintenir pour un besoin qui tient en un clic. Le remplacement tient en une idée : **un lien signé qui ne fait qu'une chose**.
+
+**Le lien signé.** Une adresse courte, un secret qui n'existe qu'à l'émission — seule son empreinte est stockée —, une durée de vie choisie selon l'usage. La page qu'il ouvre n'a ni compte, ni script, ni police distante : elle s'affiche dans le navigateur intégré d'une messagerie, sur un téléphone en 3G, chez quelqu'un qui n'a pas le coach et n'en veut pas.
+
+Trois règles tenues là et nulle part ailleurs :
+
+1. **Un lien fait une chose.** Le geste est décidé à l'émission, pas par celui qui clique. Il n'y a aucun paramètre à valider qui pourrait en changer.
+2. **Un lien ne lit rien.** La page montre ce que le lien porte, jamais ce qu'il y a en base. Un lien qui fuit n'apprend rien à personne.
+3. **Cliquer deux fois ne casse rien.** Une messagerie qui pré-charge les liens clique avant l'humain : le second passage dit « déjà fait », jamais « erreur ». Corollaire : **afficher un lien n'agit jamais**. Tout ce qui agit vit derrière un POST.
+
+Cinq gestes existent : jeter une idée au frigo, accuser réception d'un bilan (§4.7), répondre à une question de la revue (§5.3), démarrer la séance proposée, reporter le gardien.
+
+**Les boutons d'une notification.** Le gardien du soir arrive avec deux actions : *Démarrer 10 min* et *Reporter 15 min*. C'est le cœur du §11.7 tel qu'il est réalisé — répondre demandait jusque-là d'ouvrir, de lire, de choisir une durée et de démarrer, soit quatre gestes au moment précis où l'on n'en fera aucun.
+
+- Le service worker qui reçoit la notification **n'a aucun jeton** : il ne partage ni le stockage local ni la session de l'app. Chaque bouton arrive donc avec l'adresse à appeler, et cette adresse est un lien signé qui expire dans la soirée. Rien à décider côté worker, rien de durable à lui confier.
+- **Reporter n'ouvre rien** — ce serait contredire « pas maintenant » — et n'est pas un renoncement : sans lui, la seule façon de faire taire une notification est de la balayer, c'est-à-dire de la perdre. Le report est tenu par l'ordonnanceur du serveur, jamais par le worker, qui dort bien avant l'échéance. Un rappel qui arrive en retard **ne part pas** : une notification à contretemps est celle qui apprend à ignorer toutes les autres.
+
+**La cible de partage Android.** Le coach figure dans le menu « Partager » du téléphone : une vidéo, un article, un message deviennent une idée au frigo depuis l'app où l'on se trouve déjà. Jamais un projet — le §4 fait d'un projet une décision qui coûte un slot, et en ouvrir un par accident serait le contraire de ce que le frigo protège.
+
+**Ce qui reste hors périmètre.** Le **debrief vocal** — transcription locale puis structuration — n'est pas construit et n'est plus prioritaire : l'amorce écrite du §11.3 tient le rôle, et une transcription approximative dans un champ obligatoire coûte plus qu'elle ne rapporte. À reprendre si l'écrit du soir devient le point de friction.
 
 ### 11.8 Énergie et sommeil (léger, non médical)
 
@@ -598,28 +634,60 @@ C'est le moteur narratif du produit (§0.10). Il exploite un trait précis : tr�
 - **Bénéfice principal, à ne pas perdre de vue :** quand tout casse en semaine 3, la saison suivante démarre dans 8 jours. Ça convertit "j'ai raté, donc j'arrête définitivement" en "j'attends la prochaine saison". Un streak infini n'offre pas cette porte de sortie, et c'est précisément le mode de défaillance principal.
 - La **revue de fin de saison** est le seul moment où le nombre de slots, les engagements et les créneaux se revoient en profondeur.
 
-### 12.2 Identité de saison — mélange de registres assumé
+### 12.2 Identité de saison — une trame en deux voies
 
-Chaque saison tire un nom, un emblème, un accent de couleur, une texture de fond et une phrase d'ouverture. Les registres se mélangent volontairement : métal/festival, dark fantasy, sci-fi.
+Chaque saison porte un nom, un emblème, un accent de couleur et une phrase d'ouverture. Les registres se mélangent volontairement : métal, dark fantasy, sci-fi, minéral.
 
-Réservoir de départ (extensible, éditable) :
+**L'ordre n'est plus tiré au sort** *(20 août 2026)*. Il l'a été : une permutation changeait chaque année pour que deux années ne se ressemblent pas. Ça empêchait la répétition et empêchait aussi toute histoire — une saison tombait sans rapport avec la précédente, et son nom n'était qu'une étiquette de couleur. Douze étiquettes tirées au sort ne font pas une saga, et le §0.10 dit que ce qui n'a pas d'identité ne se garde pas.
 
-| Nom | Registre | Accent |
-|---|---|---|
-| Hellfest | métal | rouge braise `#E0533D` |
-| Heaven's Paradise | métal céleste | or blanc `#F2E6C2` |
-| Ragnarök | mythologie nordique | acier froid `#8FA9C4` |
-| Purgatoire | dark fantasy | violet cendré `#8A6FB0` |
-| Faille S | sci-fi | cyan électrique `#43D9E0` |
-| Solstice Noir | dark fantasy | or sombre `#B98A2E` |
-| Wacken | métal | vert toxique `#8FD14F` |
-| Dernier Rempart | siège | pierre et sang `#C0574F` |
-| Aube Rouge | épique | rouge profond `#D1403F` |
-| Nadir | sci-fi froid | bleu abyssal `#3E6FA8` |
-| Inferno | métal | orange magma `#F07A20` |
-| Vigie | sobriété | turquoise `#4FC4B4` |
+Les vingt-quatre identités forment donc une **trame**, en deux voies de douze. La voie d'une saison est décidée par le **résultat de la précédente** — la même définition que celle qui résout la mise du §12.6 : la saison est *tenue* si le boss est tombé.
 
-L'écran d'ouverture de saison affiche le nom en grand, l'emblème, le modificateur tiré et le boss. C'est le seul moment où l'interface a le droit d'être théâtrale.
+**Voie des Cimes** — après une saison tenue. Ça s'ouvre, ça monte, ça finit en haut.
+
+| # | Nom | Acte | Accent |
+|---|---|---|---|
+| 1 | L'Éveil | Le Seuil | vert toxique `#8FD14F` |
+| 2 | Faille S | Le Seuil | cyan électrique `#43D9E0` |
+| 3 | Méridien | Le Seuil | or chaud `#E8B44A` |
+| 4 | Prisme | Le Seuil | turquoise clair `#5FD6B4` |
+| 5 | Vigie | Le Seuil | turquoise `#4FC4B4` |
+| 6 | Marche Haute | Le Seuil | vert pâle `#B8C46A` |
+| 7 | Orbite Basse | La Montée | bleu ciel `#4FA3E0` |
+| 8 | Sanctuaire | La Montée | lilas `#C8A2D8` |
+| 9 | Aube Rouge | La Montée | rouge profond `#D1403F` |
+| 10 | Hellfest | La Montée | rouge braise `#E0533D` |
+| 11 | Ragnarök | La Montée | acier froid `#8FA9C4` |
+| 12 | Heaven's Paradise | La Montée | or blanc `#F2E6C2` |
+
+**Voie des Braises** — après une saison ratée. Ça descend jusqu'au fond, puis ça creuse et ça forge.
+
+| # | Nom | Acte | Accent |
+|---|---|---|---|
+| 1 | Nadir | La Descente | bleu abyssal `#3E6FA8` |
+| 2 | Purgatoire | La Descente | violet cendré `#8A6FB0` |
+| 3 | Quartier Nord | La Descente | gris urbain `#7A8FA6` |
+| 4 | Obsidienne | La Descente | violet minéral `#6E5B8F` |
+| 5 | Solstice Noir | La Descente | or sombre `#B98A2E` |
+| 6 | Cendre Haute | La Descente | cendre `#A89484` |
+| 7 | Dernier Rempart | La Forge | pierre et sang `#C0574F` |
+| 8 | Acier Froid | La Forge | acier `#9FB3C8` |
+| 9 | Veine Mère | La Forge | cuivre `#C98F3A` |
+| 10 | Dernière Forge | La Forge | orange forge `#E0703D` |
+| 11 | Tonnerre | La Forge | rouge sourd `#D6543C` |
+| 12 | Inferno | La Forge | orange magma `#F07A20` |
+
+Quatre règles tiennent cette trame, et la troisième est la plus importante :
+
+- **On commence toujours par L'Éveil.** La saison d'essai aussi : les premiers jours *sont* un éveil.
+- **Chaque voie avance à son propre rythme.** On ne saute pas de la troisième saison des Cimes à la troisième des Braises : on reprend la voie basse là où on l'avait laissée. Une année en dents de scie tricote donc les deux, et deux parcours n'ont jamais la même suite — sans qu'aucun tirage n'intervienne.
+- **La voie basse n'est pas une punition**, et c'est la condition pour qu'elle soit tenable. Elle ne retire rien : même mise, même vie de boss, mêmes règles. Le §17 interdit d'ajouter une sanction, et une histoire qui punirait doublerait celle que la mise a déjà réglée. Ce qui change est le décor — un mois raté raconté comme une descente aux forges est plus juste, et surtout plus tenable, qu'un mois raté raconté avec les mots d'un sommet.
+- **Le boss reste tiré au sort**, d'un tour à l'autre. La trame dit ce qu'on traverse, pas qui l'on affronte : deux saisons de même nom à deux ans d'écart doivent garder de quoi surprendre.
+
+**La voie et l'acte s'affichent**, sous le compte des jours du bandeau et à l'ouverture de la saison, avec leur raison en toutes lettres : *« la saison a été tenue, ça monte »*. Une histoire que seul le code connaît n'est pas une histoire.
+
+**Le résultat est gravé à la clôture**, pas recalculé. C'est le seul endroit du produit où l'on stocke une conclusion plutôt que de la relire depuis les faits — parce qu'un seuil qui bougerait un jour réécrirait rétroactivement une histoire déjà traversée, et que ce qui a été raconté a été raconté.
+
+L'écran d'ouverture de saison affiche le nom en grand, l'emblème, la voie, le modificateur tiré et le boss. C'est le seul moment où l'interface a le droit d'être théâtrale.
 
 ### 12.3 Rangs et niveaux
 
@@ -633,6 +701,16 @@ L'écran d'ouverture de saison affiche le nom en grand, l'emblème, le modificat
 - Les dégâts viennent du **travail réel** : minutes de session, étapes de roadmap terminées (gros dégâts), engagements hebdo tenus, séances de la piste Corps.
 - La barre de vie est visible en permanence sur l'accueil, sous la jauge du soir. Elle répond à la question "à quoi ça sert, ce soir" mieux qu'un compteur d'XP.
 - Tuer le boss avant la fin des 4 semaines déclenche la séquence de fin de saison en avance et ouvre un **mode extra** : les jours restants alimentent directement le score de la saison suivante.
+
+**Ce que le mode extra veut dire, précisément** *(construit le 20 août 2026 — il ne l'était pas)*. La saison se clôt le jour de la victoire : titre décerné, mise résolue, cérémonie jouée. La saison suivante est engagée aussitôt mais **démarre à sa date prévue**, et les jours qui séparent les deux sont des jours extra : les minutes qu'on y pose sont mises de côté et comptent dans le score de la saison à venir. Les deux jours de pause du §12.1 entrent dans la même fenêtre — travailler entre deux saisons ne doit jamais valoir moins que ne rien faire.
+
+Trois conséquences, toutes tenues par des tests :
+
+- **L'accueil doit le dire.** Sans écran, une victoire anticipée retire le boss, le fantôme, le modificateur et la mise pendant deux semaines sans un mot : une récompense qu'on ne distingue pas d'une panne est une punition. Un panneau remplace le bandeau de saison — combien de jours, quelle saison arrive, combien de minutes d'avance. La décision du soir, elle, ne change pas : le streak, l'XP et les projets continuent exactement pareil.
+- **La saison engagée n'est plus re-proposée.** ``current_season`` ne rend que les saisons commencées ; sans garde, l'écran voyait « aucune saison », proposait la suivante, et en créait une de plus à chaque acceptation.
+- **La saison close garde sa date de clôture réelle**, distincte de sa date de fin prévue. C'est elle qui borne la fenêtre extra.
+
+**La vie du boss suit les dégâts infligés, pas les minutes seules** *(corrigé le 20 août 2026)*. « La performance de la saison précédente » était lue comme la somme des minutes, alors que les dégâts viennent aussi des étapes de roadmap — soixante points chacune — et des engagements tenus. Un boss de 1800 abattu avec 600 minutes de session produisait donc un boss suivant à **630 points**, et le suivant encore moins : la courbe s'effondrait d'une saison à l'autre, exactement à l'inverse de ce que le ×1,05 promet. La performance est désormais le maximum entre les minutes et les dégâts réellement infligés, ces derniers plafonnés à la vie du boss — le coup fatal dépasse presque toujours, et compter le débordement ferait monter la barre d'un hasard.
 
 ### 12.5 Modificateur de saison
 
@@ -648,6 +726,8 @@ Le modificateur est **tiré au sort parmi 3 propositions** à l'ouverture — un
 - **Mise de saison** : à l'ouverture, il mise un montant d'Éclats. Saison réussie → mise doublée. Saison ratée → mise perdue. Enjeu réel, aucune conséquence matérielle.
 - Les Éclats achètent uniquement du **cosmétique** : thèmes, emblèmes, effets de la séquence de fin de session, titres, cadres d'avatar.
 - **Cartes de loot** au passage de niveau et à la clôture de semaine, avec raretés (commun / rare / épique / légendaire) et animation d'ouverture. Aucune carte ne donne d'XP ni ne modifie une règle.
+- **Ce qui déclenche un tirage, et sur quel mode.** Ce qui est *rare* se donne, ce qui est *fréquent* se tire : une étape de roadmap terminée rend une carte garantie, une séance longue en rend une avec une probabilité qui monte avec les minutes réellement travaillées (nulle sous 25 min, plafonnée à un quart). Garantir la carte de séance inonderait la collection en un mois ; la refuser laisserait l'avancement du produit sans écho.
+- **L'effort incline le tirage, il ne l'achète pas** *(tranché le 19 août 2026)*. Une étape terminée après cinq heures de travail rend une meilleure carte qu'une étape expédiée : les minutes posées dessus depuis son démarrage déplacent une part des poids du commun vers le rare et l'épique. Le déclencheur reste **terminer** — rien ne tombe pour avoir peiné sans finir —, la faveur est plafonnée, et le commun reste toujours possible. Sans plafond, le travail deviendrait une monnaie d'achat de cartes et l'ouverture perdrait ce qui la rend agréable.
 
 ### 12.7 Le fantôme
 
@@ -807,7 +887,7 @@ Chaque jalon est conditionné au précédent. **Aucune restriction auto-imposée
 **J0 — Socle.** Monorepo, Django + Postgres, auth JWT, appairage par QR, déploiement fonctionnel, SSE en place, seed des projets réels. Rien de visible, tout de nécessaire.
 
 **J1 — Le noyau *et ses déclencheurs*.**
-Projets et slots, sessions avec timer, streak et boucliers, jours off, journal manuel, XP avec plafond, jauge du soir, frigo. **Plus, obligatoirement :** créneaux hebdomadaires fixes, notifications natives sur les deux surfaces, gardien du soir en version déterministe, amorce de fin de session, sas de détente sans blocage, bot Telegram. Squelette de saison : nom, compte à rebours 4 semaines, niveau et rang.
+Projets et slots, sessions avec timer, streak et boucliers, jours off, journal manuel, XP avec plafond, jauge du soir, frigo. **Plus, obligatoirement :** créneaux hebdomadaires fixes, notifications natives sur les deux surfaces, gardien du soir en version déterministe, amorce de fin de session, sas de détente sans blocage, canal entrant (§11.7 — le bot Telegram y a été remplacé par les liens signés). Squelette de saison : nom, compte à rebours 4 semaines, niveau et rang.
 *Justification :* un noyau sans déclencheur ne teste que la contrainte interne, dont le §0.1 dit qu'elle n'existe pas. Les déclencheurs listés ici ne demandent aucune IA et coûtent peu.
 *Condition de passage : 7 jours d'usage réel.* Corriger les bugs pendant ces 7 jours est normal et attendu.
 
@@ -819,7 +899,9 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 
 **J5 — Blocage et analyses.** Service de blocage, extension navigateur, sonde Android, bilans quotidiens, rapport de fuite de temps, détections automatiques continues.
 
-**J6 — Confort.** Statistiques longues, export, cosmétiques supplémentaires, réservoir de saisons étendu.
+**J6 — Confort.** Statistiques longues, export, cosmétiques supplémentaires, réservoir de saisons étendu. *Construit le 20 août 2026 :* séries des douze dernières semaines sur la fiche de personnage (à distinguer de la trace longue, qui ne rend que des compteurs monotones), export JSON complet sans aucun secret, troisième vague de cartes portant le catalogue à cent, et un réservoir de vingt-quatre identités et vingt-quatre boss — deux ans avant qu'un nom revienne, là où douze faisaient de la deuxième année une rotation de la première.
+
+*Rien de tout cela ne débloque quoi que ce soit : c'est du confort au sens propre. Ce qui reste conditionnant est ailleurs — **J1 attend toujours ses sept jours d'usage réel**, et cette condition ne se code pas.*
 
 ---
 

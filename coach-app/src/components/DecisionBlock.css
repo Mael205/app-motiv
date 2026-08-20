@@ -28,13 +28,33 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
 .decision__reason {
   font-size: 12px;
   color: var(--muted);
   text-align: right;
+}
+
+/* La ligne de créneau prend sa propre ligne plutôt que de serrer les deux
+   autres : sur téléphone, trois éléments dans une rangée finissent tous
+   tronqués, et une heure tronquée ne sert à rien. */
+.decision__creneau {
+  flex: 1 0 100%;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  text-align: right;
+  color: var(--dim);
+}
+
+/* Une seule des trois est mise en avant, et c'est celle qui appelle un geste
+   maintenant. Le retard reste gris : le §17 interdit le reproche, et un rouge
+   sur l'écran où l'on décide de s'y mettre est le meilleur moyen de ne pas s'y
+   mettre. */
+.decision__creneau--maintenant {
+  color: var(--gold);
 }
 
 .decision__project {
@@ -128,18 +148,39 @@
   }
 }
 
+/* Les quatre créneaux.
+ *
+ * En une seule rangée de `flex: 1`, ils débordaient de 131 pixels sur un écran
+ * de téléphone : « Soirée · 75 » commençait à x = 384,5 sur 390 de large, donc
+ * **hors cadre et inatteignable** — un quart des durées n'existait pas sur
+ * l'appareil principal. La cause n'est pas la largeur accordée mais le refus
+ * de rétrécir : un enfant flex ne descend pas sous la largeur de son contenu
+ * tant que `min-width` vaut `auto`.
+ *
+ * Une grille de deux colonnes plutôt qu'une rangée qui s'entasse : quatre
+ * durées sur deux lignes se comparent d'un regard, quatre durées serrées sur
+ * une ligne ne se lisent plus. La rangée revient dès qu'il y a la place. */
 .decision__alts {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+@media (min-width: 460px) {
+  .decision__alts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .decision__alts .ghost {
-  flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 13.5px;
+  padding: 10px 8px;
+  font-size: var(--t-sm);
+  white-space: nowrap;
 }
 
 .decision__error {
@@ -158,6 +199,22 @@
   padding-left: 0.6rem;
 }
 
+/* La ressource de l'étape, avec son périmètre. Même traitement que la
+   définition de fini, une nuance en dessous : elle sert à ouvrir la bonne page,
+   pas à décider. Le lien reste cliquable au doigt sans grossir la ligne. */
+.decision__resource {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-left: 0.6rem;
+}
+
+.decision__resource a {
+  color: var(--project);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--project) 40%, transparent);
+}
+
 /* --- Écran court : le bloc se resserre, il ne se réduit pas --------------
    Sur un téléphone de 740 px, quatre points de mesure séparent le bouton de la
    barre d'onglets. Ce sont les espacements qui cèdent, jamais la taille du
@@ -173,4 +230,60 @@
     padding-top: 8px;
     padding-bottom: 8px;
   }
+
+}
+
+/* La ressource ne survit qu'au HUD trois colonnes. Les deux lignes ajoutées par
+   le plan du §4.5 coûtent 40 px, et sur téléphone c'est tout le budget : avant
+   elles, le bouton passait la ligne de flottaison avec 43 px de marge sur
+   390×844, après elles avec 3 px — et il tombait carrément dessous sur
+   360×740. Chiffres mesurés par `fold.cjs`, pas estimés.
+
+   Le tri se fait sur ce que la ligne décide. « Fini quand » dit à quel moment
+   s'arrêter : il conditionne la session, il reste. La ressource dit où aller,
+   et elle est à un onglet de là — sur la roadmap, où l'étape courante déplie
+   son plan entier. Le §11.1 tranche dans ce sens : la décision domine, le
+   reste attend son écran. */
+@media (max-width: 1159px) {
+  .decision__resource {
+    display: none;
+  }
+}
+
+/* Le plan de la soirée : ce que le créneau couvre, étape par étape. Il
+   n'apparaît que si la soirée enchaîne — pour une seule étape, le titre
+   au-dessus dit déjà tout, et répéter donnerait deux fois la même ligne. */
+.decision__plan {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.decision__plan li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.decision__plan-minutes {
+  min-width: 34px;
+  padding: 1px 6px;
+  font-size: 11.5px;
+  color: var(--project, var(--muted));
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.decision__plan-label {
+  color: var(--text);
+}
+
+/* L'étape qu'on ne finira pas ce soir. Assombrie, pas barrée : elle est bien
+   au programme, simplement pas en entier. */
+.decision__plan--coupe .decision__plan-label {
+  color: var(--muted);
 }

@@ -33,7 +33,7 @@ export function BuddyReport() {
   if (!panel.destinataire_configure) {
     return (
       <section className="buddy">
-        <h3 className="buddy__titre label">Bilan hebdomadaire</h3>
+        <h3 className="buddy__titre rule-title">Bilan hebdomadaire</h3>
         <p className="buddy__vide">
           Aucun destinataire. C'est le seul point d'appui extérieur du système : sans lui, tout ce
           qui tient le cadre vient de toi, et c'est précisément ce qui n'a jamais marché.
@@ -68,7 +68,7 @@ export function BuddyReport() {
 
   return (
     <section className="buddy">
-      <h3 className="buddy__titre label">Bilan hebdomadaire</h3>
+      <h3 className="buddy__titre rule-title">Bilan hebdomadaire</h3>
 
       {/* Le constat, et la suite. Avant, la phrase disait « change de
           destinataire » sans qu'il existe le moindre endroit pour le faire —

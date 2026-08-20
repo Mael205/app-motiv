@@ -50,8 +50,14 @@
   color: var(--dim);
 }
 
-/* Le trait sous l'onglet actif reprend l'accent de la saison. */
-.tabbar__item--active::after {
+/* Le trait sous l'onglet actif reprend l'accent de la saison.
+ *
+ * Il est porté par **tous** les onglets, et se contracte à zéro quand ils ne
+ * sont pas actifs. En ne le peignant que sur l'actif, le trait disparaissait
+ * ici pour réapparaître là : deux événements sans lien. Étiré depuis le centre,
+ * il se lit comme une seule marque qui se déplace le long de la barre — la
+ * même continuité que l'écran qui arrive du côté d'où l'on vient. */
+.tabbar__item::after {
   content: '';
   position: absolute;
   bottom: calc(4px + env(safe-area-inset-bottom));
@@ -59,10 +65,37 @@
   height: 2px;
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
+  transform: scaleX(0);
+  opacity: 0;
+  transition: transform 260ms var(--ease-enter), opacity 180ms var(--ease-enter);
+}
+
+.tabbar__item--active::after {
+  transform: scaleX(1);
+  opacity: 1;
 }
 
 .tabbar__item {
   position: relative;
+  transition: color var(--dur-state) var(--ease-enter);
+}
+
+/* L'icône s'enfonce sous le doigt. Zéro milliseconde à l'aller : la
+   navigation est le geste le plus répété du produit, et un retour qui se fait
+   attendre s'y remarque immédiatement. */
+.tabbar__item:active {
+  transform: scale(0.94);
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbar__item::after {
+    transition: none;
+  }
+
+  .tabbar__item:active {
+    transform: none;
+  }
 }
 
 

@@ -246,7 +246,13 @@ CATALOGUE: tuple[Action, ...] = (
         params=(_p("nom", "texte", "Nom de la routine."),
                 _p("ancrage", "texte", "reveil, apres_douche, fin_de_session, avant_coucher ou libre.", requis=False),
                 _p("jours", "liste", "Jours où elle est proposée, 0 = lundi. Vide = tous les jours.", requis=False),
-                _p("cible", "entier", "Nombre de fois par semaine qui rend la semaine tenue.", requis=False)),
+                _p("cible", "entier", "Nombre de fois par semaine qui rend la semaine tenue.", requis=False),
+                # La fenêtre horaire ne concerne que le lever et le coucher.
+                # Elle reste vide partout ailleurs : le §11.9 ancre les routines
+                # sur un geste et pas sur une horloge, et une heure posée sur du
+                # skincare ferait rater la routine pour trois minutes de retard.
+                _p("heure", "texte", "Heure limite, « 07:30 ». Seulement pour se lever ou se coucher.", requis=False),
+                _p("sens", "texte", "avant ou apres. Défaut : avant.", requis=False)),
     ),
     Action(
         cle="routine.renommer",
@@ -260,11 +266,13 @@ CATALOGUE: tuple[Action, ...] = (
         cle="routine.regler",
         label="Régler une routine",
         domaine=ENTRETIEN,
-        quoi="Change l'ancrage, les jours ou le seuil hebdomadaire d'une routine.",
+        quoi="Change l'ancrage, les jours, le seuil hebdomadaire ou la fenêtre horaire d'une routine.",
         params=(_p("routine", "texte", "Nom de la routine."),
                 _p("ancrage", "texte", "Nouvel ancrage.", requis=False),
                 _p("jours", "liste", "Nouveaux jours, 0 = lundi.", requis=False),
-                _p("cible", "entier", "Nouveau seuil hebdomadaire.", requis=False)),
+                _p("cible", "entier", "Nouveau seuil hebdomadaire.", requis=False),
+                _p("heure", "texte", "Heure limite, « 07:30 ». « aucune » la retire.", requis=False),
+                _p("sens", "texte", "avant ou apres.", requis=False)),
     ),
     Action(
         cle="routine.fusionner",

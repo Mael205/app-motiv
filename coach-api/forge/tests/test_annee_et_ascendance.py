@@ -227,10 +227,25 @@ class TestLaForge:
 # --------------------------------------------------------------------------
 
 class TestLeContenu:
-    def test_douze_identites_douze_boss_douze_modificateurs(self):
-        assert len(season_rules.SEASON_POOL) == regles.SAISONS_PAR_AN
-        assert len(season_rules.BOSSES) == regles.SAISONS_PAR_AN
+    def test_le_reservoir_depasse_l_annee(self):
+        """J6 : deux ans avant qu'un nom revienne.
+
+        Douze identités tenaient exactement une année, donc la deuxième
+        rejouait la première dans un autre ordre. Le réservoir doit être un
+        multiple entier de l'année, sinon une année finirait à cheval sur deux
+        tours et une identité sortirait deux fois dans les douze.
+        """
+        assert len(season_rules.SEASON_POOL) == 2 * regles.SAISONS_PAR_AN
+        assert len(season_rules.BOSSES) == 2 * regles.SAISONS_PAR_AN
         assert len(season_rules.MODIFIERS) >= regles.SAISONS_PAR_AN
+
+    def test_le_reservoir_se_partage_en_deux_voies_egales(self):
+        """La trame du §12.2 : douze saisons par voie, et aucune en commun."""
+        cimes = season_rules.TRAME[season_rules.VOIE_CIMES]
+        braises = season_rules.TRAME[season_rules.VOIE_BRAISES]
+
+        assert len(cimes) == len(braises) == regles.SAISONS_PAR_AN
+        assert {i["key"] for i in cimes}.isdisjoint({i["key"] for i in braises})
 
     def test_chaque_boss_a_ses_trois_phases(self):
         from forge.rules import bossphases

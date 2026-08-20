@@ -1,0 +1,59 @@
+/* Le mode extra (§12.4).
+ *
+ * Il prend la place du bandeau de saison, et il doit se lire comme une
+ * **victoire en cours**, pas comme un vide. D'où le liseré à l'accent de la
+ * saison qui vient : la couleur annonce ce qui arrive plutôt que de constater
+ * ce qui est fini.
+ *
+ * Rien n'y clignote et rien n'y est cliquable : ce n'est pas une action, c'est
+ * un état. Le §11.1 veut que l'accueil ne porte qu'une décision, et celle-ci
+ * est en dessous, inchangée.
+ */
+
+.extra {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border-left: 2px solid var(--extra, var(--gold));
+  border-radius: 2px;
+}
+
+.extra__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.extra__compte {
+  color: var(--extra, var(--gold));
+  font-size: 18px;
+}
+
+.extra__compte .label {
+  color: var(--muted);
+}
+
+.extra__texte {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.extra__nom {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.extra__mise {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.extra__mise .num {
+  color: var(--text);
+}

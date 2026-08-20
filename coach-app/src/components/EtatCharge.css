@@ -1,0 +1,33 @@
+/* L'attente et la panne.
+ *
+ * Volontairement sobres, et de la même famille que le reste : une panne n'est
+ * pas un événement du jeu, elle n'a ni couleur d'accent ni relief. Ce qui doit
+ * se voir, c'est la phrase et la sortie. */
+
+.etat-charge {
+  padding: var(--s5) 0;
+  color: var(--muted);
+  font-size: var(--t-md);
+}
+
+.etat-erreur {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+  padding: var(--s4);
+  background: rgba(0, 0, 0, 0.22);
+  /* Le liseré porte le rose du système, jamais le rouge vif d'une alerte
+     système : le §14 interdit le mot de jugement, et une bande écarlate en est
+     un. Le serveur qui ne répond pas n'est pas une faute de l'utilisateur. */
+  border-left: 2px solid color-mix(in srgb, var(--rose) 60%, transparent);
+  clip-path: var(--clip-sm);
+}
+
+.etat-erreur__texte {
+  margin: 0;
+  font-size: var(--t-md);
+  line-height: 1.5;
+  color: var(--text);
+}

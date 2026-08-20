@@ -159,7 +159,7 @@
   height: 2px;
   top: auto;
   bottom: 0;
-  background: var(--or, #E8A33D);
+  background: var(--or);
 }
 
 .gauge__ghost-line {

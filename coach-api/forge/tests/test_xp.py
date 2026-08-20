@@ -4,6 +4,9 @@ import pytest
 
 from forge.rules.xp import (
     MOMENTUM_CAP,
+    PONCTUALITE_BONUS,
+    TOLERANCE_MINUTES,
+    a_l_heure,
     degressivity_for,
     level_for,
     momentum,
@@ -27,24 +30,66 @@ def xp(**kwargs) -> int:
 
 class TestCalculDeBase:
     def test_session_plancher_du_soir(self):
-        # 25 min + 20 (première) + 10 (avant 20h), aucun multiplicateur.
-        assert xp() == 55
-
-    def test_bonus_avant_vingt_heures_perdu_apres(self):
-        assert xp(started_hour=21) == 45
+        # 25 min + 20 (première session). Aucun créneau déclaré : rien à tenir,
+        # donc rien à primer.
+        assert xp() == 45
 
     def test_seconde_session_du_jour_sans_bonus_de_premiere(self):
-        assert xp(rank_in_day=2, is_first_of_day=False) == 35
+        assert xp(rank_in_day=2, is_first_of_day=False) == 25
 
     def test_multiplicateur_de_streak_plafonne_a_une_fois_et_demie(self):
-        assert xp(streak=10) == round(55 * 1.5)
+        assert xp(streak=10) == round(45 * 1.5)
         assert xp(streak=40) == xp(streak=10)
+
+
+class TestPrimeDePonctualite:
+    """Le rendez-vous tenu, et non l'heure de l'horloge (§11.2, 20 août 2026).
+
+    La règle qu'elle remplace payait « avant 20h » : elle récompensait le matin,
+    ignorait un créneau déclaré à 21h, et se contredisait avec une app qui
+    annonce une heure précise. Celle-ci paie la parole tenue, à n'importe quelle
+    heure.
+    """
+
+    def test_dans_la_demi_heure_du_creneau(self):
+        assert xp(ecart_au_creneau=0) == 45 + PONCTUALITE_BONUS
+        assert xp(ecart_au_creneau=TOLERANCE_MINUTES) == 45 + PONCTUALITE_BONUS
+
+    def test_hors_de_la_demi_heure(self):
+        assert xp(ecart_au_creneau=TOLERANCE_MINUTES + 1) == 45
+
+    def test_l_heure_du_creneau_n_a_aucune_importance(self):
+        """Un créneau de 22h tenu vaut exactement un créneau de 18h tenu."""
+        assert xp(started_hour=22, ecart_au_creneau=5) == xp(started_hour=18, ecart_au_creneau=5)
+
+    def test_sans_creneau_il_n_y_a_rien_a_tenir(self):
+        """Pas une punition : l'absence de promesse. Le §17 interdit le malus."""
+        assert xp(ecart_au_creneau=None) == xp(ecart_au_creneau=999)
+        assert not a_l_heure(None)
+
+    def test_arriver_tres_en_avance_n_est_pas_etre_a_l_heure(self):
+        """Sinon la prime redeviendrait « avant l'heure », la règle retirée."""
+        assert not a_l_heure(-120)
+        assert a_l_heure(-15)
+
+    def test_la_relique_ne_touche_que_sa_ligne(self):
+        detail = session_xp(
+            minutes=25,
+            rank_in_day=1,
+            is_first_of_day=True,
+            started_hour=19,
+            streak=0,
+            ecart_au_creneau=0,
+            punctuality_bonus_ratio=0.5,
+        )
+        assert detail.punctual == round(PONCTUALITE_BONUS * 1.5)
+        assert detail.base == 25 and detail.first_of_day == 20
 
 
 class TestModeDegrade:
     def test_le_degrade_garde_son_bonus_de_premiere_session(self):
         """Décision assumée : le point dur est le démarrage, pas la durée."""
-        assert xp(minutes=10) == 40
+        assert xp(minutes=10) == 30
 
     def test_le_degrade_rapporte_moins_qu_une_session_pleine(self):
         assert xp(minutes=10) < xp(minutes=25) < xp(minutes=50)
@@ -58,7 +103,7 @@ class TestPlafondDeRegime:
 
     def test_la_quatrieme_compte_a_moitie(self):
         assert degressivity_for(4) == 0.5
-        assert xp(rank_in_day=4, is_first_of_day=False) == round(35 * 0.5)
+        assert xp(rank_in_day=4, is_first_of_day=False) == round(25 * 0.5)
 
     def test_la_cinquieme_ne_rapporte_plus_rien(self):
         assert xp(rank_in_day=5, is_first_of_day=False) == 0

@@ -1,0 +1,203 @@
+/* Les choses à faire une fois.
+ *
+ * Le traitement visuel est délibérément **plus pauvre** que celui des projets
+ * et des routines : pas de couleur de piste, pas de jauge, pas de compteur
+ * cumulé, aucune récompense à l'œil. Une course cochée ne doit jamais avoir
+ * l'air d'une session faite — c'est la seule chose que cette feuille doit
+ * garantir, et elle la garantit par la sobriété plutôt que par un
+ * avertissement.
+ *
+ * La refonte du 20 août 2026 ne touche pas à ce principe : elle rend la
+ * **saisie** plus facile et la liste plus lisible, sans rendre la coche plus
+ * agréable. Une case qui se remplit d'un aplat sourd, jamais d'une couleur
+ * d'accent ; des groupes en petites capitales grises ; aucune animation de
+ * validation. Ce qui devient plus rapide, c'est d'écrire ; ce qui ne doit pas
+ * devenir plus satisfaisant, c'est de cocher.
+ */
+
+.ponctuels__saisie {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* La rangée porte `.field-row` (theme.css) : le champ et « Noter » y font la
+   même hauteur. Le champ lui-même n'avait aucun style — c'était le seul
+   endroit de l'application où le navigateur décidait de l'apparence, et il
+   décidait blanc au milieu d'une interface sombre. */
+.ponctuels__noter:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ponctuels__quand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Les raccourcis d'échéance : des mots, pas des boutons pleins. Ils ne doivent
+   pas se disputer l'attention avec « Noter », qui reste l'action. */
+.ponctuels__chip {
+  padding: 4px 9px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.ponctuels__chip:hover,
+.ponctuels__chip:focus-visible {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.ponctuels__chip--actif {
+  border-color: var(--line-strong);
+  background: var(--panel-high);
+  color: var(--text);
+}
+
+.ponctuels__lien {
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  color: var(--dim);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ponctuels__lien:hover,
+.ponctuels__lien:focus-visible {
+  color: var(--muted);
+}
+
+/* Le champ de date se range dans la rangée de raccourcis : il ne prend que sa
+   largeur, contrairement au champ pleine ligne que theme.css donne par défaut. */
+.ponctuels__date {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 0;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+
+.ponctuels__groupe + .ponctuels__groupe {
+  margin-top: 12px;
+}
+
+.ponctuels__titre {
+  margin: 0 0 4px;
+  color: var(--dim);
+  font-size: 10.5px;
+}
+
+.ponctuels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.ponctuel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Quarante-quatre pixels : la taille d'une chose qu'on coche au doigt, d'une
+   main, debout. La ligne entière fait cette hauteur — c'est la cible, pas le
+   glyphe. */
+.ponctuel__check {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ponctuel__case {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+}
+
+.ponctuel__check:hover .ponctuel__case,
+.ponctuel__check:focus-visible .ponctuel__case {
+  border-color: var(--muted);
+}
+
+.ponctuel__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
+}
+
+/* Faite : barrée, estompée, et la case remplie d'un gris. Pas de vert, pas de
+   coche animée, pas de son. Le retour existe, il ne se fête pas. */
+.ponctuel--done .ponctuel__label {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.ponctuel--done .ponctuel__case {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border-color: var(--muted);
+}
+
+.ponctuel__due {
+  flex: 0 0 auto;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* En retard : dit, pas reproché. Le §14 interdit le mot de jugement dans un
+   texte affiché, et une ligne rouge vif en est un. */
+.ponctuel--late .ponctuel__due {
+  color: color-mix(in srgb, var(--rose) 65%, var(--muted));
+}
+
+.ponctuel__remove {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  color: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 12px 6px;
+}
+
+/* La croix n'apparaît qu'au survol sur pointeur fin ; au doigt elle reste
+   visible, faute de survol. Une action destructive cachée derrière un geste
+   qui n'existe pas sur téléphone est une action qui n'existe pas. */
+.ponctuel:hover .ponctuel__remove,
+.ponctuel__remove:focus-visible {
+  color: var(--muted);
+}
+
+@media (hover: none) {
+  .ponctuel__remove {
+    color: var(--muted);
+    opacity: 0.5;
+  }
+}

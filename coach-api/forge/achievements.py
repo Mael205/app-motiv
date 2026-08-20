@@ -60,6 +60,10 @@ def faits(user) -> dict[str, int]:
         "etapes_dans_une_saison": _etapes_dans_une_saison(user),
         "projets_termines": _projets_termines(user),
         "sessions_avant_20h": _sessions_avant_20h(user),
+        # Relu depuis le détail gravé à la clôture, jamais recalculé : le
+        # créneau a pu être déplacé depuis, et une séance tenue à l'heure dite
+        # le reste même si l'heure dite a changé le mois suivant.
+        "sessions_a_l_heure": faites.filter(xp_breakdown__punctual__gt=0).count(),
         "sessions_longues": faites.filter(actual_minutes__gte=50).count(),
         "semaines_sans_scroll": _semaines_sans_scroll(user),
         "branches_dans_une_semaine": _branches_dans_une_semaine(user),

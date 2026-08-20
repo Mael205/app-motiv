@@ -31,7 +31,8 @@ MAX_EQUIPEES = 3
 # pas au fil de l'eau, sinon la promesse « modéré » se dissout en une saison.
 BOUCLIER_SUPP = "bouclier_supp"
 JOUR_OFF_SUPP = "jour_off_supp"
-XP_MATINAL = "xp_matinal"
+PRIME_PONCTUALITE = "prime_ponctualite"
+PRIME_DUREE = "prime_duree"
 ECLATS_BONUS = "eclats_bonus"
 DEGATS_BOSS = "degats_boss"
 
@@ -66,14 +67,17 @@ CATALOGUE: tuple[Relic, ...] = (
         achievement="retour_du_neant",
         emblem="⟲",
     ),
+    # Elle visait le forfait « avant 20h », retiré du barème le 20 août 2026 au
+    # profit de la prime de ponctualité. Une relique qui pointe une règle
+    # disparue est un effet mort : celle-ci suit la règle plutôt que l'heure.
     Relic(
-        key="lampe_de_l_aube",
-        label="Lampe de l'aube",
-        lore="Ce qui est fait avant vingt heures n'est pris à personne.",
-        effect=XP_MATINAL,
+        key="montre_de_gousset",
+        label="Montre de gousset",
+        lore="Ce qui est promis à une heure se tient à cette heure.",
+        effect=PRIME_PONCTUALITE,
         value=0.05,
-        achievement="leve_tot",
-        emblem="☼",
+        achievement="ponctuel",
+        emblem="⧗",
     ),
     Relic(
         key="bourse_du_veilleur",
@@ -128,12 +132,15 @@ CATALOGUE: tuple[Relic, ...] = (
         achievement="fidele",
         emblem="◫",
     ),
+    # Elle visait elle aussi le forfait matinal, ce qui n'avait aucun rapport
+    # avec ce qu'elle raconte. Depuis que les minutes tardives valent davantage
+    # (§4.1), elle a une cible qui lui ressemble : la prime de durée.
     Relic(
         key="souffle_long",
         label="Souffle long",
         lore="Cinquante sessions de cinquante minutes. Le corps finit par savoir "
              "s'asseoir.",
-        effect=XP_MATINAL,
+        effect=PRIME_DUREE,
         value=0.05,
         achievement="longue_haleine",
         emblem="≋",
@@ -184,7 +191,8 @@ class Bonuses:
 
     extra_shields: int = 0
     extra_days_off: int = 0
-    early_xp_bonus: float = 0.0
+    punctuality_bonus: float = 0.0
+    duration_bonus: float = 0.0
     shard_bonus: float = 0.0
     boss_damage_bonus: float = 0.0
 
@@ -193,7 +201,8 @@ class Bonuses:
         return bool(
             self.extra_shields
             or self.extra_days_off
-            or self.early_xp_bonus
+            or self.punctuality_bonus
+            or self.duration_bonus
             or self.shard_bonus
             or self.boss_damage_bonus
         )
@@ -216,7 +225,8 @@ def bonuses(equipped_keys) -> Bonuses:
     return Bonuses(
         extra_shields=sum(int(r.value) for r in retenues if r.effect == BOUCLIER_SUPP),
         extra_days_off=sum(int(r.value) for r in retenues if r.effect == JOUR_OFF_SUPP),
-        early_xp_bonus=sum(r.value for r in retenues if r.effect == XP_MATINAL),
+        punctuality_bonus=sum(r.value for r in retenues if r.effect == PRIME_PONCTUALITE),
+        duration_bonus=sum(r.value for r in retenues if r.effect == PRIME_DUREE),
         shard_bonus=sum(r.value for r in retenues if r.effect == ECLATS_BONUS),
         boss_damage_bonus=sum(r.value for r in retenues if r.effect == DEGATS_BOSS),
     )

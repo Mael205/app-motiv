@@ -287,9 +287,19 @@ function Opening({ offer, onOpened }: { offer: SeasonOffer; onOpened: () => void
     <div className="open" style={{ ['--accent' as string]: offer.accent }}>
       <div className="open__hero">
         <Rays count={14} color={offer.accent} />
-        <SeasonSigil seasonKey={offer.name} size={64} />
+        <SeasonSigil seasonKey={offer.key} size={64} />
         <p className="label open__index">Saison {offer.index}</p>
         <h2 className="open__name display">{offer.name}</h2>
+        {/* D'où vient cette saison, avant même son nom de code. C'est la seule
+            ligne qui relie deux saisons entre elles : sans elle, la voie basse
+            ressemble à un tirage malchanceux plutôt qu'à la suite de ce qui
+            vient de se passer. */}
+        {offer.acte && (
+          <p className={`open__voie open__voie--${offer.acte.voie}`}>
+            {offer.acte.voie_nom} · {offer.acte.nom}
+            <span className="open__voie-raison">{offer.acte.voie_ligne}</span>
+          </p>
+        )}
         <p className="open__baseline">« {offer.baseline} »</p>
       </div>
 

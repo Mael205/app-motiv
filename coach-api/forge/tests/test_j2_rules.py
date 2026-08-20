@@ -133,7 +133,7 @@ class TestReliques:
         cumul = relics.bonuses([r.key for r in relics.CATALOGUE])
 
         assert cumul.extra_shields <= 1
-        assert cumul.early_xp_bonus <= 0.05
+        assert cumul.punctuality_bonus <= 0.05
 
     def test_aucune_relique_ne_touche_au_streak_ni_aux_gardes(self):
         """Une relique qui rendrait une journée tenue sans travail viderait le cœur."""
@@ -151,8 +151,8 @@ class TestReliques:
         assert str(relics.MAX_EQUIPEES) in motif
 
     def test_les_bonus_s_additionnent_jamais_ne_se_multiplient(self):
-        seule = relics.bonuses(["lampe_de_l_aube"])
-        assert seule.early_xp_bonus == pytest.approx(0.05)
+        seule = relics.bonuses(["montre_de_gousset"])
+        assert seule.punctuality_bonus == pytest.approx(0.05)
 
 
 class TestMomentum:

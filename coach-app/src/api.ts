@@ -1,5 +1,8 @@
 import type {
   AnneeAccomplie,
+  Proposal,
+  BilanDuJour,
+  CapacitePanel,
   Briefing,
   DebriefSuggestion,
   Derive,
@@ -14,6 +17,7 @@ import type {
   HomeState,
   JournalEntry,
   LootCardDrawn,
+  PonctuelEntry,
   ProjectDetail,
   ProjectHold,
   ProjectImportResult,
@@ -21,7 +25,9 @@ import type {
   RapportDeFuite,
   Revue,
   RoutineCheckResult,
+  SessionExtended,
   SessionResult,
+  StatsLongues,
   StepCompleted,
   TimezoneCheck,
   TraceLongue,
@@ -37,14 +43,28 @@ export function storedToken(): string | null {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = storedToken()
-  const response = await fetch(`/api${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  })
+
+  /* Une panne de réseau ne lève pas une `ApiError` mais un `TypeError` du
+   * navigateur, dont le message est « Failed to fetch » — en anglais, et sans
+   * rien dire de ce qui s'est passé. Il remontait tel quel jusqu'à l'écran :
+   * c'était la seule phrase de l'application que personne n'avait écrite.
+   *
+   * Elle est traduite ici plutôt que dans chaque écran, parce qu'il n'y a
+   * qu'un seul endroit où elle naît. Le statut 0 la distingue d'une réponse du
+   * serveur : le serveur n'a pas répondu, il n'a pas été joint. */
+  let response: Response
+  try {
+    response = await fetch(`/api${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    })
+  } catch {
+    throw new ApiError('Le serveur ne répond pas. Vérifie la connexion.', 0)
+  }
 
   if (response.status === 401) {
     const refreshed = await refresh()
@@ -181,6 +201,17 @@ export const api = {
   /** Les compteurs qui ne redescendent jamais (§17 de la liste du 17 août). */
   trace: () => request<TraceLongue>('/trace'),
 
+  /** Les séries longues (J6). Elles descendent : voir `StatsLongues`. */
+  stats: () => request<StatsLongues>('/stats'),
+
+  /** Tout ce qui a été fait, en JSON. Sans aucun secret — voir `forge/export`. */
+  exportTout: () => request<Record<string, unknown>>('/export'),
+
+  /** Le bilan de la journée écoulée (§13.1). Il ne demande rien et ne rend
+   *  compte de rien : c'est le seul écran du produit qu'on regarde sans avoir
+   *  à y faire quoi que ce soit. */
+  daily: () => request<BilanDuJour>('/daily'),
+
   equipCard: (key: string) =>
     request<{ equipped: Record<string, string> }>(`/loot/${key}/equip`, { method: 'POST' }),
 
@@ -254,16 +285,58 @@ export const api = {
 
   fridge: () => request<{ id: number; text: string; created_at: string }[]>('/fridge'),
 
+  /** Les choses à faire une fois. Volontairement à part du frigo : le frigo
+   *  garde des *idées de projet*, celles-ci sont des courses. */
+  ponctuels: () => request<PonctuelEntry[]>('/ponctuels'),
+
+  addPonctuel: (label: string, dueOn: string | null) =>
+    request<PonctuelEntry>('/ponctuels', {
+      method: 'POST',
+      body: JSON.stringify({ label, due_on: dueOn }),
+    }),
+
+  togglePonctuel: (id: number) => request<PonctuelEntry>(`/ponctuels/${id}`, { method: 'POST' }),
+
+  removePonctuel: (id: number) => request<void>(`/ponctuels/${id}`, { method: 'DELETE' }),
+
+  /** Ce que l'app propose pour un créneau donné. Une durée ne change pas que
+   *  le chronomètre : elle décide de l'étape qui tient dans ce temps-là. */
+  proposalFor: (minutes: number) => request<Proposal>(`/proposal?minutes=${minutes}`),
+
+  /** Referme le bloc courant du parcours et écrit les étapes du suivant.
+   *  Le geste reste manuel : ouvrir un bloc engage plusieurs semaines. */
+  openNextBloc: (projectId: number) =>
+    request<{ bloc: { id: number; name: string }; created: number; detail: string }>(
+      `/projects/${projectId}/next-bloc`,
+      { method: 'POST' },
+    ),
+
   startSession: (projectId: number, minutes: number) =>
     request<RunningSessionResponse>('/sessions/start', {
       method: 'POST',
       body: JSON.stringify({ project_id: projectId, minutes }),
     }),
 
-  endSession: (id: number, note: string, nextAction: string) =>
+  endSession: (id: number, note: string, nextAction: string, difficulty?: number | null) =>
     request<SessionResult>(`/sessions/${id}/end`, {
       method: 'POST',
-      body: JSON.stringify({ note, next_action: nextAction }),
+      body: JSON.stringify({ note, next_action: nextAction, difficulty }),
+    }),
+
+  /** Le troisième axe : ce qui a été constaté, pas le temps passé. */
+  preuves: () => request<CapacitePanel>('/preuves'),
+
+  declarerPreuve: (projectId: number, critere: string, blocId?: number) =>
+    request<{ id: number; critere: string; shards: number; panel: CapacitePanel }>('/preuves', {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, critere, bloc_id: blocId }),
+    }),
+
+  /** Prolonge la séance en cours. L'objectif monte, le minuteur repart (§4.1). */
+  extendSession: (id: number, minutes = 15) =>
+    request<SessionExtended>(`/sessions/${id}/extend`, {
+      method: 'POST',
+      body: JSON.stringify({ minutes }),
     }),
 
   abandonSession: (id: number) =>
@@ -298,6 +371,14 @@ export const api = {
 
   previewProject: (markdown: string) =>
     request<ProjectPreview>('/projects/preview', {
+      method: 'POST',
+      body: JSON.stringify({ markdown }),
+    }),
+
+  // La relecture par le coach : le markdown revient au format attendu, et
+  // l'aperçu qui l'accompagne évite un aller-retour de plus avant de créer.
+  rereadProject: (markdown: string) =>
+    request<{ markdown: string; preview: ProjectPreview }>('/projects/reread', {
       method: 'POST',
       body: JSON.stringify({ markdown }),
     }),

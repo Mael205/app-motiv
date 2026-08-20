@@ -7,7 +7,7 @@
  */
 const { chromium } = require('playwright')
 
-const ORIGIN = process.env.ORIGIN || 'http://localhost:5180'
+const ORIGIN = process.env.ORIGIN || 'http://localhost:5173'
 const OUT = process.env.SHOTS
 
 ;(async () => {

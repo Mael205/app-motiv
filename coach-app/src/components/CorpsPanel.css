@@ -5,13 +5,13 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.75rem 0.9rem;
-  border-radius: 10px;
+  clip-path: var(--clip-sm);
   border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   background: color-mix(in srgb, currentColor 3%, transparent);
 }
 
 .corps--tenue {
-  border-color: color-mix(in srgb, var(--vert, #7ED08C) 35%, transparent);
+  border-color: color-mix(in srgb, var(--vert) 35%, transparent);
 }
 
 .corps__head {
@@ -41,8 +41,8 @@
 }
 
 .pastille--pleine {
-  background: var(--vert, #7ED08C);
-  border-color: var(--vert, #7ED08C);
+  background: var(--vert);
+  border-color: var(--vert);
 }
 
 .corps__extra {

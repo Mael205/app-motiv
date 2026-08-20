@@ -115,12 +115,40 @@ class TestParcoursDeSession:
         )
         assert services.home_state(user)["validated_today"] is True
 
-    def test_les_minutes_ne_depassent_jamais_le_prevu(self, user, project):
-        """Impossible de déclarer après coup une session de 3h (SPEC §6)."""
+    def test_le_depassement_compte_desormais(self, user, project):
+        """Tranché le 19 août 2026 : une séance compte ce qu'elle a duré.
+
+        Avant, les minutes étaient plafonnées à l'objectif annoncé : travailler
+        quarante minutes sur un minuteur de vingt-cinq en perdait quinze, en
+        silence. C'était le seul endroit du produit où du travail réel
+        disparaissait.
+        """
         session = services.start_session(user, project, planned_minutes=25)
-        services.end_session(session, now=session.started_at + timedelta(hours=3), next_action="x")
+        result = services.end_session(
+            session, now=session.started_at + timedelta(minutes=40), next_action="x"
+        )
         session.refresh_from_db()
-        assert session.actual_minutes == 25
+        assert session.actual_minutes == 40
+        assert result["objectif"] == 25
+        assert result["objectif_tenu"] is True
+        assert result["depassement"] == 15
+
+    def test_l_objectif_non_tenu_est_dit_sans_etre_puni(self, user, project):
+        """Clôturer avant le terme reste possible, et le dit (SPEC §17)."""
+        session = services.start_session(user, project, planned_minutes=50)
+        result = services.end_session(
+            session, now=session.started_at + timedelta(minutes=20), next_action="x"
+        )
+        assert result["minutes"] == 20
+        assert result["objectif_tenu"] is False
+        assert result["xp"] > 0                      # dit, jamais sanctionné
+
+    def test_une_seance_oubliee_toute_la_nuit_est_plafonnee(self, user, project):
+        """Le garde-fou du §8.7 pour le cas que la sonde ne couvre pas."""
+        session = services.start_session(user, project, planned_minutes=25)
+        services.end_session(session, now=session.started_at + timedelta(hours=9), next_action="x")
+        session.refresh_from_db()
+        assert session.actual_minutes == services.MAX_SESSION_MINUTES
 
     def test_une_session_sous_le_plancher_ne_rapporte_rien(self, user, project):
         """Démarrer puis arrêter aussitôt ne doit donner aucune XP (SPEC §17)."""
@@ -139,14 +167,20 @@ class TestParcoursDeSession:
         assert state["progression"]["total_xp"] == 0
 
     def test_le_plafond_de_regime_s_applique_sur_la_journee(self, user, project):
-        """La 5ᵉ session du jour ne rapporte plus d'XP mais reste enregistrée."""
+        """La 5ᵉ session du jour ne rapporte plus d'XP mais reste enregistrée.
+
+        Comparé sur l'XP **avant le coup critique** : le critique est un tirage
+        à 10 %, il double l'XP, et une 4ᵉ session critique rapportait autant
+        qu'une 3ᵉ normale — ce test tombait donc une fois sur dix, au hasard.
+        Le plafond porte sur le barème, pas sur les dés (§12.7).
+        """
         xps = []
         for _ in range(5):
             session = services.start_session(user, project, planned_minutes=25)
             result = services.end_session(
                 session, now=session.started_at + timedelta(minutes=25), next_action="suite"
             )
-            xps.append(result["xp"])
+            xps.append(result["breakdown"].get("base_total", 0))
 
         assert xps[0] > 0 and xps[1] > 0 and xps[2] > 0
         assert xps[3] < xps[2], "la 4ᵉ est réduite"

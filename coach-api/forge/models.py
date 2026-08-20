@@ -134,6 +134,14 @@ class Project(models.Model):
     )
     is_coach_project = models.BooleanField(default=False)
     weekly_commitment = models.PositiveSmallIntegerField(default=3)
+    # Ce que le projet vise, et ce qui le borne. Écrits une fois à la création,
+    # relus à chaque fois qu'on se demande pourquoi on fait ça. L'objectif est
+    # la condition de fin — « compromettre une machine Easy en moins de 3 h » —,
+    # pas un thème ; le cadre porte ce qui interdit ou contraint : légalité,
+    # budget, matériel. Le second existe parce qu'un parcours qui ignore sa
+    # contrainte se découvre au pire moment, à mi-chemin.
+    objective = models.TextField(blank=True, help_text="La condition de fin du projet (SPEC §4.5)")
+    frame = models.TextField(blank=True, help_text="Ce qui borne le projet : légalité, budget, matériel")
     created_at = models.DateTimeField(default=timezone.now)
     archived_at = models.DateTimeField(null=True, blank=True)
 
@@ -145,9 +153,25 @@ class Project(models.Model):
 
     @property
     def current_step(self) -> "RoadmapStep | None":
+        """L'étape sur laquelle on peut agir ce soir : celle en cours, sinon la suivante.
+
+        L'ordre est explicite parce que l'implicite était faux. ``-state`` triait
+        des chaînes, et en ordre décroissant « todo » passe devant « doing » :
+        une étape déjà commencée était donc systématiquement doublée par la
+        première étape non touchée. Le défaut ne se voyait pas — les deux
+        libellés sont plausibles le soir venu — mais il faisait perdre le
+        travail entamé une fois sur deux, et il n'était couvert par aucun test.
+        """
         return (
             self.steps.filter(state__in=[RoadmapStep.DOING, RoadmapStep.TODO])
-            .order_by("-state", "order")
+            .order_by(
+                models.Case(
+                    models.When(state=RoadmapStep.DOING, then=0),
+                    default=1,
+                    output_field=models.IntegerField(),
+                ),
+                "order",
+            )
             .first()
         )
 
@@ -164,6 +188,12 @@ class RoadmapStep(models.Model):
     STATES = [(TODO, "À faire"), (DOING, "En cours"), (DONE, "Fait")]
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="steps")
+    # De quel bloc du parcours cette étape est le détail. Nul pour les projets
+    # sans parcours — une roadmap collée à la main n'en a pas — et c'est un cas
+    # normal, pas une donnée manquante.
+    bloc = models.ForeignKey(
+        "ProjectBloc", on_delete=models.SET_NULL, null=True, blank=True, related_name="steps"
+    )
     order = models.PositiveIntegerField(default=0)
     label = models.CharField(max_length=255)
     state = models.CharField(max_length=8, choices=STATES, default=TODO)
@@ -174,6 +204,23 @@ class RoadmapStep(models.Model):
     # le §13.5 veut détecter une étape figée depuis trois semaines, et une date
     # que l'utilisateur devrait déclarer ne serait jamais déclarée.
     doing_since = models.DateTimeField(null=True, blank=True)
+    # Les minutes déjà passées dessus. Sans ce compteur, une étape de cinquante
+    # minutes entamée sur un créneau de vingt-cinq serait à refaire en entier le
+    # lendemain : le travail de la veille existait dans l'XP mais pas dans la
+    # roadmap, et personne n'accepte deux fois de suite de n'en faire que la
+    # moitié. C'est le compteur qui permet de couper une étape en deux soirées.
+    minutes_done = models.PositiveIntegerField(default=0)
+
+    # Ce qui rend l'étape exécutable sans réfléchir (SPEC §4.5). Facultatifs,
+    # parce qu'ils n'ont pas toujours de sens — « appeler le plombier » n'a ni
+    # ressource ni charge. Le critère de sortie est le plus important des cinq :
+    # sans lui, on ne sait pas quand l'étape est finie, et une étape sans fin
+    # connue se traîne jusqu'à ce que le projet meure.
+    resource = models.CharField(max_length=255, blank=True, help_text="Le support précis : cours, dépôt, chapitre")
+    url = models.URLField(blank=True, max_length=500)
+    scope = models.CharField(max_length=255, blank=True, help_text="Ce que l'étape couvre, et ce qu'elle laisse")
+    load = models.CharField(max_length=64, blank=True, help_text="La charge estimée, en toutes lettres : « 6–8 h »")
+    exit_criterion = models.CharField(max_length=500, blank=True, help_text="À quoi on sait que c'est fini")
 
     class Meta:
         ordering = ("order", "id")
@@ -185,6 +232,88 @@ class RoadmapStep(models.Model):
     def needs_split(self) -> bool:
         """Plus de 3 sessions estimées : l'étape est trop grosse (SPEC §4.5)."""
         return self.estimated_sessions > 3
+
+    @property
+    def minutes_estimees(self) -> int:
+        """L'estimation, en minutes. Une session vaut vingt-cinq minutes (§4.1)."""
+        return max(1, self.estimated_sessions) * 25
+
+    @property
+    def minutes_restantes(self) -> int:
+        """Ce qu'il reste à faire d'après l'estimation. Zéro = à clore."""
+        return max(0, self.minutes_estimees - self.minutes_done)
+
+    @property
+    def avancement(self) -> float:
+        """De 0 à 1. Sert à l'écran, jamais à décider qu'une étape est finie —
+        c'est le critère de sortie qui tranche, pas le chronomètre (§6)."""
+        return min(1.0, self.minutes_done / self.minutes_estimees)
+
+
+class ProjectBloc(models.Model):
+    """Un bloc du parcours : l'échelle des mois, pas celle de la soirée (SPEC §4.5).
+
+    Le parcours existe parce qu'une roadmap d'étapes de 25 minutes ne peut pas
+    porter un objectif à deux ans sans faire trois cents lignes. Le bloc dit où
+    l'on va ; les étapes disent quoi faire ce soir.
+
+    Il n'a **pas d'état**, et c'est délibéré : rien dans le produit ne coche un
+    bloc, donc un champ « terminé » serait un champ que personne n'écrit — pire
+    qu'absent, parce qu'il se lirait comme une information. L'avancement se lit
+    sur les étapes, qui sont les seules choses qu'on termine.
+    """
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="parcours")
+    order = models.PositiveIntegerField(default=0)
+    name = models.CharField(max_length=255)
+    outcome = models.CharField(max_length=500, blank=True, help_text="Ce qu'on sait faire à la sortie du bloc")
+    resource = models.CharField(max_length=255, blank=True)
+    url = models.URLField(blank=True, max_length=500)
+    load = models.CharField(max_length=64, blank=True)
+    # Le prix, écrit même quand il est nul. Une ressource payante découverte à
+    # mi-parcours arrête le parcours ; « gratuit » écrit noir sur blanc est une
+    # information, pas du remplissage.
+    cost = models.CharField(max_length=64, blank=True)
+    optional = models.BooleanField(default=False)
+    exit_criterion = models.CharField(max_length=500, blank=True)
+    # Quand le bloc a été refermé et le suivant ouvert. Sans cette date, rien ne
+    # savait où l'on en était du parcours : l'entretien n'explose en étapes que
+    # le bloc courant, la roadmap se vidait au bout de quelques semaines, et
+    # treize blocs restaient à l'état de titres que personne ne pouvait
+    # transformer en soirées.
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def done(self) -> bool:
+        return self.done_at is not None
+
+
+class DiscardedResource(models.Model):
+    """Une ressource écartée, et la raison (SPEC §4.5).
+
+    Sur un sujet documenté il existe dix ressources concurrentes. Sans la raison
+    écrite, on refait l'arbitrage à chaque fois qu'on en croise une — sans les
+    éléments qui avaient servi à trancher. C'est la seule chose du document qui
+    ne sert à rien tant qu'on ne la relit pas, et qui fait gagner une soirée le
+    jour où on la relit.
+    """
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="ecartees")
+    order = models.PositiveIntegerField(default=0)
+    name = models.CharField(max_length=255)
+    reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class TimeSlot(models.Model):
@@ -237,6 +366,18 @@ class Season(models.Model):
     # qu'on recalculerait à chaque appel finirait par le prélever deux fois.
     stake_forfeited = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=16, choices=STATUSES, default=RUNNING)
+    # Le jour où elle a réellement été close, qui n'est pas ``ends_on`` quand le
+    # boss est tombé en avance (§12.4). Sans lui, impossible de savoir quels
+    # jours appartiennent au **mode extra** — ceux d'après la victoire, dont le
+    # travail est mis de côté pour la saison suivante.
+    closed_on = models.DateField(null=True, blank=True)
+    # La trame du §12.2 : quelle voie cette saison a suivie, et si elle a été
+    # tenue. Les deux sont **stockées** et non recalculées, contrairement au
+    # reste du produit : la voie de la saison suivante descend de ce résultat,
+    # et un barème qui changerait un jour réécrirait rétroactivement l'histoire
+    # qu'on a traversée. Ce qui a été raconté a été raconté.
+    voie = models.CharField(max_length=16, blank=True)
+    reussie = models.BooleanField(null=True, blank=True)
     title_awarded = models.CharField(max_length=120, blank=True)
     # Contre quoi on court cette saison (§12.7). Choisi à l'ouverture, figé
     # ensuite : pouvoir changer d'adversaire en cours de route reviendrait à
@@ -368,15 +509,36 @@ class Session(models.Model):
     coach_day = models.DateField(db_index=True, help_text="Journée du coach, bascule à 4h")
     started_at = models.DateTimeField()
     ended_at = models.DateTimeField(null=True, blank=True)
+    # L'objectif de la séance, annoncé au démarrage. Il peut monter en cours de
+    # route — c'est le « +15 min » du §4.1 — mais jamais descendre : renégocier
+    # à la baisse une promesse qu'on est en train de tenir la viderait de son
+    # sens, et le bouton « Terminer maintenant » existe déjà pour ça.
     planned_minutes = models.PositiveSmallIntegerField(default=25)
+    extensions = models.PositiveSmallIntegerField(
+        default=0, help_text="Combien de fois la séance a été prolongée"
+    )
     actual_minutes = models.PositiveSmallIntegerField(default=0)
     mode = models.CharField(max_length=16, choices=MODES, default=NORMAL)
     status = models.CharField(max_length=16, choices=STATUSES, default=RUNNING)
     rank_in_day = models.PositiveSmallIntegerField(default=1)
     xp_awarded = models.IntegerField(default=0)
     xp_breakdown = models.JSONField(default=dict, blank=True)
+    # Le plan de la soirée, figé au démarrage : les étapes que ce créneau devait
+    # couvrir, et pour combien de minutes chacune. La clôture s'en sert pour
+    # créditer le temps réellement passé sur les bonnes étapes. Le recalculer à
+    # la clôture donnerait un autre plan — la roadmap a pu changer entre-temps —
+    # et créditerait du travail sur une étape qu'on n'a jamais ouverte.
+    plan = models.JSONField(default=list, blank=True)
     focus_quality = models.PositiveSmallIntegerField(null=True, blank=True)
     energy_level = models.PositiveSmallIntegerField(null=True, blank=True, help_text="1 à 3")
+    # La difficulté ressentie, déclarée au debrief en un tap. Facultative, et
+    # elle le reste : un champ obligatoire de plus à la clôture ferait renoncer
+    # à clôturer. Trois sessions d'affilée « trop facile » sont le seul signal
+    # du système qui dise qu'on a cessé d'apprendre — invisible partout
+    # ailleurs, et qui ressemble même à une bonne série (§ capacité).
+    difficulty = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="1 trop facile, 2 juste, 3 trop dur"
+    )
     verification = models.CharField(max_length=16, choices=VERIFICATIONS, default=SERVER)
     client_uuid = models.UUIDField(unique=True, null=True, blank=True)
 
@@ -442,6 +604,91 @@ class FridgeIdea(models.Model):
         ordering = ("-created_at",)
 
 
+class Preuve(models.Model):
+    """Une capacité constatée : datée, binaire, vérifiable par quelqu'un d'autre.
+
+    Le troisième axe du système, à côté du volume (XP) et de la fiabilité
+    (rang). Il existe parce qu'aucun des deux autres ne dit qu'on est devenu
+    meilleur : quarante heures de mauvaise pratique donnent le même titre
+    d'arbre que quarante heures de bonne.
+
+    Le critère vient presque toujours du **critère de sortie** d'un bloc de
+    parcours, écrit à la création du projet (§4.5) — donc décidé à froid,
+    des mois avant d'être atteint, ce qui est la seule façon de ne pas se noter
+    soi-même après coup.
+
+    Ne se retire jamais (§17). Une capacité constatée reste constatée, même si
+    elle rouille : le contraire demanderait au système de juger un niveau, ce
+    qu'il ne sait pas faire.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="preuves")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="preuves")
+    # Le bloc dont elle vient, quand elle vient d'un bloc. Vide pour une preuve
+    # déclarée à la main — un examen passé, un contrat signé, une scène jouée.
+    bloc = models.ForeignKey(
+        "ProjectBloc", on_delete=models.SET_NULL, null=True, blank=True, related_name="preuves"
+    )
+    critere = models.CharField(max_length=500, help_text="Ce qui a été constaté, en toutes lettres")
+    obtained_on = models.DateField(help_text="Journée du coach où elle a été constatée")
+    shards_awarded = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-obtained_on", "-id")
+
+    def __str__(self) -> str:
+        return self.critere
+
+
+class Ponctuel(models.Model):
+    """Une chose à faire une fois, qui n'est ni un projet ni une routine.
+
+    « Commander la carte mère », « appeler le dentiste ». Ça ne se répète pas,
+    donc ce n'est pas une routine ; ça ne se découpe pas en étapes, donc ce
+    n'est pas un projet ; et ça n'a rien à faire au frigo, qui garde des *idées
+    de projet* et non des courses.
+
+    **Ce que ce modèle ne fait pas, et pourquoi.** Le §0 dit que le coach n'est
+    pas une todo-list, et le §11.1 interdit une liste à arbitrer avant de
+    démarrer. Les deux restent vrais ici : un ponctuel ne rapporte **ni XP, ni
+    Éclats, ni coche**, il n'entre dans aucun streak, et il **n'apparaît jamais
+    sur l'écran du soir**. C'est ce qui l'empêche de devenir la chose qu'on fait
+    à la place d'une session — trois courses cochées ressemblent à une soirée
+    productive, et c'est précisément le mode de défaillance que tout le reste du
+    système combat.
+
+    Il existe pour la raison inverse : une course qu'on garde en tête occupe la
+    place d'une session. L'écrire quelque part la sort de la tête sans lui
+    donner de valeur.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ponctuels")
+    label = models.CharField(max_length=255)
+    # L'échéance est facultative, et c'est important : la plupart des courses
+    # n'en ont pas. Une date obligatoire ferait inventer des dates, et une date
+    # inventée dépassée est une fausse alerte — la seule chose qui apprend à
+    # ignorer les alertes.
+    due_on = models.DateField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    source = models.CharField(max_length=16, default="app")
+
+    class Meta:
+        # Les datées d'abord, dans l'ordre où elles tombent ; les autres à la
+        # suite, la plus ancienne en tête. `F` explicite parce que le tri par
+        # défaut de SQLite met les NULL en premier, ce qui enterrerait
+        # justement ce qui presse.
+        ordering = (models.F("due_on").asc(nulls_last=True), "created_at")
+
+    def __str__(self) -> str:
+        return self.label
+
+    @property
+    def done(self) -> bool:
+        return self.done_at is not None
+
+
 class Quest(models.Model):
     PLANCHER, BONUS, HEBDO = "plancher", "bonus", "hebdo"
     KINDS = [(PLANCHER, "Plancher"), (BONUS, "Bonus"), (HEBDO, "Hebdomadaire")]
@@ -490,6 +737,20 @@ class Routine(models.Model):
         default=6, help_text="Nombre de fois par semaine qui rend la semaine tenue"
     )
     reward_shards = models.PositiveSmallIntegerField(default=rules_routines.SHARDS_PER_CHECK)
+    # La fenêtre horaire, facultative (§11.9 étendu). Vide pour presque tout :
+    # le §11.9 ancre les routines sur un geste et pas sur une horloge, et il a
+    # raison — « après la douche » arrive au bon moment sans réveil. Deux
+    # habitudes échappent à la règle parce que l'heure *est* l'habitude : se
+    # lever tôt, ne pas se coucher tard. Sans borne, elles n'ont aucun sens :
+    # une coche « debout » posée à 14h compterait pareil.
+    deadline = models.TimeField(
+        null=True, blank=True, help_text="Heure limite, heure locale. Vide : la routine n'en a pas."
+    )
+    direction = models.CharField(
+        max_length=8,
+        choices=[(rules_routines.AVANT, "Avant l'heure"), (rules_routines.APRES, "Après l'heure")],
+        default=rules_routines.AVANT,
+    )
     order = models.PositiveSmallIntegerField(default=0)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -509,6 +770,8 @@ class Routine(models.Model):
             weekly_target=self.weekly_target,
             weekdays=tuple(self.weekdays or ()),
             anchor=self.anchor,
+            deadline=self.deadline,
+            direction=self.direction,
         )
 
 
@@ -523,6 +786,12 @@ class RoutineCheck(models.Model):
     checked_at = models.DateTimeField(default=timezone.now)
     source = models.CharField(max_length=16, choices=SOURCES, default=APP)
     shards_awarded = models.PositiveSmallIntegerField(default=0)
+    # Hors fenêtre : la coche est gardée, elle ne compte pas pour la semaine et
+    # ne paie rien. Garder le fait plutôt que refuser le geste est la même
+    # logique qu'ailleurs — le §17 interdit d'effacer ce qui a eu lieu, et une
+    # coche refusée ferait croire à un bug. Vrai par défaut : toutes les
+    # routines sans fenêtre sont à l'heure par construction.
+    on_time = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ("routine", "day")
@@ -830,10 +1099,19 @@ class ActionLink(models.Model):
     """
 
     FRIGO, VU, REPONSE = "frigo", "vu", "reponse"
+    # Les deux gestes des boutons d'une notification Web Push (§11.7). Ils sont
+    # des liens et non des routes authentifiées pour une raison précise : un
+    # service worker ne connaît pas le jeton de l'app — il ne partage ni son
+    # stockage local ni sa session — et lui en confier un serait sortir un
+    # secret de longue durée de l'endroit qui le garde. Un lien signé porte un
+    # seul geste, expire dans la soirée, et ne lit rien.
+    DEMARRER, REPORTER = "demarrer", "reporter"
     KINDS = [
         (FRIGO, "Jeter une idée au frigo"),
         (VU, "Accuser réception d'un bilan"),
         (REPONSE, "Répondre à une question"),
+        (DEMARRER, "Démarrer la séance proposée"),
+        (REPORTER, "Reporter le gardien"),
     ]
 
     user = models.ForeignKey(
@@ -1094,6 +1372,36 @@ class NotificationLog(models.Model):
         # Un gardien par soir, un rappel par créneau : l'unicité est une règle
         # métier, pas une précaution technique.
         unique_together = ("user", "kind", "coach_day")
+
+
+class Rappel(models.Model):
+    """Une notification différée : le « reporter de 15 min » du §11.7.
+
+    **Pourquoi un modèle et pas un minuteur.** Le report est demandé depuis une
+    notification système, c'est-à-dire depuis un service worker qui sera
+    endormi bien avant l'échéance — Android suspend le sien en quelques
+    secondes. Le seul endroit capable de tenir quinze minutes est celui qui
+    tourne déjà chaque minute : l'ordonnanceur du serveur.
+
+    Un rappel **périmé ne part pas**. Si le serveur était éteint à l'heure dite,
+    le faire partir une heure plus tard réveillerait quelqu'un pour une soirée
+    qui est finie — et une notification qui arrive à contretemps est celle qui
+    apprend à toutes les ignorer.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rappels")
+    kind = models.CharField(max_length=32)
+    due_at = models.DateTimeField(db_index=True)
+    title = models.CharField(max_length=140)
+    body = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("due_at",)
+
+    def __str__(self) -> str:
+        return f"{self.kind} à {self.due_at:%H:%M}"
 
 
 class AgentEvent(models.Model):

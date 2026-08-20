@@ -620,10 +620,57 @@ def _piste_entretien(user) -> Track:
 
 def _decrire_routine(routine: Routine) -> str:
     ancrage = routine_rules.ANCHOR_LABELS.get(routine.anchor, routine.anchor)
+    fenetre = routine_rules.window_label(routine.to_rule()) if routine.pk else ""
+    if not fenetre and routine.deadline:
+        fenetre = routine_rules.window_label(
+            routine_rules.Routine(
+                key="", name=routine.name, weekly_target=routine.weekly_target,
+                deadline=routine.deadline, direction=routine.direction,
+            )
+        )
     return (
         f"{routine.name} — {ancrage}, {dire_jours(list(routine.weekdays or []))}, "
         f"{routine.weekly_target}×/semaine"
+        + (f", {fenetre}" if fenetre else "")
     )
+
+
+AUCUNE = {"aucune", "aucun", "non", "sans", ""}
+
+
+def _fenetre(params, *, deadline_actuelle=None, sens_actuel=routine_rules.AVANT):
+    """Lit « heure » et « sens » d'une action, et rend le couple à écrire.
+
+    « aucune » retire la fenêtre. C'est le seul moyen de revenir en arrière, et
+    il doit exister : une habitude horaire posée par erreur sur une routine de
+    trois minutes la ferait rater pour un quart d'heure de décalage.
+    """
+    from datetime import time as _time
+
+    brut = params.get("heure")
+    sens = (params.get("sens") or sens_actuel or routine_rules.AVANT).strip().lower()
+    if sens not in (routine_rules.AVANT, routine_rules.APRES):
+        raise ActionRefusee(f"« {sens} » n'est pas un sens. Ceux qui existent : avant, apres.")
+
+    if brut is None:
+        return deadline_actuelle, sens
+
+    texte = str(brut).strip().lower()
+    if texte in AUCUNE:
+        return None, sens
+
+    # « 07:30 », « 7h30 », « 7h » : trois façons d'écrire la même heure, et le
+    # modèle les produit toutes les trois.
+    normalise = texte.replace("h", ":").rstrip(":")
+    morceaux = normalise.split(":")
+    try:
+        heures = int(morceaux[0])
+        minutes = int(morceaux[1]) if len(morceaux) > 1 and morceaux[1] else 0
+        return _time(heures, minutes), sens
+    except (ValueError, IndexError) as exc:
+        raise ActionRefusee(
+            f"« {brut} » ne se lit pas comme une heure. Écris-la « 07:30 »."
+        ) from exc
 
 
 @resolveur("routine.creer")
@@ -640,6 +687,7 @@ def _routine_creer(user, params, today):
         )
     jours = _jours_semaine(params.get("jours"), defaut=[])
     cible = params.get("cible") or 6
+    deadline, sens = _fenetre(params)
     if cible > routine_rules.DAYS_PER_WEEK:
         raise ActionRefusee("Une routine ne peut pas être visée plus de sept fois par semaine.")
     if jours and cible > len(jours):
@@ -657,13 +705,18 @@ def _routine_creer(user, params, today):
             anchor=ancrage,
             weekdays=jours,
             weekly_target=cible,
+            deadline=deadline,
+            direction=sens,
             order=Routine.objects.filter(user=user, active=True).count(),
         )
 
+    fenetre = routine_rules.window_label(
+        routine_rules.Routine(key="", name=nom, weekly_target=cible, deadline=deadline, direction=sens)
+    )
     return Plan(
         avant="n'existe pas",
         apres=f"{nom} — {routine_rules.ANCHOR_LABELS.get(ancrage, ancrage)}, "
-              f"{dire_jours(jours)}, {cible}×/semaine",
+              f"{dire_jours(jours)}, {cible}×/semaine" + (f", {fenetre}" if fenetre else ""),
         appliquer=appliquer,
         empreinte=_empreinte_routines(user),
     )
@@ -699,14 +752,24 @@ def _routine_regler(user, params, today):
             f"Visée {cible}×/semaine mais proposée seulement {len(jours)} jours : "
             "il ne resterait aucune marge pour un oubli (§11.9)."
         )
+    deadline, sens = _fenetre(
+        params, deadline_actuelle=routine.deadline, sens_actuel=routine.direction
+    )
 
     def appliquer():
         routine.anchor = ancrage
         routine.weekdays = jours
         routine.weekly_target = cible
-        routine.save(update_fields=["anchor", "weekdays", "weekly_target"])
+        routine.deadline = deadline
+        routine.direction = sens
+        routine.save(
+            update_fields=["anchor", "weekdays", "weekly_target", "deadline", "direction"]
+        )
 
-    apres = Routine(name=routine.name, anchor=ancrage, weekdays=jours, weekly_target=cible)
+    apres = Routine(
+        name=routine.name, anchor=ancrage, weekdays=jours, weekly_target=cible,
+        deadline=deadline, direction=sens,
+    )
     return Plan(
         avant=_decrire_routine(routine),
         apres=_decrire_routine(apres),

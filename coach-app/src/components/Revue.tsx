@@ -40,7 +40,7 @@ export function Revue() {
   if (revue.closed) {
     return (
       <section className="revue">
-        <h3 className="revue__titre label">Revue de la semaine du {semaine}</h3>
+        <h3 className="revue__titre rule-title">Revue de la semaine du {semaine}</h3>
 
         <div className="revue__bloc">
           <span className="revue__etiquette label">Ce qui a marché</span>
@@ -68,7 +68,7 @@ export function Revue() {
 
   return (
     <section className="revue">
-      <h3 className="revue__titre label">Revue de la semaine du {semaine}</h3>
+      <h3 className="revue__titre rule-title">Revue de la semaine du {semaine}</h3>
       <p className="revue__intro">
         Quatre questions, deux phrases chacune. Tu peux aussi n'en remplir aucune : la revue
         s'écrira quand même, en le disant.
@@ -101,7 +101,7 @@ export function Revue() {
         </article>
       ))}
 
-      <button className="revue__clore" onClick={async () => setRevue(await api.closeReview())}>
+      <button className="cta revue__clore" onClick={async () => setRevue(await api.closeReview())}>
         Écrire la revue{revue.answered === 0 ? ' sans réponses' : ''}
       </button>
     </section>

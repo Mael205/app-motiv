@@ -5,10 +5,11 @@
  * boîte qui en recouvre une autre de trente pixels, un bloc plus large que le
  * viewport. Trois défauts qu'on regarde sans les voir.
  *
- *   ORIGIN=http://localhost:5180 SHOTS=/sortie node tools/audit.cjs
+ *   ORIGIN=http://localhost:5173 SHOTS=/sortie node tools/audit.cjs
  */
 const { chromium } = require('playwright')
 const fs = require('fs')
+const { verdictAudit, conclure } = require('./verdict.cjs')
 
 const ORIGIN = process.env.ORIGIN || 'http://localhost:5173'
 const OUT = process.env.SHOTS
@@ -152,4 +153,10 @@ const TABS = (process.env.TABS || 'Ce soir,Projets,Personnage,Journal').split(',
   const texte = JSON.stringify(rapport, null, 1)
   if (OUT) fs.writeFileSync(`${OUT}/audit.json`, texte)
   console.log(texte.slice(0, 12000))
+
+  // Le verdict, et non seulement la mesure. Sans lui l'outil sortait en 0 quoi
+  // qu'il trouve : il fallait qu'un humain lise le JSON pour savoir s'il y
+  // avait un defaut, et un instrument qu'on doit interpreter ne garde aucune
+  // porte. La regle vit dans verdict.cjs, ou elle se teste sans navigateur.
+  conclure(verdictAudit(rapport))
 })()

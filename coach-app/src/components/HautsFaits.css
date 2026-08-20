@@ -34,7 +34,7 @@
 .proche__texte { grid-area: texte; display: grid; gap: 0.1rem; }
 .proche__compte { grid-area: compte; font-size: 0.78rem; opacity: 0.65; }
 .proche__jauge { grid-area: jauge; height: 3px; border-radius: 2px; background: color-mix(in srgb, currentColor 10%, transparent); overflow: hidden; }
-.proche__jauge span { display: block; height: 100%; background: var(--accent, #E8A33D); transform-origin: left center; }
+.proche__jauge span { display: block; height: 100%; background: var(--perso); transform-origin: left center; }
 
 .proche__label { font-size: 0.88rem; }
 .proche__desc { font-size: 0.76rem; line-height: 1.4; }
@@ -59,7 +59,7 @@
   cursor: default;
 }
 
-.hf__item--travail { color: var(--accent, #E8A33D); border-color: color-mix(in srgb, var(--accent, #E8A33D) 35%, transparent); }
-.hf__item--saison { color: var(--rose, #DE5F7E); border-color: color-mix(in srgb, var(--rose, #DE5F7E) 35%, transparent); }
+.hf__item--travail { color: var(--perso); border-color: color-mix(in srgb, var(--perso) 35%, transparent); }
+.hf__item--saison { color: var(--rose); border-color: color-mix(in srgb, var(--rose) 35%, transparent); }
 .hf__item--collection { color: var(--turquoise, #4FC4B4); border-color: color-mix(in srgb, var(--turquoise, #4FC4B4) 35%, transparent); }
 .hf__item--franchise { opacity: 0.75; }

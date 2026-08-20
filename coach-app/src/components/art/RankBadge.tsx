@@ -82,18 +82,26 @@ function Wing({ side, feathers, spread }: { side: 'left' | 'right'; feathers: nu
   for (let i = 0; i < feathers; i++) {
     const t = i / Math.max(1, feathers - 1)
     const length = 30 + t * 26 * spread
-    const drop = 6 + t * 26
+    // Les plumes **montent**. La forme est celle d'avant, retournée autour de
+    // y = 33 : une aile qui retombe lit comme un oiseau posé, une aile qui
+    // s'ouvre vers le haut lit comme une ascension — et c'est ce que le rang
+    // raconte, un compteur qui ne redescend jamais (§12.3).
+    //
+    // Le pivot est à 33 et non à 30 : mirroir autour de 30, la pointe de la
+    // dernière plume sortait du viewBox par le haut (y = −2) et se faisait
+    // rogner. À 33, elle culmine à 4 et reste dans le cadre.
+    const lift = 6 + t * 26
     const x = originX + dir * length
-    const y = 30 + drop
+    const y = 36 - lift
     paths.push(
       <path
         key={i}
         className="rankbadge__feather"
-        d={`M${originX} ${28 + i * 4}
-            Q${originX + dir * length * 0.55} ${20 + drop * 0.35}
+        d={`M${originX} ${38 - i * 4}
+            Q${originX + dir * length * 0.55} ${46 - lift * 0.35}
              ${x} ${y}
-            Q${originX + dir * length * 0.45} ${y - 6}
-             ${originX} ${34 + i * 4} Z`}
+            Q${originX + dir * length * 0.45} ${y + 6}
+             ${originX} ${32 - i * 4} Z`}
       />,
     )
   }

@@ -6,6 +6,17 @@
  *
  * L'accent de saison surcharge --accent au niveau du <body> ; aucune autre
  * variable ne bouge, la lisibilité ne dépend jamais de la saison en cours.
+ *
+ * **Deux accents, et non un seul.** --accent appartient à la saison : HUD,
+ * onglets, jauges, bandeau, boss. --perso appartient au joueur, c'est la carte
+ * thème équipée, et il ne peint que les surfaces qui sont les siennes — fiche
+ * de personnage, collection, révélation de carte. Une seule
+ * variable pour les deux forçait un gagnant : soit la saison perdait sa teinte
+ * pendant vingt-huit jours, soit la carte équipée ne se voyait que dans les
+ * deux jours d'inter-saison, ce que le §12.6 appelle une récompense creuse.
+ *
+ * Sans thème équipé, --perso vaut --accent : les surfaces personnelles
+ * reprennent la couleur de la saison, et rien ne se dépareille.
  */
 
 @import '@fontsource/bebas-neue/400.css';
@@ -27,7 +38,18 @@
   --gold: #e8a33d;
   --turquoise: #4fc4b4;
   --rose: #de5f7e;
+  --vert: #7ed08c;
   --accent: var(--gold);
+  --perso: var(--accent);
+
+  /* Alias français hérités. Vingt-deux déclarations les appelaient sans que
+     personne ne les définisse : elles retombaient toutes sur un hexadécimal
+     écrit en dur — un or qui ne suivait plus la saison, un fond plus noir que
+     --bg-deep, un rouge Bootstrap à côté de --rose. Les définir ici rebranche
+     ces surfaces sur la palette au lieu de réécrire vingt-deux fichiers. */
+  --or: var(--gold);
+  --fond: var(--bg-deep);
+  --danger: var(--rose);
 
   --text: #ede6f5;
   --muted: #9a8cae;
@@ -37,9 +59,66 @@
   --body: 'Inter', system-ui, -apple-system, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* Échelle de graisse typographique. Le dépôt comptait treize tailles entre
+     10 et 26 px, séparées par des demi-pixels : la hiérarchie ne se lisait
+     plus parce que rien ne distinguait 12,5 de 13. Sept marches, et chaque
+     nouvelle valeur doit se justifier. */
+  --t-xs: 11px;
+  --t-sm: 12.5px;
+  --t-md: 14px;
+  --t-base: 15.5px;
+  --t-lg: 17px;
+  --t-xl: 22px;
+  --t-2xl: 28px;
+
+  /* Échelle d'espacement : multiples de 4, comme les gouttières du deck. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* Hauteur unique des contrôles. Un champ et le bouton posé à côté doivent
+     faire la même hauteur ; sans cette variable ils la fixaient chacun par un
+     padding différent, et aucune paire de l'application ne s'alignait. */
+  --control-h: 42px;
+
   --chamfer: 10px;
+  --chamfer-sm: 6px;
+
+  /* Le biseau, en forme réutilisable. Onze composants coupaient leurs coins au
+     `border-radius` — 8, 10 ou 12 px selon la feuille — dans un système dont
+     l'en-tête de ce fichier dit que « l'effet jeu vient des angles biseautés ».
+     Deux langages de forme cohabitaient donc sur le même écran. */
+  --clip: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+  --clip-sm: polygon(
+    var(--chamfer-sm) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    0 100%,
+    0 var(--chamfer-sm)
+  );
+
+  /* Courbes nommées : entrée, déplacement, impact. Le reste du dépôt n'avait
+     que --ease-out, qui servait indistinctement à une apparition et à un
+     glissement — deux gestes qui ne se ressentent pas pareil. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-move: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-impact: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --dur-press: 120ms;
+  --dur-state: 180ms;
+  --dur-panel: 280ms;
 }
 
 * {
@@ -122,6 +201,26 @@ h3,
   color: var(--muted);
 }
 
+/* Le titre de rubrique : le barreau manquant de l'échelle.
+ *
+ * Il n'y avait que deux tiers — le titre d'écran en display de 28 px, et
+ * `.label` à 11,5. « Revue de la semaine », « Bilan hebdomadaire » et les
+ * dates du journal portaient `.label` faute de mieux : trois vraies rubriques
+ * habillées comme la légende d'un compteur, et le lecteur ne voyait plus où
+ * une section commençait. */
+.rule-title {
+  display: block;
+  margin-bottom: var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--body);
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 /* --- Surfaces ---------------------------------------------------------- */
 
 .panel {
@@ -154,6 +253,74 @@ h3,
 .panel--accent {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   box-shadow: 0 0 40px -18px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+/* Le relief au survol.
+ *
+ * Rien ici ne touche à `transform` : sur les cartes inclinables, c'est
+ * anime.js qui l'écrit image par image (`inclinerAuPointeur`), et une
+ * transition CSS sur la même propriété se battrait avec lui à chaque
+ * mouvement de souris. Le CSS ne prend que ce qui reste — la bordure, l'ombre
+ * portée, le reflet.
+ *
+ * Uniquement sur pointeur fin : au doigt, l'état de survol reste collé après
+ * le relâchement, et un panneau qui reste allumé se lit comme sélectionné. */
+@media (hover: hover) and (pointer: fine) {
+  .panel,
+  .pcard,
+  .slotcard__btn {
+    transition: border-color var(--dur-state) var(--ease-enter),
+      box-shadow var(--dur-state) var(--ease-enter);
+  }
+
+  .panel:hover {
+    border-color: var(--line-strong);
+    box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  }
+
+  /* L'ombre suit l'inclinaison : plus la carte se lève, plus elle porte loin.
+     C'est ce qui empêche la rotation de se lire comme un simple aplat tourné. */
+  .pcard:hover {
+    border-color: color-mix(in srgb, var(--project) 30%, var(--line));
+    box-shadow: 0 26px 50px -26px color-mix(in srgb, var(--project) 55%, black);
+  }
+}
+
+/* Le reflet qui glisse sous le pointeur.
+ *
+ * `--gx`/`--gy` sont écrits par `inclinerAuPointeur` ; `--glare` vaut 1 sous
+ * le pointeur et 0 dès qu'il sort, ce qui donne à la lumière une extinction
+ * douce que l'inclinaison, elle, n'a pas besoin d'attendre. La couche ne
+ * capte aucun clic et n'est peinte que lorsqu'elle vaut quelque chose. */
+.pcard,
+.slotcard__btn {
+  --glare: 0;
+  --gx: 50%;
+  --gy: 50%;
+  position: relative;
+}
+
+.pcard::after,
+.slotcard__btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--glare);
+  background: radial-gradient(
+    340px circle at var(--gx) var(--gy),
+    rgba(255, 255, 255, 0.09),
+    transparent 60%
+  );
+  transition: opacity 320ms var(--ease-enter);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta::after,
+  .pcard::after,
+  .slotcard__btn::after {
+    display: none;
+  }
 }
 
 /* --- Boutons ----------------------------------------------------------- */
@@ -197,6 +364,37 @@ button {
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
+/* Le balayage : une bande de lumière traverse le bouton, une fois, à
+   l'approche du pointeur.
+ *
+ * C'est le seul effet purement décoratif du fichier, et il tient parce qu'il
+ * ne coûte rien — une seule couche, animée en `transform`, hors du flux, et
+ * qui n'existe pas au doigt faute de survol. Il ne retarde aucun clic : le
+ * bouton est déjà pressable quand la bande part. */
+.cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.42) 50%,
+    transparent 65%
+  );
+  transform: translateX(-110%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cta:hover::after {
+    animation: cta-balayage 720ms var(--ease-move);
+  }
+}
+
+@keyframes cta-balayage {
+  to { transform: translateX(110%); }
+}
+
 /* Le bouton répond immédiatement : aucune animation sur le chemin critique. */
 .cta:active {
   transform: translateY(1px) scale(0.995);
@@ -222,6 +420,111 @@ button {
   color: var(--text);
   border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.03);
+}
+
+/* --- Champs ------------------------------------------------------------ */
+
+/* Un seul style de champ, posé sur l'élément et non sur une classe.
+ *
+ * Le dépôt n'en avait aucun : trois composants habillaient leur propre
+ * `textarea`, l'écran de connexion empruntait `.fridge__input` — une classe
+ * nommée d'après le frigo de l'onglet Projets —, et tout le reste tombait sur
+ * le champ blanc du navigateur au milieu d'une interface sombre. La saisie
+ * ponctuelle en était l'exemple le plus visible.
+ *
+ * Le mettre sur `input`/`textarea`/`select` corrige aussi les champs qui
+ * n'existent pas encore, ce qu'une classe ne fait jamais. */
+input,
+textarea,
+select {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: var(--t-md);
+  color: var(--text);
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  clip-path: polygon(
+    var(--chamfer-sm) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    0 100%,
+    0 var(--chamfer-sm)
+  );
+  transition: border-color var(--dur-state) var(--ease-enter),
+    background var(--dur-state) var(--ease-enter);
+}
+
+textarea {
+  min-height: 84px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--dim);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--line-strong);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-deep));
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Les cases à cocher gardent le rendu natif : c'est une cible au doigt, pas
+   une surface à peindre, et la repeindre coûterait l'état indéterminé. */
+input[type='checkbox'],
+input[type='radio'] {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  clip-path: none;
+  accent-color: var(--accent);
+}
+
+/* Le sélecteur de date natif rend son icône en noir sur fond sombre. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+/* Un champ et le bouton posé à côté : même hauteur, sans que chacun la fixe
+   de son côté. `stretch` suffit, et il suit si la hauteur change un jour. */
+.field-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s2);
+}
+
+.field-row > input,
+.field-row > textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field-row > .ghost {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
 }
 
 /* --- Mise en page ------------------------------------------------------ */
@@ -394,31 +697,31 @@ a.ghost {
   outline-offset: 2px;
 }
 
-/* Les panneaux consultatifs entrent en cascade quand l'onglet s'ouvre : ils
-   arrivent tous ensemble sinon, et un mur qui apparaît d'un coup ne se lit pas.
-   Six pixels et 260 ms — assez pour donner un ordre de lecture, trop peu pour
-   qu'on attende. */
-@keyframes panneau-entree {
-  from { opacity: 0; transform: translate3d(0, 6px, 0); }
-  to { opacity: 1; transform: none; }
-}
+/* L'entrée d'un écran d'onglet est maintenant jouée par `ScreenTransition`
+   (App.tsx, anime.js). Quatre classes nommées portaient ici un
+   `animation-delay` écrit à la main — `.constats`, `.revue`, `.fuite`,
+   `.buddy` — si bien qu'un panneau ajouté depuis entrait sans décalage, qu'un
+   panneau masqué laissait un trou dans la cascade, et que les trois autres
+   onglets n'avaient aucune entrée du tout.
 
-.constats,
-.revue,
-.fuite,
-.buddy {
-  animation: panneau-entree 0.26s var(--ease-out) both;
+   Le conteneur porte le mouvement, pas chaque panneau : Projets et Personnage
+   en comptent plus de dix, et un décalage par panneau ferait attendre une
+   demi-seconde avant que le bas de l'écran existe. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
 }
-
-.revue { animation-delay: 0.05s; }
-.fuite { animation-delay: 0.1s; }
-.buddy { animation-delay: 0.15s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .constats,
-  .revue,
-  .fuite,
-  .buddy { animation: none; }
-
   .ghost:active:not(:disabled) { transform: none; }
+}
+
+/* Le créneau actuellement affiché. Sans cette marque, les quatre boutons de
+   durée se ressemblent et l'on ne sait plus lequel est en vigueur — or c'est
+   lui que le grand bouton démarrera. */
+.ghost--on {
+  color: var(--text);
+  border-color: var(--project, var(--line-strong));
+  background: rgba(255, 255, 255, 0.05);
 }

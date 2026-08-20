@@ -305,10 +305,64 @@ PROJET_VALIDE = {
     "branche": "data_rl",
     "engagement": 3,
     "etapes": [
-        {"libelle": "Écrire le test qui reproduit le crash à 4 joueurs", "sessions": 2, "etat": "doing"},
-        {"libelle": "Lire le bloc Event Payloads dynamiquement dans parser.py", "sessions": 2, "etat": "todo"},
-        {"libelle": "Parser Game Start et les ports réellement actifs", "sessions": 3, "etat": "todo"},
-        {"libelle": "Rejouer la banque de replays en batch et corriger les restes", "sessions": 2, "etat": "todo"},
+        {
+            "libelle": "Écrire le test qui reproduit le crash à 4 joueurs",
+            "sessions": 2,
+            "etat": "doing",
+            "critere_sortie": "le test échoue sur la version actuelle et nomme la ligne fautive",
+        },
+        {
+            "libelle": "Lire le bloc Event Payloads dynamiquement dans parser.py",
+            "sessions": 2,
+            "etat": "todo",
+            "critere_sortie": "les tailles d'événements sont lues du fichier, plus aucune constante",
+        },
+        {
+            "libelle": "Parser Game Start et les ports réellement actifs",
+            "sessions": 3,
+            "etat": "todo",
+            "critere_sortie": "un replay à 3 joueurs rend trois ports, pas quatre",
+        },
+        {
+            "libelle": "Rejouer la banque de replays en batch et corriger les restes",
+            "sessions": 2,
+            "etat": "todo",
+            "critere_sortie": "les 200 replays de la banque passent sans exception",
+        },
+    ],
+    # Le parcours n'est plus facultatif côté porte : trois blocs au minimum,
+    # chacun avec sa ressource et son critère. Voir ``gate.MIN_BLOCS``.
+    "parcours": [
+        {
+            "nom": "Lecture du format",
+            "resultat": "je lis un .slp sans bibliothèque tierce",
+            "ressource": "Spécification du format Slippi",
+            "url": "https://github.com/project-slippi/slippi-wiki",
+            "charge": "20–30 h",
+            "cout": "Gratuit",
+            "optionnel": False,
+            "critere_sortie": "un replay quelconque rend ses métadonnées complètes",
+        },
+        {
+            "nom": "Statistiques de partie",
+            "resultat": "je calcule dégâts, stocks et ouvertures",
+            "ressource": "slippi-js, en lecture",
+            "url": "https://github.com/project-slippi/slippi-js",
+            "charge": "40–60 h",
+            "cout": "Gratuit",
+            "optionnel": False,
+            "critere_sortie": "mes chiffres égalent ceux de slippi-js sur dix replays",
+        },
+        {
+            "nom": "Analyse comparée",
+            "resultat": "je sors les tendances d'un joueur sur une saison",
+            "ressource": "pandas, documentation officielle",
+            "url": "https://pandas.pydata.org/docs/",
+            "charge": "30–50 h",
+            "cout": "Gratuit",
+            "optionnel": False,
+            "critere_sortie": "un rapport de saison sort en une commande",
+        },
     ],
 }
 
@@ -554,3 +608,104 @@ class TestPorteDeLaRoadmap:
 
     def test_un_entretien_fini_sans_projet_est_refuse(self, user):
         assert "sans projet" in self._refus(user, {"fini": True, "question": "", "projet": None})
+
+
+class TestExigenceDuParcours:
+    """Le parcours est ce qui tient quelqu'un sur des mois (§4.5).
+
+    Le schéma savait déjà exiger des blocs ; il ne savait pas exiger qu'ils
+    disent quelque chose. Un parcours dont les blocs n'ont ni ressource ni
+    critère est une table des matières.
+    """
+
+    def _refus(self, user, tour):
+        set_provider(ScriptedProvider([tour] * coaching.MAX_ESSAIS))
+        with pytest.raises(coaching.InterviewUnavailable) as capture:
+            coaching.interview_start(user)
+        return str(capture.value)
+
+    def test_un_parcours_d_un_seul_bloc_est_refuse(self, user):
+        motif = self._refus(user, tour_final(parcours=PROJET_VALIDE["parcours"][:1]))
+        assert "bloc(s) de parcours" in motif
+
+    def test_un_bloc_sans_ressource_est_refuse(self, user):
+        nu = [{**PROJET_VALIDE["parcours"][0], "ressource": ""}, *PROJET_VALIDE["parcours"][1:]]
+        assert "ressource principale" in self._refus(user, tour_final(parcours=nu))
+
+    def test_un_bloc_sans_critere_de_sortie_est_refuse(self, user):
+        nu = [{**PROJET_VALIDE["parcours"][0], "critere_sortie": ""}, *PROJET_VALIDE["parcours"][1:]]
+        assert "critère de sortie" in self._refus(user, tour_final(parcours=nu))
+
+    def test_un_parcours_sans_adresses_est_refuse(self, user):
+        """Écrit de mémoire : aucune ressource ne s'ouvre le soir venu."""
+        aveugle = [{**bloc, "url": ""} for bloc in PROJET_VALIDE["parcours"]]
+        assert "portent une adresse" in self._refus(user, tour_final(parcours=aveugle))
+
+    def test_une_etape_sans_critere_de_sortie_est_refusee(self, user):
+        sans = [{**PROJET_VALIDE["etapes"][0], "critere_sortie": ""}, *PROJET_VALIDE["etapes"][1:]]
+        assert "critère de sortie" in self._refus(user, tour_final(etapes=sans))
+
+
+DOCUMENT_RANGE = {
+    "lisible": True,
+    "probleme": "",
+    "projet": {
+        "nom": "Carnet de cuisine",
+        "domaine": "pratique",
+        "verification": "manuelle",
+        "depot": "",
+        "branche": "artisanat",
+        "engagement": 2,
+        "objectif": "Tenir un dîner de quatre plats pour six sans recette.",
+        "parcours": [],
+        "etapes": [
+            {"libelle": "Réussir une sauce béarnaise sans la faire trancher", "sessions": 2, "etat": "todo"},
+        ],
+        "ecartees": [],
+    },
+}
+
+
+class TestRelectureDuMarkdown:
+    """Le secours du collage : ranger un document qu'aucune règle n'attendait.
+
+    La porte y est plus basse que celle de l'entretien, et c'est délibéré — le
+    modèle transcrit un document que quelqu'un a déjà écrit. Le refuser parce
+    que l'original est perfectible reviendrait à refuser le seul chemin qui
+    marche sans IA.
+    """
+
+    def test_le_document_range_revient_au_format_canonique(self):
+        set_provider(ScriptedProvider([DOCUMENT_RANGE]))
+        markdown = coaching.relire_markdown("des notes en vrac")
+
+        assert markdown.startswith("# Carnet de cuisine")
+        assert "Domaine: pratique" in markdown
+        assert "- [ ] Réussir une sauce béarnaise sans la faire trancher (2)" in markdown
+
+    def test_une_seule_etape_suffit_et_le_parcours_est_facultatif(self):
+        """Les planchers de l'entretien forceraient le modèle à inventer."""
+        set_provider(ScriptedProvider([DOCUMENT_RANGE]))
+        assert coaching.relire_markdown("des notes en vrac")
+
+    def test_un_document_illisible_le_dit_au_lieu_de_fabriquer(self):
+        set_provider(
+            ScriptedProvider(
+                [{"lisible": False, "probleme": "aucune tâche concrète", "projet": None}]
+            )
+        )
+        with pytest.raises(coaching.InterviewUnavailable, match="aucune tâche"):
+            coaching.relire_markdown("bonjour")
+
+    def test_sans_modele_la_relecture_echoue_sans_emporter_le_collage(self):
+        set_provider(UnavailableProvider())
+        with pytest.raises(coaching.InterviewUnavailable):
+            coaching.relire_markdown("# P\n- [ ] Une étape (1)\n")
+
+    def test_la_relecture_ne_voit_pas_les_projets_deja_suivis(self):
+        """Les lui donner l'inviterait à harmoniser, donc à modifier."""
+        fournisseur = ScriptedProvider([DOCUMENT_RANGE])
+        set_provider(fournisseur)
+        coaching.relire_markdown("des notes en vrac")
+
+        assert fournisseur.calls[0]["prompt"].strip().endswith("des notes en vrac")

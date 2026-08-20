@@ -1,0 +1,30 @@
+{
+  "name": "coach-ext",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sonde web du coach — mesure par catégorie, et fermeture du scroll passif",
+  "scripts": {
+    "lint": "web-ext lint",
+    "build": "web-ext build --overwrite-dest",
+    "sign": "web-ext sign --channel unlisted",
+    "dev": "web-ext run",
+    "test": "vitest run"
+  },
+  "webExt": {
+    "sourceDir": ".",
+    "ignoreFiles": [
+      "package.json",
+      "package-lock.json",
+      "README.md",
+      "manifest.chrome.json",
+      "token.local.txt",
+      "rules.local.json",
+      "node_modules",
+      "web-ext-artifacts"
+    ]
+  },
+  "devDependencies": {
+    "web-ext": "^8.10.0",
+    "vitest": "^4.1.11"
+  }
+}

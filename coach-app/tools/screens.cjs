@@ -26,6 +26,21 @@ const OUT = process.env.SHOTS;
     for (const tab of tabs) {
       const btn = page.locator(`button:has-text("${tab}"), a:has-text("${tab}")`).last();
       if (await btn.count()) { await btn.click(); await page.waitForTimeout(900); }
+
+      // Derouler avant de capturer. Les cartes n'entrent qu'une fois atteintes
+      // par le defilement (`revelerAuDefilement`) : une capture pleine page
+      // prise sans avoir descendu montre des blancs a la place de tout ce qui
+      // etait sous la ligne de flottaison, et la capture ment.
+      await page.evaluate(async () => {
+        const pas = window.innerHeight * 0.8;
+        for (let y = 0; y < document.body.scrollHeight; y += pas) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 260));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(1400);
+
       await page.screenshot({ path: `${OUT}/${name}-${tab}.png`, fullPage: true });
     }
     if (errs.length) fs.appendFileSync(`${OUT}/errors.txt`, `\n[${name}]\n` + errs.join('\n'));

@@ -69,6 +69,48 @@ def ouvrir(user, *, semaine: date | None = None, now=None) -> WeeklyReview:
     )
 
 
+def question_a_poser(revue: WeeklyReview) -> tuple[int, dict] | None:
+    """La première question sans réponse, avec son rang. ``None`` s'il n'y en a plus."""
+    for index, question in enumerate(revue.questions):
+        if not (question.get("reponse") or "").strip():
+            return index, question
+    return None
+
+
+def lien_de_question(revue: WeeklyReview) -> tuple[str, dict] | None:
+    """Émet un lien signé pour la première question sans réponse (§5.3, §11.7).
+
+    **Une seule question par lien, et une seule à la fois.** C'est la limite de
+    l'objet : une notification porte une phrase, pas un questionnaire, et un
+    message qui contiendrait cinq liens ne serait cliqué zéro fois. Les autres
+    questions restent dans l'app, où la revue existe en entier.
+
+    Le lien porte le fait daté *avec* la question, parce que le §13.3 fait du
+    fait la moitié de la question — « qu'est-ce qui s'est passé ce soir-là ? »
+    posé sans le soir en question est exactement la page blanche que le §0.9
+    interdit.
+    """
+    from .models import ActionLink
+    from . import links
+
+    prochaine = question_a_poser(revue)
+    if prochaine is None:
+        return None
+
+    index, question = prochaine
+    _, secret = links.emettre(
+        revue.user,
+        kind=ActionLink.REPONSE,
+        context={
+            "revue_id": revue.pk,
+            "index": index,
+            "question": question.get("question", ""),
+            "constat": question.get("fait", ""),
+        },
+    )
+    return secret, question
+
+
 def repondre(revue: WeeklyReview, *, index: int, texte: str) -> WeeklyReview:
     """Enregistre une réponse. Les questions restent modifiables tant que la revue est ouverte."""
     if revue.closed_at:
