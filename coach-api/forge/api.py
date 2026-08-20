@@ -49,6 +49,7 @@ from .models import (
 )
 from .probeauth import ProbeTokenAuthentication
 from .rules import hiatus as hiatus_rules
+from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
 from .rules import timezones as timezone_rules
@@ -1665,7 +1666,7 @@ def open_season(request):
         {
             "index": saison.index,
             "name": saison.name,
-            "accent": saison.accent,
+            **season_rules.palette_de(saison.key, saison.accent),
             "baseline": saison.baseline,
             "modifier": progression.season_modifier(saison),
             "boss": services.boss_payload(saison),

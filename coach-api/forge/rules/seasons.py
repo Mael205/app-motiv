@@ -94,70 +94,158 @@ VOIES: dict[str, dict] = {
     },
 }
 
+# ## Ce que chaque identité porte
+#
+# `accent` et `accent2` forment une **paire**, pas une couleur et sa nuance :
+# la première tient le texte et les jauges, la seconde tient l'atmosphère —
+# halo de fond, lueur du bandeau, braises. Une seule couleur donnait vingt-quatre
+# saisons de même forme repeintes, ce qui est exactement l'impression de vide.
+#
+# `ambiance` nomme le **traitement de fond** que le client sait dessiner : de la
+# lave qui palpite, des ailes et des rais de lumière, de la cendre qui tombe.
+# Neuf atmosphères pour vingt-quatre saisons — chacune reste unique par sa
+# paire de couleurs, son sigil et sa frise, et aucune ne demande une image que
+# personne ne pourrait maintenir.
+#
+# ## Pourquoi ces noms-là
+#
+# La trame suit la Comédie : on tombe, on brûle, on remonte. C'est le seul arc
+# qui rende une saison ratée **racontable** — l'Enfer n'y est pas une punition,
+# c'est le chemin, et le Phénix qui ferme la voie basse n'est pas une
+# consolation mais sa conclusion. La voie haute va du réveil à l'Empyrée.
+#
+# Les noms abstraits ont sauté. « Vigie », « Prisme », « Orbite Basse » ou
+# « Veine Mère » décrivaient un objet, pas un état : on ne se souvient pas
+# d'avoir traversé un prisme. Ceux qui restent — L'Éveil, Hellfest, Le
+# Purgatoire, Heaven's Paradise, Ragnarök — nomment un moment.
 TRAME: dict[str, tuple[dict, ...]] = {
     # ---- VOIE DES CIMES ----------------------------------------------------
+    # Du réveil au plus haut ciel. Lumière, or, plumes, vitrail.
     VOIE_CIMES: (
         # Acte I — Le Seuil
-        {"key": "eveil", "name": "L'Éveil", "accent": "#8FD14F", "acte": 1, "registre": "éveil",
+        {"key": "eveil", "name": "L'Éveil", "accent": "#8FD14F", "accent2": "#E4F7B0",
+         "ambiance": "aurore", "acte": 1, "registre": "éveil",
          "baseline": "Ce qui dormait se lève. À toi de savoir quoi."},
-        {"key": "faille_s", "name": "Faille S", "accent": "#43D9E0", "acte": 1, "registre": "sci-fi",
-         "baseline": "La faille est ouverte. Rang S ou rien."},
-        {"key": "meridien", "name": "Méridien", "accent": "#E8B44A", "acte": 1, "registre": "navigation",
-         "baseline": "Une ligne, et tout ce qui est à l'ouest est derrière."},
-        {"key": "prisme", "name": "Prisme", "accent": "#5FD6B4", "acte": 1, "registre": "sci-fi",
-         "baseline": "Une lumière entre, six sortent."},
-        {"key": "vigie", "name": "Vigie", "accent": "#4FC4B4", "acte": 1, "registre": "sobriété",
-         "baseline": "Tenir le poste. Rien de plus, rien de moins."},
-        {"key": "marche_haute", "name": "Marche Haute", "accent": "#B8C46A", "acte": 1, "registre": "montagne",
-         "baseline": "Celle qu'on monte à contrecœur, et qu'on ne redescend pas."},
-        # Acte II — La Montée
-        {"key": "orbite_basse", "name": "Orbite Basse", "accent": "#4FA3E0", "acte": 2, "registre": "sci-fi",
-         "baseline": "Assez haut pour voir, assez bas pour retomber."},
-        {"key": "sanctuaire", "name": "Sanctuaire", "accent": "#C8A2D8", "acte": 2, "registre": "dark fantasy",
-         "baseline": "L'endroit qu'on défend n'est pas celui où l'on dort."},
-        {"key": "aube_rouge", "name": "Aube Rouge", "accent": "#D1403F", "acte": 2, "registre": "épique",
+        {"key": "aube_rouge", "name": "Aube Rouge", "accent": "#E8734A", "accent2": "#F5C177",
+         "ambiance": "aurore", "acte": 1, "registre": "épique",
          "baseline": "Vingt-huit levers. Compte-les."},
-        {"key": "hellfest", "name": "Hellfest", "accent": "#E0533D", "acte": 2, "registre": "métal",
-         "baseline": "Quatre semaines. Le feu ne demande pas la permission."},
-        {"key": "ragnarok", "name": "Ragnarök", "accent": "#8FA9C4", "acte": 2, "registre": "nordique",
+        {"key": "porte_ivoire", "name": "La Porte d'Ivoire", "accent": "#E8DCC0", "accent2": "#B9A47A",
+         "ambiance": "vitrail", "acte": 1, "registre": "mythologique",
+         "baseline": "Par l'une passent les songes, par l'autre ce qui arrive."},
+        {"key": "sanctuaire", "name": "Sanctuaire", "accent": "#C8A2D8", "accent2": "#7E6BA8",
+         "ambiance": "vitrail", "acte": 1, "registre": "dark fantasy",
+         "baseline": "L'endroit qu'on défend n'est pas celui où l'on dort."},
+        {"key": "elysion", "name": "Élysion", "accent": "#A9D9A2", "accent2": "#E6DC92",
+         "ambiance": "aurore", "acte": 1, "registre": "mythologique",
+         "baseline": "Le repos se gagne. C'est tout ce qui le distingue de l'oubli."},
+        {"key": "ascension", "name": "Ascension", "accent": "#6FC4E8", "accent2": "#D2ECFA",
+         "ambiance": "ailes", "acte": 1, "registre": "céleste",
+         "baseline": "Personne ne monte par accident."},
+        # Acte II — La Montée
+        {"key": "valhalla", "name": "Valhalla", "accent": "#D4A94E", "accent2": "#8C6B3A",
+         "ambiance": "or", "acte": 2, "registre": "nordique",
+         "baseline": "La salle est pleine de gens qui ont fini ce qu'ils avaient commencé."},
+        {"key": "ragnarok", "name": "Ragnarök", "accent": "#8FA9C4", "accent2": "#4A5A72",
+         "ambiance": "orage", "acte": 2, "registre": "nordique",
          "baseline": "Tout finit. La question est ce que tu auras bâti avant."},
-        {"key": "heavens_paradise", "name": "Heaven's Paradise", "accent": "#F2E6C2", "acte": 2,
-         "registre": "métal céleste", "baseline": "On monte, ou on regarde monter."},
+        {"key": "couronne_solaire", "name": "Couronne Solaire", "accent": "#F0C040", "accent2": "#FFF2B8",
+         "ambiance": "or", "acte": 2, "registre": "épique",
+         "baseline": "On ne la voit que pendant l'éclipse. Vingt-huit jours."},
+        {"key": "heavens_paradise", "name": "Heaven's Paradise", "accent": "#F2E6C2", "accent2": "#FFFFFF",
+         "ambiance": "ailes", "acte": 2, "registre": "métal céleste",
+         "baseline": "On monte, ou on regarde monter."},
+        {"key": "apotheose", "name": "Apothéose", "accent": "#FFD86B", "accent2": "#FFF7D6",
+         "ambiance": "or", "acte": 2, "registre": "épique",
+         "baseline": "Le mois où l'on cesse d'être celui qui essaie."},
+        {"key": "empyree", "name": "L'Empyrée", "accent": "#BFE3FF", "accent2": "#FFFFFF",
+         "ambiance": "ailes", "acte": 2, "registre": "céleste",
+         "baseline": "Le ciel de feu, tout en haut. Il n'y a rien au-dessus."},
     ),
     # ---- VOIE DES BRAISES --------------------------------------------------
+    # On tombe, on traverse le feu, on se reforge. Abysse, cendre, lave, enclume.
     VOIE_BRAISES: (
         # Acte I — La Descente
-        {"key": "nadir", "name": "Nadir", "accent": "#3E6FA8", "acte": 1, "registre": "sci-fi froid",
+        {"key": "chute", "name": "La Chute", "accent": "#6E5B8F", "accent2": "#2E2340",
+         "ambiance": "abysse", "acte": 1, "registre": "dark fantasy",
+         "baseline": "Elle a déjà eu lieu. Reste à savoir jusqu'où."},
+        {"key": "nadir", "name": "Nadir", "accent": "#3E6FA8", "accent2": "#16283F",
+         "ambiance": "abysse", "acte": 1, "registre": "sci-fi froid",
          "baseline": "Le point le plus bas est un point de départ comme un autre."},
-        {"key": "purgatoire", "name": "Purgatoire", "accent": "#8A6FB0", "acte": 1, "registre": "dark fantasy",
+        {"key": "styx", "name": "Le Styx", "accent": "#4C7A6B", "accent2": "#14261F",
+         "ambiance": "abysse", "acte": 1, "registre": "mythologique",
+         "baseline": "On ne traverse pas deux fois le même fleuve. On le traverse une."},
+        {"key": "purgatoire", "name": "Le Purgatoire", "accent": "#8A6FB0", "accent2": "#4A3866",
+         "ambiance": "cendre", "acte": 1, "registre": "dark fantasy",
          "baseline": "Ni en haut, ni en bas. Vingt-huit jours pour trancher."},
-        {"key": "quartier_nord", "name": "Quartier Nord", "accent": "#7A8FA6", "acte": 1, "registre": "urbain",
-         "baseline": "Personne ne vient te chercher ici."},
-        {"key": "obsidienne", "name": "Obsidienne", "accent": "#6E5B8F", "acte": 1, "registre": "minéral",
-         "baseline": "Le verre volcanique casse net. Pas avant."},
-        {"key": "solstice_noir", "name": "Solstice Noir", "accent": "#B98A2E", "acte": 1, "registre": "dark fantasy",
+        {"key": "solstice_noir", "name": "Solstice Noir", "accent": "#B98A2E", "accent2": "#3A2E14",
+         "ambiance": "cendre", "acte": 1, "registre": "dark fantasy",
          "baseline": "La nuit la plus longue se travaille."},
-        {"key": "cendre_haute", "name": "Cendre Haute", "accent": "#A89484", "acte": 1, "registre": "post-apo",
+        {"key": "cendres", "name": "Cendres", "accent": "#A89484", "accent2": "#4A3E36",
+         "ambiance": "cendre", "acte": 1, "registre": "post-apo",
          "baseline": "Ce qui a brûlé fertilise ou stérilise. Ça se décide maintenant."},
         # Acte II — La Forge
-        {"key": "dernier_rempart", "name": "Dernier Rempart", "accent": "#C0574F", "acte": 2, "registre": "siège",
-         "baseline": "Ils passeront par toi."},
-        {"key": "acier_froid", "name": "Acier Froid", "accent": "#9FB3C8", "acte": 2, "registre": "forge",
-         "baseline": "On trempe ce qui a été chauffé."},
-        {"key": "veine_mere", "name": "Veine Mère", "accent": "#C98F3A", "acte": 2, "registre": "mine",
-         "baseline": "Vingt-huit jours à creuser au même endroit."},
-        {"key": "derniere_forge", "name": "Dernière Forge", "accent": "#E0703D", "acte": 2, "registre": "forge",
-         "baseline": "Le feu s'éteint à la fin du mois. Pas avant."},
-        {"key": "tonnerre", "name": "Tonnerre", "accent": "#D6543C", "acte": 2, "registre": "métal",
-         "baseline": "Le bruit arrive après. Toujours."},
-        {"key": "inferno", "name": "Inferno", "accent": "#F07A20", "acte": 2, "registre": "métal",
+        {"key": "hellfest", "name": "Hellfest", "accent": "#E0533D", "accent2": "#FF9A2B",
+         "ambiance": "lave", "acte": 2, "registre": "métal",
+         "baseline": "Quatre semaines. Le feu ne demande pas la permission."},
+        {"key": "inferno", "name": "Inferno", "accent": "#F07A20", "accent2": "#FFB347",
+         "ambiance": "lave", "acte": 2, "registre": "métal",
          "baseline": "Ça chauffe à partir de maintenant."},
+        {"key": "tonnerre", "name": "Tonnerre", "accent": "#D6543C", "accent2": "#9FB3C8",
+         "ambiance": "orage", "acte": 2, "registre": "métal",
+         "baseline": "Le bruit arrive après. Toujours."},
+        {"key": "dernier_rempart", "name": "Le Dernier Rempart", "accent": "#C0574F", "accent2": "#7A3F3A",
+         "ambiance": "forge", "acte": 2, "registre": "siège",
+         "baseline": "Ils passeront par toi."},
+        {"key": "derniere_forge", "name": "La Dernière Forge", "accent": "#E0703D", "accent2": "#FFB067",
+         "ambiance": "forge", "acte": 2, "registre": "forge",
+         "baseline": "Le feu s'éteint à la fin du mois. Pas avant."},
+        {"key": "phenix", "name": "Phénix", "accent": "#FF9A3C", "accent2": "#FFE39A",
+         "ambiance": "lave", "acte": 2, "registre": "renaissance",
+         "baseline": "Il ne revient pas malgré le feu. Il revient par lui."},
     ),
 }
 
 # Le catalogue à plat. Il ne sert qu'aux vérifications d'ensemble — unicité des
 # clés, couverture des emblèmes — jamais au tirage.
 SEASON_POOL: tuple[dict, ...] = TRAME[VOIE_CIMES] + TRAME[VOIE_BRAISES]
+
+# La palette, indexée par clé. Elle se **dérive** au lieu d'être stockée.
+#
+# La ligne `Season` copie déjà `key`, `name`, `accent` et `baseline` à la
+# création, pour qu'une saison passée garde son identité même si la trame
+# change. Y ajouter deux colonnes aurait demandé une migration, et surtout
+# aurait figé la palette des saisons déjà jouées : les anciennes seraient
+# restées sans atmosphère pour toujours. En la dérivant de la clé, une saison
+# d'il y a six mois se repeint le jour où l'on retouche sa paire de couleurs.
+_PALETTES: dict[str, dict] = {
+    identite["key"]: {
+        "accent": identite["accent"],
+        "accent2": identite["accent2"],
+        "ambiance": identite["ambiance"],
+    }
+    for identite in SEASON_POOL
+}
+
+# Le repli des clés retirées de la trame. Une saison jouée sous « Vigie » ou
+# « Orbite Basse » existe encore dans l'historique, et son bandeau doit rester
+# peint : sans cette table, elle tomberait sur le gris par défaut, ce qui se
+# lirait comme une panne plutôt que comme une saison ancienne.
+_PALETTE_PAR_DEFAUT = {"accent": "#E8A33D", "accent2": "#8C6B3A", "ambiance": "aurore"}
+
+
+def palette_de(key: str, accent: str = "") -> dict:
+    """La paire de couleurs et l'atmosphère d'une clé de saison.
+
+    ``accent`` est celui stocké sur la ligne : il fait foi quand il existe, car
+    c'est celui sous lequel la saison a réellement été vécue. Seuls la couleur
+    d'atmosphère et le traitement de fond viennent de la trame courante.
+    """
+    palette = _PALETTES.get(key) or _PALETTE_PAR_DEFAUT
+    return {
+        "accent": accent or palette["accent"],
+        "accent2": palette["accent2"],
+        "ambiance": palette["ambiance"],
+    }
 
 SAISONS_PAR_VOIE = len(TRAME[VOIE_CIMES])
 

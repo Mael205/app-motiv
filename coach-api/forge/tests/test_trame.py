@@ -73,7 +73,11 @@ class TestLaVoieSuitLeResultat:
         saisons = parcours(user, [False, False])
         assert saisons[0].reussie is False
         assert saisons[1].voie == season_rules.VOIE_BRAISES
-        assert saisons[1].name == "Nadir", "le fond, puis on creuse"
+        # Derive de la trame, jamais recopie : ces assertions verifient une
+        # **position** dans la voie, pas un nom. Les figer a la main les faisait
+        # casser a chaque retouche du texte, ce qui signalait une regression la
+        # ou il n'y avait qu'une reecriture.
+        assert saisons[1].name == season_rules.TRAME[season_rules.VOIE_BRAISES][0]["name"], "le fond, puis on creuse"
 
     def test_la_voie_basse_ne_retire_rien(self, user):
         """Le §17 interdit d'ajouter une sanction : la trame décore, elle ne
@@ -87,7 +91,7 @@ class TestLaVoieSuitLeResultat:
 class TestChaqueVoieAvanceASonRythme:
     def test_on_reprend_la_voie_basse_ou_on_l_avait_laissee(self, user):
         """Le point de la mécanique. Rater, remonter, rater de nouveau : la
-        seconde chute ne rejoue pas Nadir, elle enchaîne sur le Purgatoire.
+        seconde chute ne rejoue pas la première, elle enchaîne sur la suivante.
 
         La voie d'une saison est décidée par le résultat de **celle d'avant** :
         rater la première ouvre la deuxième aux Braises, la tenir ramène la
@@ -96,9 +100,9 @@ class TestChaqueVoieAvanceASonRythme:
         """
         saisons = parcours(user, [False, True, False, True])
 
-        assert saisons[1].name == "Nadir"                     # première chute
+        assert saisons[1].name == season_rules.TRAME[season_rules.VOIE_BRAISES][0]["name"]   # première chute
         assert saisons[2].voie == season_rules.VOIE_CIMES     # on remonte
-        assert saisons[3].name == "Purgatoire", "la voie basse reprend au suivant"
+        assert saisons[3].name == season_rules.TRAME[season_rules.VOIE_BRAISES][1]["name"], "la voie basse reprend au suivant"
 
     def test_une_annee_en_dents_de_scie_tricote_les_deux(self, user):
         saisons = parcours(user, [True, False, True, False, True])

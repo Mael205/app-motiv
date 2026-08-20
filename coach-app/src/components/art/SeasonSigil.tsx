@@ -18,7 +18,132 @@ function Frame({ size = 44, className, children }: SigilProps & { children: Reac
   )
 }
 
-const SIGILS: Record<string, (p: SigilProps) => React.ReactElement> = {
+export const SIGILS: Record<string, (p: SigilProps) => React.ReactElement> = {
+  /* La Porte d'Ivoire — le double portail de Virgile. Par l'une passent les
+     songes trompeurs, par l'autre ce qui arrive vraiment. Deux battants, un
+     seul ouvert. */
+  porte_ivoire: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M10 42V18a14 14 0 0 1 28 0v24" />
+      <path {...P} d="M24 8v34" />
+      <path {...P} d="M17 42V20a7 7 0 0 1 7-7" opacity=".55" />
+      <path {...P} d="M31 42V20a7 7 0 0 0-7-7" opacity=".8" />
+      <path {...P} d="M6 42h36" />
+    </Frame>
+  ),
+
+  /* Élysion — les champs. Trois épis et une ligne d'horizon : le repos se
+     gagne, c'est tout ce qui le distingue de l'oubli. */
+  elysion: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M6 38h36" />
+      <path {...P} d="M16 38V20M24 38V14M32 38V22" />
+      <path {...P} d="M16 20c-4-2-5-5-4-8 3 1 5 4 4 8ZM16 20c4-2 5-5 4-8-3 1-5 4-4 8Z" opacity=".8" />
+      <path {...P} d="M24 14c-4-2-5-5-4-8 3 1 5 4 4 8ZM24 14c4-2 5-5 4-8-3 1-5 4-4 8Z" />
+      <path {...P} d="M32 22c-4-2-5-5-4-8 3 1 5 4 4 8ZM32 22c4-2 5-5 4-8-3 1-5 4-4 8Z" opacity=".8" />
+    </Frame>
+  ),
+
+  /* Ascension — l'escalier qui monte vers un arc de lumière. Personne ne monte
+     par accident : les marches sont dessinées, pas suggérées. */
+  ascension: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M6 42h8v-7h8v-7h8v-7h8V14" />
+      <path {...P} d="M32 8a10 10 0 0 1 10 10" opacity=".7" />
+      <path {...P} d="M24 6v6M18 9l3 4M30 9l-3 4" opacity=".5" />
+    </Frame>
+  ),
+
+  /* Valhalla — la grande salle. Un fronton, des lances en appui, et la porte
+     par laquelle on entre une fois le travail fini. */
+  valhalla: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M6 22 24 8l18 14" />
+      <path {...P} d="M10 22v20h28V22" />
+      <path {...P} d="M20 42V30a4 4 0 0 1 8 0v12" />
+      <path {...P} d="M14 26v10M34 26v10" opacity=".55" />
+    </Frame>
+  ),
+
+  /* Couronne Solaire — l'anneau qu'on ne voit que pendant l'éclipse. Le disque
+     est plein et sombre ; ce sont les rais qui portent la saison. */
+  couronne_solaire: (p) => (
+    <Frame {...p}>
+      <circle {...P} cx="24" cy="24" r="9" />
+      <path {...P} d="M24 4v7M24 37v7M4 24h7M37 24h7" />
+      <path {...P} d="M10 10l5 5M33 33l5 5M38 10l-5 5M15 33l-5 5" opacity=".75" />
+      <path {...P} d="M24 8.5 26 12h-4l2-3.5ZM24 39.5 22 36h4l-2 3.5Z" opacity=".5" />
+    </Frame>
+  ),
+
+  /* Apothéose — la figure qui se dresse, bras ouverts, dans un cercle achevé.
+     Le mois où l'on cesse d'être celui qui essaie. */
+  apotheose: (p) => (
+    <Frame {...p}>
+      <circle {...P} cx="24" cy="24" r="18" opacity=".45" />
+      <circle {...P} cx="24" cy="14" r="4" />
+      <path {...P} d="M24 18v14M24 32l-6 8M24 32l6 8" />
+      <path {...P} d="M12 20c5 4 8 5 12 5s7-1 12-5" />
+    </Frame>
+  ),
+
+  /* L'Empyrée — le ciel de feu, tout en haut. Trois arcs concentriques et un
+     point : il n'y a rien au-dessus, et le dessin s'arrête donc net. */
+  empyree: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 34a16 16 0 0 1 32 0" />
+      <path {...P} d="M14 34a10 10 0 0 1 20 0" opacity=".8" />
+      <path {...P} d="M19 34a5 5 0 0 1 10 0" opacity=".6" />
+      <circle {...P} cx="24" cy="10" r="2.5" />
+      <path {...P} d="M6 42h36" opacity=".5" />
+    </Frame>
+  ),
+
+  /* La Chute — la figure qui tombe, et la ligne d'où elle est partie. Elle a
+     déjà eu lieu : la ligne est en haut, hors d'atteinte. */
+  chute: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 10h32" opacity=".6" />
+      <circle {...P} cx="24" cy="22" r="4" />
+      <path {...P} d="M24 26v8M24 30l-7 5M24 30l7 5M24 34l-3 8M24 34l3 8" />
+      <path {...P} d="M14 14l4 5M34 14l-4 5" opacity=".45" />
+    </Frame>
+  ),
+
+  /* Le Styx — le fleuve et la barque. On ne le traverse pas deux fois : une
+     seule rame, et une seule rive dessinée. */
+  styx: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M6 34c6-4 12-4 18 0s12 4 18 0" />
+      <path {...P} d="M6 40c6-4 12-4 18 0s12 4 18 0" opacity=".55" />
+      <path {...P} d="M14 28h20l-4 6H18l-4-6Z" />
+      <path {...P} d="M30 28 34 12" />
+      <path {...P} d="M32 12h5" opacity=".7" />
+    </Frame>
+  ),
+
+  /* Cendres — ce qui reste, et ce qui retombe. Un monticule et trois flocons
+     en suspension : ça fertilise ou ça stérilise, et ça se décide maintenant. */
+  cendres: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M8 40c4-10 10-14 16-14s12 4 16 14Z" />
+      <path {...P} d="M16 18a3 3 0 1 1 0-.1M27 12a2.5 2.5 0 1 1 0-.1M34 22a2 2 0 1 1 0-.1" opacity=".7" />
+      <path {...P} d="M24 26c-2-4-1-7 2-9-1 4 1 6 2 9" opacity=".5" />
+    </Frame>
+  ),
+
+  /* Phénix — les ailes ouvertes au-dessus du bûcher. Il ne revient pas malgré
+     le feu : il revient par lui, et les flammes sont donc dessous, pas autour. */
+  phenix: (p) => (
+    <Frame {...p}>
+      <path {...P} d="M24 10c-2 4-2 7 0 10 2-3 2-6 0-10Z" />
+      <path {...P} d="M23 22c-5-6-11-9-17-9 4 5 5 10 3 15 6 1 11-1 14-6Z" />
+      <path {...P} d="M25 22c5-6 11-9 17-9-4 5-5 10-3 15-6 1-11-1-14-6Z" />
+      <path {...P} d="M24 24c2 5 3 8 3 11a3 3 0 0 1-6 0c0-3 1-6 3-11Z" />
+      <path {...P} d="M14 42h20" opacity=".55" />
+    </Frame>
+  ),
+
   /* Hellfest — trident de flammes */
   hellfest: (p) => (
     <Frame {...p}>
@@ -255,36 +380,72 @@ export function SeasonSigil({ seasonKey, size = 44, className }: { seasonKey?: s
   return <Sigil size={size} className={className} />
 }
 
+/** Les frises, indexées par clé de saison.
+ *
+ * Hissée hors du composant pour qu'un test puisse vérifier qu'aucune saison
+ * de la trame n'en manque : sans frise, le bandeau tombe sur un trait droit —
+ * rien ne casse, la saison est juste plus pauvre que les autres, et on ne le
+ * découvre qu’en la vivant.
+ *
+ * Les clés retirées de la trame restent : l'historique en contient encore.
+ */
+export const MOTIFS: Record<string, string> = {
+  porte_ivoire: 'M0 12V7a4 4 0 0 1 8 0v5M12 12V7a4 4 0 0 1 8 0v5',
+  elysion: 'M0 12h20M4 12V7M10 12V5M16 12V8',
+  ascension: 'M0 12h4V9h4V6h4V3h8',
+  valhalla: 'M0 12 5 6l5 6 5-6 5 6',
+  couronne_solaire: 'M0 8h3M6 8h3M12 8h3M18 8h2M10 2v3M10 11v3',
+  apotheose: 'M0 12a10 8 0 0 1 20 0M10 4v8',
+  empyree: 'M0 12a10 7 0 0 1 20 0M4 12a6 4 0 0 1 12 0',
+  chute: 'M0 2h20M4 6v6M10 5v7M16 7v5',
+  styx: 'M0 8c4-3 8-3 12 0s6 3 8 0',
+  cendres: 'M0 12c4-6 8-6 12 0s6 3 8 0',
+  phenix: 'M0 10c4-5 8-6 10-2 2-4 6-3 10 2',
+  hellfest: 'M0 8 Q5 0 10 8 T20 8',
+  heavens_paradise: 'M0 8 Q5 2 10 8 Q15 14 20 8',
+  ragnarok: 'M0 4h6l2 8 2-8h6l2 8 2-8',
+  purgatoire: 'M0 8h4l3-5 3 10 3-10 3 5h4',
+  faille_s: 'M0 8 5 2 10 8 15 14 20 8',
+  solstice_noir: 'M0 8a4 4 0 0 1 8 0 4 4 0 0 0 8 0 4 4 0 0 1 4 0',
+  eveil: 'M0 8a6 4 0 0 1 12 0a6 4 0 0 1-12 0M14 8h6',
+  dernier_rempart: 'M0 12V6h4v6h4V6h4v6h4V6h4v6',
+  aube_rouge: 'M0 12a10 10 0 0 1 20 0',
+  nadir: 'M0 4l5 8 5-8 5 8 5-8',
+  inferno: 'M0 12 5 2l5 10 5-10 5 10',
+  vigie: 'M0 8h6a4 4 0 0 1 8 0h6',
+  obsidienne: 'M0 12 5 4l5 8 5-8 5 8',
+  acier_froid: 'M0 8h5l3-4 3 8 3-4h6',
+  meridien: 'M0 8a10 5 0 0 0 20 0M10 3v10',
+  sanctuaire: 'M0 12V9a5 5 0 0 1 10 0v3M10 12V9a5 5 0 0 1 10 0v3',
+  orbite_basse: 'M0 8a10 4 0 0 0 20 0',
+  tonnerre: 'M0 12 8 2l-2 6h6l-6 4',
+  veine_mere: 'M0 12 6 4l4 6 4-8 6 10',
+  quartier_nord: 'M0 12V7h4v5h4V4h4v8h4V8h4v4',
+  cendre_haute: 'M0 10c4 0 4-6 8-6s4 6 8 6 4-4 4-4',
+  prisme: 'M0 12 6 3l6 9M12 8h8',
+  derniere_forge: 'M0 10h8l3 3h9M4 13h6',
+  marche_haute: 'M0 12h5V9h5V6h5V3h5',
+}
+
+/** Les atmosphères que `SeasonAtmosphere` sait dessiner. Le serveur en nomme
+ *  une par saison ; celle qu'il nommerait sans qu'elle existe ici rendrait un
+ *  bandeau nu. */
+export const AMBIANCES = [
+  'lave',
+  'forge',
+  'ailes',
+  'or',
+  'aurore',
+  'vitrail',
+  'orage',
+  'abysse',
+  'cendre',
+] as const
+
 /** Frise d'ornement du bandeau, différente par saison — elle donne sa texture
  *  au haut de l'écran sans jamais gêner la lecture du texte. */
 export function SeasonOrnament({ seasonKey }: { seasonKey?: string }) {
-  const motifs: Record<string, string> = {
-    hellfest: 'M0 8 Q5 0 10 8 T20 8',
-    heavens_paradise: 'M0 8 Q5 2 10 8 Q15 14 20 8',
-    ragnarok: 'M0 4h6l2 8 2-8h6l2 8 2-8',
-    purgatoire: 'M0 8h4l3-5 3 10 3-10 3 5h4',
-    faille_s: 'M0 8 5 2 10 8 15 14 20 8',
-    solstice_noir: 'M0 8a4 4 0 0 1 8 0 4 4 0 0 0 8 0 4 4 0 0 1 4 0',
-    eveil: 'M0 8a6 4 0 0 1 12 0a6 4 0 0 1-12 0M14 8h6',
-    dernier_rempart: 'M0 12V6h4v6h4V6h4v6h4V6h4v6',
-    aube_rouge: 'M0 12a10 10 0 0 1 20 0',
-    nadir: 'M0 4l5 8 5-8 5 8 5-8',
-    inferno: 'M0 12 5 2l5 10 5-10 5 10',
-    vigie: 'M0 8h6a4 4 0 0 1 8 0h6',
-    obsidienne: 'M0 12 5 4l5 8 5-8 5 8',
-    acier_froid: 'M0 8h5l3-4 3 8 3-4h6',
-    meridien: 'M0 8a10 5 0 0 0 20 0M10 3v10',
-    sanctuaire: 'M0 12V9a5 5 0 0 1 10 0v3M10 12V9a5 5 0 0 1 10 0v3',
-    orbite_basse: 'M0 8a10 4 0 0 0 20 0',
-    tonnerre: 'M0 12 8 2l-2 6h6l-6 4',
-    veine_mere: 'M0 12 6 4l4 6 4-8 6 10',
-    quartier_nord: 'M0 12V7h4v5h4V4h4v8h4V8h4v4',
-    cendre_haute: 'M0 10c4 0 4-6 8-6s4 6 8 6 4-4 4-4',
-    prisme: 'M0 12 6 3l6 9M12 8h8',
-    derniere_forge: 'M0 10h8l3 3h9M4 13h6',
-    marche_haute: 'M0 12h5V9h5V6h5V3h5',
-  }
-  const d = motifs[seasonKey ?? ''] ?? 'M0 8h20'
+  const d = MOTIFS[seasonKey ?? ''] ?? 'M0 8h20'
 
   return (
     <svg className="ornament" height="14" width="100%" aria-hidden preserveAspectRatio="none">

@@ -1973,7 +1973,11 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
                 "index": season.index,
                 "key": season.key,   # sélectionne l'emblème dessiné côté client
                 "name": season.name,
-                "accent": season.accent,
+                # La palette entiere, pas la seule couleur d'accent : `accent2`
+                # tient l'atmosphere du fond et `ambiance` nomme le traitement
+                # que le client sait dessiner. Derivee de la cle, donc une
+                # saison ancienne se repeint quand la trame evolue.
+                **season_rules.palette_de(season.key, season.accent),
                 "baseline": season.baseline,
                 # Où l'on se tient dans la trame (§12.2). Une histoire que seul
                 # le code connaît n'est pas une histoire : sans cette ligne, la

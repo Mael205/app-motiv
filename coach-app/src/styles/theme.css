@@ -40,6 +40,11 @@
   --rose: #de5f7e;
   --vert: #7ed08c;
   --accent: var(--gold);
+  /* La seconde couleur de saison. Elle ne peint aucun texte : elle tient
+     l'atmosphère — le second halo du fond, les braises et les rais du bandeau.
+     Le repli est le turquoise du système, qui est ce que le fond portait en dur
+     avant que les saisons n'aient chacune la leur. */
+  --accent2: var(--turquoise);
   --perso: var(--accent);
 
   /* Alias français hérités. Vingt-deux déclarations les appelaient sans que
@@ -151,9 +156,13 @@ body::before {
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(120% 80% at 50% -20%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
-    radial-gradient(90% 60% at 85% 110%, color-mix(in srgb, var(--turquoise) 10%, transparent), transparent 65%),
+    radial-gradient(120% 80% at 50% -20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 85% 110%, color-mix(in srgb, var(--accent2) 14%, transparent), transparent 65%),
     var(--bg-deep);
+  /* La couleur de fond suit la saison qui arrive. Quatorze secondes, parce que
+     ce halo occupe l'écran entier : plus court, on verrait la teinte sauter au
+     moment où la saison bascule. */
+  transition: background 14s linear;
 }
 
 body::after {

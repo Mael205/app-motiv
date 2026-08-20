@@ -1,0 +1,330 @@
+/* Le décor de saison.
+ *
+ * Trois règles tiennent tout ce fichier :
+ *
+ * 1. **Rien ne capte un clic.** `pointer-events: none` sur la couche entière —
+ *    le bandeau porte des boutons, et un décor qui les avale serait pire que
+ *    pas de décor du tout.
+ *
+ * 2. **Rien n'anime autre chose que `transform` et `opacity`.** Une braise qui
+ *    monterait en animant `top` recalculerait la mise en page soixante fois par
+ *    seconde, sur un écran qu'on ouvre tous les soirs.
+ *
+ * 3. **Tout se tait sous `prefers-reduced-motion`.** Les décors restent, les
+ *    mouvements s'arrêtent : la saison garde son identité, elle cesse de
+ *    bouger. La supprimer ferait perdre l'information au lieu du mouvement.
+ */
+
+.atm {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Le décor vit sous le contenu du bandeau, jamais au-dessus. */
+  z-index: 0;
+  /* Le biseau du panneau : sans lui, le décor déborde des coins coupés et
+     dessine un rectangle là où la carte a une encoche. */
+  clip-path: var(--clip);
+}
+
+.atm__scene {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Le voile.
+ *
+ * Sans lui, le décor gagne contre le texte : mesuré sur la planche des vingt-
+ * quatre, la baseline de Hellfest et celle d'Apothéose passaient sous le seuil
+ * de lisibilité — de la lave orange et un halo doré derrière du gris clair. Le
+ * bandeau porte des informations qu'on relit tous les soirs ; une saison ne
+ * peut pas les rendre plus difficiles à lire que la précédente.
+ *
+ * Il est **léger**, et c'est une correction : à 46 % en haut et 66 % en bas,
+ * il rendait bien le texte lisible mais éteignait la planche entière — la lave
+ * de Hellfest virait au brun et le halo d'Apothéose disparaissait. Le voile
+ * réglait un problème local, celui du texte, en payant sur toute la surface.
+ *
+ * Il ne fait donc plus que la moitié du travail. L'autre moitié est portée par
+ * le texte lui-même, qui garde son ombre quel que soit le décor derrière
+ * (`.banner` et le banc d'essai) : protéger la lettre coûte moins cher que
+ * noircir l'image. */
+.atm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-deep) 22%, transparent),
+    color-mix(in srgb, var(--bg-deep) 44%, transparent)
+  );
+}
+
+/* --- Particules : le socle commun ---------------------------------------
+   Chaque famille pose ses `<i>` dans un conteneur en pleine surface. `--i`
+   est l'index, et sert à décaler la position et le retard : sans lui, toutes
+   les particules partiraient du même point au même instant. */
+
+.atm__braises,
+.atm__etincelles,
+.atm__plumes,
+.atm__poussiere,
+.atm__pluie,
+.atm__bulles,
+.atm__cendre {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.atm__braises i,
+.atm__etincelles i,
+.atm__plumes i,
+.atm__poussiere i,
+.atm__pluie i,
+.atm__bulles i,
+.atm__cendre i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  /* Le hasard reproductible : un multiplicateur premier étalé sur la largeur
+     donne une répartition qui ne se lit pas comme une grille, et qui reste la
+     même d'un rendu à l'autre — un `Math.random()` ferait sauter les
+     particules à chaque nouveau rendu de React. */
+  left: calc(mod(var(--i) * 37, 100) * 1%);
+}
+
+/* --- Lave : les braises montent ----------------------------------------- */
+
+.atm__braises i {
+  bottom: -6px;
+  width: 3px;
+  height: 3px;
+  background: var(--accent2);
+  box-shadow: 0 0 6px var(--accent2);
+  opacity: 0;
+  animation: atm-braise 4.2s linear infinite;
+  animation-delay: calc(var(--i) * -0.31s);
+}
+
+@keyframes atm-braise {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  12% { opacity: 0.9; }
+  70% { opacity: 0.55; }
+  100% { transform: translate3d(14px, -120px, 0) scale(0.3); opacity: 0; }
+}
+
+.atm__fissures {
+  animation: atm-pulse 5.5s ease-in-out infinite;
+}
+
+@keyframes atm-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* --- Forge : les étincelles partent de côté ----------------------------- */
+
+.atm__etincelles i {
+  bottom: 14%;
+  width: 2px;
+  height: 2px;
+  background: var(--accent2);
+  box-shadow: 0 0 5px var(--accent2);
+  opacity: 0;
+  animation: atm-etincelle 2.6s ease-out infinite;
+  animation-delay: calc(var(--i) * -0.26s);
+}
+
+@keyframes atm-etincelle {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate3d(38px, -26px, 0); opacity: 0; }
+}
+
+/* --- Ailes : les plumes descendent en tournant -------------------------- */
+
+.atm__plumes i {
+  top: -10px;
+  width: 4px;
+  height: 9px;
+  border-radius: 60% 60% 60% 60% / 40% 40% 70% 70%;
+  background: var(--accent2);
+  opacity: 0;
+  animation: atm-plume 9s linear infinite;
+  animation-delay: calc(var(--i) * -1s);
+}
+
+@keyframes atm-plume {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+  15% { opacity: 0.75; }
+  85% { opacity: 0.4; }
+  100% { transform: translate3d(-26px, 150px, 0) rotate(220deg); opacity: 0; }
+}
+
+.atm__rais {
+  animation: atm-rais 7s ease-in-out infinite;
+  transform-origin: 50% 0;
+}
+
+@keyframes atm-rais {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* --- Or : la poussière flotte, la couronne tourne ----------------------- */
+
+.atm__poussiere i {
+  top: calc(mod(var(--i) * 53, 90) * 1%);
+  width: 2px;
+  height: 2px;
+  background: var(--accent2);
+  box-shadow: 0 0 4px var(--accent2);
+  animation: atm-poussiere 6.5s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.54s);
+}
+
+@keyframes atm-poussiere {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.2; }
+  50% { transform: translate3d(6px, -10px, 0); opacity: 0.85; }
+}
+
+.atm__couronne {
+  transform-origin: 200px 50px;
+  animation: atm-tourne 60s linear infinite;
+}
+
+@keyframes atm-tourne {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Aurore : deux voiles qui ondulent ---------------------------------- */
+
+.atm__voile {
+  animation: atm-voile 14s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.atm__voile--deux {
+  animation-duration: 19s;
+  animation-direction: reverse;
+}
+
+@keyframes atm-voile {
+  0%, 100% { transform: translate3d(0, 0, 0) scaleY(1); }
+  50% { transform: translate3d(-14px, -4px, 0) scaleY(1.08); }
+}
+
+/* --- Orage : la pluie tombe droit, l'éclair frappe rarement ------------- */
+
+.atm__pluie i {
+  top: -14px;
+  width: 1px;
+  height: 12px;
+  border-radius: 0;
+  background: linear-gradient(180deg, transparent, var(--accent2));
+  opacity: 0.5;
+  animation: atm-pluie 1.4s linear infinite;
+  animation-delay: calc(var(--i) * -0.09s);
+}
+
+@keyframes atm-pluie {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-10px, 160px, 0); }
+}
+
+/* Sept secondes entre deux éclairs, et l'éclat dure un dixième. Un éclair
+   fréquent ferait clignoter le haut de l'écran du soir en permanence. */
+.atm__eclair {
+  opacity: 0;
+  animation: atm-eclair 7s steps(1, end) infinite;
+}
+
+@keyframes atm-eclair {
+  0%, 96% { opacity: 0; }
+  97% { opacity: 1; }
+  98% { opacity: 0.2; }
+  99% { opacity: 0.9; }
+}
+
+/* --- Abysse : les bulles remontent -------------------------------------- */
+
+.atm__bulles i {
+  bottom: -8px;
+  width: 5px;
+  height: 5px;
+  background: none;
+  border: 1px solid var(--accent);
+  opacity: 0;
+  animation: atm-bulle 11s ease-in infinite;
+  animation-delay: calc(var(--i) * -1.4s);
+}
+
+@keyframes atm-bulle {
+  0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.5; }
+  100% { transform: translate3d(10px, -150px, 0) scale(1.2); opacity: 0; }
+}
+
+/* --- Cendre : elle tombe en dérivant ------------------------------------ */
+
+.atm__cendre i {
+  top: -8px;
+  width: 3px;
+  height: 3px;
+  background: var(--accent2);
+  opacity: 0;
+  animation: atm-cendre 12s linear infinite;
+  animation-delay: calc(var(--i) * -0.66s);
+}
+
+@keyframes atm-cendre {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: 0.7; }
+  88% { opacity: 0.35; }
+  100% { transform: translate3d(-30px, 160px, 0); opacity: 0; }
+}
+
+/* --- Le calme demandé ---------------------------------------------------
+   Les décors restent en place, figés à mi-course : la saison garde son
+   identité, elle cesse simplement de bouger. */
+@media (prefers-reduced-motion: reduce) {
+  .atm *,
+  .atm *::before,
+  .atm *::after {
+    animation: none !important;
+  }
+
+  .atm__braises i,
+  .atm__etincelles i,
+  .atm__plumes i,
+  .atm__pluie i,
+  .atm__bulles i,
+  .atm__cendre i {
+    opacity: 0.4;
+  }
+}
+
+/* --- Renforts : ce que la planche des vingt-quatre a montré -------------
+   Quatre atmosphères ne se distinguaient pas d'un fond vide. Leurs éléments
+   ajoutés respirent au lieu d'être fixes — un décor immobile dans une liste
+   où trois voisins bougent se lit encore comme un décor manquant. */
+
+.atm__colonnes {
+  animation: atm-colonnes 11s ease-in-out infinite;
+}
+
+@keyframes atm-colonnes {
+  0%, 100% { opacity: 0.16; }
+  50% { opacity: 0.3; }
+}
+
+.atm__metal {
+  animation: atm-pulse 3.4s ease-in-out infinite;
+}
+
+.atm__tisons {
+  animation: atm-pulse 4.6s ease-in-out infinite;
+}

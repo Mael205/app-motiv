@@ -176,6 +176,14 @@ export interface SeasonState {
   key: string
   name: string
   accent: string
+  /** La seconde couleur de la saison. Elle tient l'atmosphère — halo de fond,
+   *  braises, rais de lumière — là où `accent` tient le texte et les jauges.
+   *  Une seule couleur donnait vingt-quatre saisons de même forme repeintes. */
+  accent2: string
+  /** Le traitement de fond que le client sait dessiner : `lave`, `ailes`,
+   *  `abysse`… Neuf familles pour vingt-quatre saisons, croisées avec la paire
+   *  de couleurs, le sceau et la frise. */
+  ambiance: string
   baseline: string
   acte: ActeDeSaison
   day_index: number

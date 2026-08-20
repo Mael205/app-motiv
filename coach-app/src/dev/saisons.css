@@ -1,0 +1,108 @@
+/* Le banc d'essai des saisons. Volontairement pauvre en style propre : ce
+   qu'on juge ici est le décor de saison, pas la grille qui le présente. */
+
+.banc {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--s6) var(--s4) 80px;
+}
+
+.banc__titre {
+  font-size: 44px;
+  color: var(--text);
+}
+
+.banc__note {
+  max-width: 62ch;
+  margin: var(--s3) 0 var(--s6);
+  color: var(--muted);
+  font-size: var(--t-md);
+  line-height: 1.6;
+}
+
+.banc__voie {
+  margin: var(--s6) 0 var(--s4);
+  font-size: var(--t-xl);
+  color: var(--muted);
+}
+
+.banc__grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--s4);
+}
+
+/* La carte reprend la forme du bandeau réel : même biseau, même fond de
+   panneau. Sans ça, on jugerait un décor dans un cadre qui n'existe pas. */
+.essai {
+  position: relative;
+  overflow: hidden;
+  min-height: 190px;
+  padding: 0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)), var(--panel);
+  border: 1px solid var(--line);
+  clip-path: var(--clip);
+}
+
+.essai__corps {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  height: 100%;
+  padding: var(--s4);
+}
+
+.essai__tete {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.essai__sigil {
+  flex: 0 0 auto;
+  color: var(--accent);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+
+.essai__nom {
+  font-size: 26px;
+  color: var(--accent);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.essai__meta {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+/* La baseline monte d'un cran de gris.
+ *
+ * Mesuré sur les vingt-quatre : en `--muted`, huit saisons passaient sous
+ * 4,5:1 — 3,03 sur L'Éveil et Aube Rouge, dont le décor est clair. Une surface
+ * décorée ne peut pas garder le gris le plus discret de la palette : ce gris a
+ * été choisi contre un panneau uni, pas contre une aurore. */
+.essai__baseline {
+  margin-top: auto;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.essai .ornament {
+  color: var(--accent);
+  opacity: 0.5;
+}
+
+/* Le texte garde son ombre quel que soit le décor derrière. C'est ce qui
+   permet au voile de rester léger : protéger la lettre coûte moins cher que
+   noircir l'image entière. */
+.essai__nom,
+.essai__baseline,
+.essai__meta {
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--bg-deep) 92%, transparent);
+}

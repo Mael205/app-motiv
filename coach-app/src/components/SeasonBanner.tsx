@@ -5,6 +5,7 @@ import { setSoundMuted, soundMuted } from '../juice'
 import type { Cosmetics, Progression, SeasonState, Streak } from '../types'
 import { RankBadge } from './art/RankBadge'
 import { SeasonOrnament, SeasonSigil } from './art/SeasonSigil'
+import { SeasonAtmosphere } from './art/SeasonAtmosphere'
 import { Icon } from './art/Icons'
 import './SeasonBanner.css'
 
@@ -46,6 +47,11 @@ export const SeasonBanner = memo(function SeasonBanner({
 
   return (
     <header className="banner">
+      {/* Le décor de la saison, sous tout le reste. C'est lui qui fait qu'on
+          reconnaît Hellfest d'un regard sans lire son nom — de la lave sous
+          des fissures là où Heaven's Paradise a des ailes et des rais de
+          lumière. Le halo simple qu'il remplace était le même partout. */}
+      <SeasonAtmosphere ambiance={season?.ambiance} />
       <div className="banner__glow" aria-hidden />
 
       <div className="banner__top">

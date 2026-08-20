@@ -321,7 +321,7 @@ def _bilan(user, season: Season, *, today: date, deja: bool) -> dict:
         "season": {
             "index": season.index,
             "name": season.name,
-            "accent": season.accent,
+            **season_rules.palette_de(season.key, season.accent),
             "baseline": season.baseline,
             "days": jours,
         },
@@ -392,7 +392,7 @@ def etat_extra(user, *, today: date) -> dict | None:
 
     return {
         "name": prochaine.name,
-        "accent": prochaine.accent,
+        **season_rules.palette_de(prochaine.key, prochaine.accent),
         "starts_on": prochaine.starts_on.isoformat(),
         "days_until": (prochaine.starts_on - today).days,
         "minutes": minutes_extra(user, prochaine),
@@ -461,7 +461,7 @@ def next_offer(user, *, today: date) -> dict | None:
         # glyphe de repli, sur toutes les saisons depuis qu'il existe.
         "key": plan.key,
         "name": plan.name,
-        "accent": plan.accent,
+        **season_rules.palette_de(plan.key, plan.accent),
         "baseline": plan.baseline,
         "starts_on": plan.starts_on.isoformat(),
         "ends_on": plan.ends_on.isoformat(),

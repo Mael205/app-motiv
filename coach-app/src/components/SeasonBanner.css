@@ -20,11 +20,42 @@
   pointer-events: none;
 }
 
-.banner__top {
+/* Tout le contenu passe au-dessus du décor de saison, et garde son ombre.
+ *
+ * L'ombre n'est pas décorative : le décor derrière peut être de la lave orange
+ * comme un abysse presque noir, et un texte qui ne tiendrait que sur l'un des
+ * deux rendrait le bandeau illisible une saison sur deux. Elle coûte moins
+ * cher qu'un voile épais, qui, lui, éteindrait la saison pour protéger la
+ * lettre. */
+.banner__top,
+.banner__stats,
+.banner__counters,
+.banner .ornament {
   position: relative;
+  z-index: 1;
+}
+
+.banner__top {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.banner__top,
+.banner__stats,
+.banner__counters {
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--bg-deep) 90%, transparent);
+}
+
+/* Les petites capitales montent d'un cran de gris sur le bandeau.
+ *
+ * `--muted` a été choisi contre un panneau uni ; derrière lui il y a
+ * maintenant une aurore, une lave ou un vitrail. Mesuré : le libellé de la
+ * barre d'XP tombait à 3,79:1, sous le seuil pour du texte de onze pixels et
+ * demi. C'est le seul endroit du produit où `.label` change de valeur, et
+ * c'est parce que c'est le seul posé sur un décor. */
+.banner .label {
+  color: color-mix(in srgb, var(--muted) 55%, var(--text));
 }
 
 .banner__sigil {

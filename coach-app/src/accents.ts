@@ -23,6 +23,14 @@ export function applySeasonTheme(home: HomeState) {
   if (saison) root.style.setProperty('--accent', saison)
   else root.style.removeProperty('--accent')
 
+  // La seconde couleur de la saison. Elle ne peint aucun texte : elle tient
+  // l'atmosphère — les deux halos du fond, les braises du bandeau, les rais de
+  // lumière. Sans elle, toutes les saisons partageaient le même fond turquoise
+  // hérité de theme.css, et c'est ce qui les rendait interchangeables.
+  const atmosphere = home.season?.accent2 ?? ''
+  if (atmosphere) root.style.setProperty('--accent2', atmosphere)
+  else root.style.removeProperty('--accent2')
+
   // --perso appartient au joueur. Le thème équipé ne **remplace** plus l'accent
   // de saison, il peint les surfaces qui sont les siennes — fiche de
   // personnage, collection, révélation de carte. Les deux restent visibles en
