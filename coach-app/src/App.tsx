@@ -18,6 +18,7 @@ import { SessionScreen } from './screens/SessionScreen'
 import { Ascendance } from './components/Ascendance'
 import { Assistant, AssistantButton } from './components/Assistant'
 import { Partage } from './components/Partage'
+import { SeasonAtmosphere } from './components/art/SeasonAtmosphere'
 import { TabBar, type Tab } from './components/TabBar'
 import { TimezoneNotice } from './components/TimezoneNotice'
 import { applySeasonTheme } from './accents'
@@ -177,6 +178,12 @@ export default function App() {
 
   return (
     <>
+      {/* Le décor de la saison, derrière les quatre onglets et non dans le seul
+          bandeau de l'accueil. Il est monté ici, hors de `ScreenTransition` :
+          la saison ne change pas quand on change d'onglet, et le faire
+          reparaître à chaque bascule d'écran serait un clignotement. */}
+      <SeasonAtmosphere ambiance={state.season?.ambiance} fond />
+
       <main className="shell">
         {/* Au-dessus de tout, y compris de la décision : un écart de fuseau
             rend faux tout ce qui suit — la fenêtre du soir, l'heure du gardien,

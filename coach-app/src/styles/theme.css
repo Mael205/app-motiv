@@ -165,6 +165,48 @@ body::before {
   transition: background 14s linear;
 }
 
+/* D'où vient la lumière, selon l'ambiance de la saison.
+ *
+ * La teinte suivait déjà la saison ; la **géométrie**, non. Vingt-quatre
+ * saisons éclairées d'en haut de la même façon se ressemblaient dès qu'on
+ * quittait le bandeau. Une saison de lave s'éclaire par le sol, une saison
+ * d'ailes par le ciel, un abysse ne s'éclaire presque pas. C'est ce que ces
+ * quatre règles disent, et elles ne coûtent pas un nœud de DOM. */
+body[data-ambiance='lave']::before,
+body[data-ambiance='forge']::before,
+body[data-ambiance='cendre']::before {
+  background:
+    radial-gradient(100% 70% at 50% 118%, color-mix(in srgb, var(--accent2) 26%, transparent), transparent 62%),
+    radial-gradient(120% 60% at 50% -15%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 58%),
+    var(--bg-deep);
+}
+
+body[data-ambiance='ailes']::before,
+body[data-ambiance='or']::before,
+body[data-ambiance='aurore']::before {
+  background:
+    radial-gradient(110% 85% at 50% -25%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
+    radial-gradient(80% 50% at 15% 105%, color-mix(in srgb, var(--accent2) 12%, transparent), transparent 65%),
+    var(--bg-deep);
+}
+
+body[data-ambiance='orage']::before,
+body[data-ambiance='vitrail']::before {
+  background:
+    radial-gradient(70% 100% at 8% 20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    radial-gradient(70% 100% at 96% 80%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 62%),
+    var(--bg-deep);
+}
+
+/* L'abysse est le seul fond qui s'assombrit : sa lumière vient du fond de
+   l'eau, faible, et un halo franc lui ferait perdre ce qui le nomme. */
+body[data-ambiance='abysse']::before {
+  background:
+    radial-gradient(120% 90% at 50% 130%, color-mix(in srgb, var(--accent2) 20%, transparent), transparent 58%),
+    radial-gradient(140% 70% at 50% -10%, color-mix(in srgb, var(--bg-deep) 80%, transparent), transparent 70%),
+    var(--bg-deep);
+}
+
 body::after {
   content: '';
   position: fixed;
@@ -654,6 +696,15 @@ body.terne {
 body.terne .panel,
 body.terne .cta {
   filter: saturate(0.25);
+}
+
+/* Le décor de saison s'éteint avec le reste. Sans cette ligne il restait seul
+   en couleur — `--accent2` ne passe pas par `--accent`, donc l'atmosphère
+   gardait sa teinte pendant que l'interface grisait, et la sanction se lisait
+   comme un bug d'affichage. */
+body.terne .atm--fond {
+  filter: saturate(0.2);
+  opacity: 0.16;
 }
 
 @media (prefers-reduced-motion: reduce) {

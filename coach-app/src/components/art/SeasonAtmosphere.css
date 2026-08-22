@@ -328,3 +328,108 @@
 .atm__tisons {
   animation: atm-pulse 4.6s ease-in-out infinite;
 }
+
+/* --- Le même décor, tenu derrière l'app entière -------------------------
+ *
+ * La saison ne vivait que dans le bandeau de l'accueil : trois onglets sur
+ * quatre — Projets, Personnage, Journal — étaient exactement les mêmes en
+ * Hellfest et en Nadir, et une identité qu'on perd en changeant d'onglet n'en
+ * est pas une (§0.10).
+ *
+ * Ce n'est pas une seconde illustration : c'est la **lumière** de la pièce. La
+ * scène est la même, posée en fixe, ancrée en bas, et suffisamment basse en
+ * opacité pour qu'aucun texte ne se lise moins bien qu'avant. Le voile du
+ * bandeau disparaît ici — il n'a rien à protéger, le contenu vit sur des
+ * panneaux opaques.
+ */
+.atm--fond {
+  position: fixed;
+  inset: 0;
+  /* Derrière tout, mais devant les halos de `body::before` : les halos
+     donnent la teinte, le décor donne la forme. */
+  z-index: -2;
+  clip-path: none;
+  opacity: 0.42;
+  /* Même durée que la bascule de teinte du fond : la saison qui change ne doit
+     pas apparaître d'un coup au milieu d'une soirée. */
+  transition: opacity 14s linear;
+}
+
+/* La scène occupe le bas de l'écran, pas sa totalité : ces décors sont tous
+   composés au sol — lave, cendre, colonnes, pluie —, et les étirer sur 900 px
+   remonterait leur horizon au milieu du regard. */
+.atm--fond .atm__scene {
+  inset: auto 0 0;
+  height: 72vh;
+}
+
+/* Deux atmosphères viennent du ciel et non du sol : les étirer par le bas les
+   décapiterait. */
+.atm--fond.atm--ailes .atm__scene,
+.atm--fond.atm--aurore .atm__scene {
+  inset: 0 0 auto;
+  height: 74vh;
+}
+
+/* Le voile du bandeau devient ici une **vignette**.
+ *
+ * Le voile plein écran n'a rien à protéger — le contenu vit sur des panneaux
+ * opaques — et il ne ferait qu'éteindre la teinte que les halos viennent de
+ * donner. À sa place, la même couche referme le décor sur le centre : sans
+ * elle la scène s'arrête net au milieu de l'écran sur les grandes hauteurs, et
+ * les quatre coins tirent l'œil hors du contenu.
+ *
+ * C'est `::after` et non `::before` : le pseudo doit peindre **par-dessus** la
+ * scène, donc être le dernier enfant. */
+.atm--fond::after {
+  background: radial-gradient(
+    130% 90% at 50% 50%,
+    transparent 38%,
+    color-mix(in srgb, var(--bg-deep) 72%, transparent) 100%
+  );
+}
+
+/* Les particules plein écran : moins nombreuses à l'œil, jamais plus lentes.
+   Une braise deux fois plus grosse parce que l'écran est six fois plus large
+   se lit comme une poussière sur la dalle. */
+.atm--fond .atm__braises,
+.atm--fond .atm__etincelles,
+.atm--fond .atm__plumes,
+.atm--fond .atm__poussiere,
+.atm--fond .atm__pluie,
+.atm--fond .atm__bulles,
+.atm--fond .atm__cendre {
+  opacity: 0.55;
+}
+
+/* Le fond ne bouge plus du tout quand le mouvement est refusé : sur un écran
+   entier, la règle « le décor reste, le mouvement s'arrête » du haut de ce
+   fichier vaut doublement. */
+@media (prefers-reduced-motion: reduce) {
+  .atm--fond {
+    opacity: 0.22;
+  }
+}
+
+/* La respiration du fond.
+ *
+ * Un décor plein écran parfaitement immobile se lit comme une image posée sur
+ * la dalle — c'est ce qui séparait encore le fond du bandeau, où tout bouge.
+ * Quatre-vingt-dix secondes pour un déplacement de deux pour cent : à l'œil ce
+ * n'est pas un mouvement, c'est le fait que la pièce est vivante. Rien d'autre
+ * que `transform`, donc aucun recalcul de mise en page. */
+.atm--fond {
+  animation: atm-fond-respire 90s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes atm-fond-respire {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.02); }
+  50% { transform: translate3d(0, -2%, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm--fond {
+    animation: none;
+  }
+}

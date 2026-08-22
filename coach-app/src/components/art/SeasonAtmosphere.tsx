@@ -25,7 +25,15 @@
 
 import './SeasonAtmosphere.css'
 
-type Props = { ambiance?: string }
+type Props = {
+  ambiance?: string
+  /** Le décor tenu derrière l'app entière, et non dans le bandeau.
+   *
+   * Même scène, deux emplois : dans le bandeau elle est une illustration, en
+   * fond elle est une lumière. Le CSS s'en charge — la scène ne se redessine
+   * pas, elle se pose autrement et se tait davantage. */
+  fond?: boolean
+}
 
 /** Un identifiant de dégradé unique par atmosphère. Deux `<defs>` portant le
  *  même `id` dans un document se marchent dessus — le second est ignoré, et la
@@ -342,7 +350,7 @@ const ATMOSPHERES: Record<string, () => React.ReactElement> = {
   ),
 }
 
-export function SeasonAtmosphere({ ambiance }: Props) {
+export function SeasonAtmosphere({ ambiance, fond = false }: Props) {
   const Decor = ATMOSPHERES[ambiance ?? '']
   // Sans atmosphère connue — une saison d'archive dont la clé a quitté la
   // trame —, on ne dessine rien plutôt qu'un décor au hasard : un fond neutre
@@ -350,7 +358,7 @@ export function SeasonAtmosphere({ ambiance }: Props) {
   if (!Decor) return null
 
   return (
-    <div className={`atm atm--${ambiance}`} aria-hidden>
+    <div className={`atm atm--${ambiance}${fond ? ' atm--fond' : ''}`} aria-hidden>
       <Decor />
     </div>
   )

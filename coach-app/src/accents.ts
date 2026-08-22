@@ -31,6 +31,12 @@ export function applySeasonTheme(home: HomeState) {
   if (atmosphere) root.style.setProperty('--accent2', atmosphere)
   else root.style.removeProperty('--accent2')
 
+  // L'ambiance de la saison, publiée sur le <body> pour que le CSS entier
+  // puisse s'y adosser. La couleur seule ne suffisait pas à faire une saison :
+  // deux saisons de la même paire de teintes se distinguent par d'où vient la
+  // lumière, et c'est ce que cette clé permet de dire à tout l'écran.
+  root.dataset.ambiance = home.season?.ambiance ?? ''
+
   // --perso appartient au joueur. Le thème équipé ne **remplace** plus l'accent
   // de saison, il peint les surfaces qui sont les siennes — fiche de
   // personnage, collection, révélation de carte. Les deux restent visibles en

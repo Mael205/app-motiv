@@ -110,3 +110,16 @@ describe('le mode terne', () => {
     expect(document.body.classList.contains('terne')).toBe(false)
   })
 })
+
+describe("l'ambiance de la saison", () => {
+  it('se publie sur le <body> pour que tout le CSS puisse s’y adosser', () => {
+    applySeasonTheme(accueil({ season: { accent: WACKEN, ambiance: 'lave' } }))
+    expect(document.body.dataset.ambiance).toBe('lave')
+  })
+
+  it('se vide entre deux saisons, comme le reste', () => {
+    applySeasonTheme(accueil({ season: { accent: WACKEN, ambiance: 'lave' } }))
+    applySeasonTheme(accueil({ season: null }))
+    expect(document.body.dataset.ambiance).toBe('')
+  })
+})
