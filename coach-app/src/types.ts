@@ -558,6 +558,10 @@ export interface HomeState {
   evening: Evening
   running_session: RunningSession | null
   proposal: Proposal | null
+  /** L'autre séance possible aujourd'hui, quand la journée en porte deux
+   *  (§11.4). La décision reste unique — celle-ci ne demande rien et se rend
+   *  en petit, sous la première. */
+  autre_piste: Proposal | null
   momentum: Momentum
   skills: SkillBranch[]
   phantom: Phantom | null

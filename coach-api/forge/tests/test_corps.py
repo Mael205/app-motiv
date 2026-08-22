@@ -162,6 +162,56 @@ class TestLArbitrageDuSoir:
         assert etat["proposal"] is not None
 
 
+@pytest.mark.django_db
+class TestLaSecondeSeanceDeLaJournee:
+    """La piste qui ne prend pas la décision reste lançable (§11.1, §11.4).
+
+    Sans elle, aller à la salle un mardi était impossible à déclarer : le Corps
+    n'apparaissait que les soirs où sa semaine était déjà en train d'être
+    ratée, et aucun bouton n'existait le reste du temps.
+    """
+
+    def test_le_lundi_la_seconde_piste_est_le_corps(self, user):
+        seconde = _seconde(user, LUNDI)
+        assert seconde is not None and seconde["track"] == Track.CORPS
+        assert seconde["minutes"] == regles.PLANCHER
+
+    def test_le_vendredi_les_deux_pistes_s_echangent(self, user):
+        """Le Corps prend la décision, l'Atelier passe en second — pas l'inverse."""
+        proposition = services.propose(user, today=VENDREDI)
+        assert proposition["track"] == Track.CORPS
+        assert _seconde(user, VENDREDI)["track"] == Track.ATELIER
+
+    def test_une_semaine_de_corps_tenue_n_offre_plus_rien(self, user):
+        """Le §17 interdit de pousser au-delà d'un objectif, en second aussi."""
+        for i in range(2):
+            seance(user, LUNDI + timedelta(days=i), piste=Track.CORPS)
+        assert _seconde(user, LUNDI + timedelta(days=2)) is None
+
+    def test_sans_projet_corps_il_n_y_a_pas_de_seconde_piste(self, user):
+        Project.objects.filter(user=user, track__kind=Track.CORPS).delete()
+        assert _seconde(user, LUNDI) is None
+
+    def test_l_accueil_la_rend_a_cote_de_la_decision(self, user):
+        etat = services.home_state(user, now=_midi(LUNDI))
+        assert etat["proposal"]["track"] == Track.ATELIER
+        assert etat["autre_piste"]["track"] == Track.CORPS
+
+    def test_demander_l_atelier_ne_rejoue_pas_l_arbitrage(self, user):
+        """``sans_corps`` est le seul moyen d'avoir l'Atelier un vendredi."""
+        assert services.propose(user, today=VENDREDI)["track"] == Track.CORPS
+        assert services.propose(user, today=VENDREDI, sans_corps=True)["track"] == Track.ATELIER
+
+
+def _seconde(user, jour: date):
+    proposition = services.propose(user, today=jour)
+    return services.autre_piste(user, today=jour, proposition=proposition, now=_midi(jour))
+
+
+def _midi(jour: date) -> datetime:
+    return datetime(jour.year, jour.month, jour.day, 12, tzinfo=PARIS)
+
+
 def seance(user, jour: date, *, piste: str, minutes: int = 45, projet=None) -> Session:
     cible = projet or Project.objects.filter(user=user, track__kind=piste).first()
     return Session.objects.create(

@@ -1563,6 +1563,7 @@ def propose(
     comeback: bool = False,
     now: datetime | None = None,
     minutes: int | None = None,
+    sans_corps: bool = False,
 ) -> dict | None:
     """Choisit la piste, le projet, la durée et la tâche. L'utilisateur n'arbitre pas.
 
@@ -1595,7 +1596,10 @@ def propose(
     # Le Corps d'abord, s'il est en train de perdre sa semaine. Le comeback du
     # §14 en est exclu : quelqu'un qui revient après trois jours d'arrêt reprend
     # par dix minutes de son travail, pas par une séance de sport de trente.
-    if not comeback:
+    # ``sans_corps`` sert la seconde piste : quand la décision *est* déjà une
+    # séance de Corps, il faut l'Atelier de l'autre côté, et le demander sans
+    # rejouer l'arbitrage reviendrait à redemander du sport.
+    if not comeback and not sans_corps:
         corps = _propose_corps(user, today=today)
         if corps is not None:
             _situer_le_creneau(corps, today=today, now=now, tz=user.profile.timezone_name)
@@ -1776,7 +1780,7 @@ def propose(
     return proposition
 
 
-def _propose_corps(user, *, today: date) -> dict | None:
+def _propose_corps(user, *, today: date, ignorer_la_priorite: bool = False) -> dict | None:
     """La séance de Corps, quand la semaine est sur le point d'être ratée.
 
     Rend ``None`` la plupart du temps, et c'est voulu : la piste Corps réclame
@@ -1786,7 +1790,14 @@ def _propose_corps(user, *, today: date) -> dict | None:
     côte, jamais fusionnées ».
     """
     panneau = corps_panel(user, today=today)
-    if panneau is None or panneau["priorite"] < SEUIL_PRIORITE_CORPS:
+    if panneau is None:
+        return None
+    # La semaine tenue ne réclame plus rien, même en second : le §17 interdit
+    # de pousser au-delà d'un objectif, et ``ignorer_la_priorite`` ne lève que
+    # l'arbitrage de la décision du soir, jamais cette règle-là.
+    if panneau["tenue"]:
+        return None
+    if not ignorer_la_priorite and panneau["priorite"] < SEUIL_PRIORITE_CORPS:
         return None
 
     # Celui qui a le moins servi cette semaine : deux activités qui se
@@ -1874,6 +1885,33 @@ def _proposal_reason(project: Project, slot, done: int) -> str:
     return "Le projet le plus ancien de ta rotation."
 
 
+def autre_piste(
+    user, *, today: date, proposition: dict | None, now: datetime
+) -> dict | None:
+    """La seconde séance possible dans la journée, ou rien (§11.1, §11.4).
+
+    La décision du soir reste unique : elle dit par quoi **commencer**. Mais
+    deux séances tiennent dans une soirée, et rien ne le montrait — la piste
+    Corps n'était atteignable que les soirs où elle prenait la décision,
+    c'est-à-dire jamais tant que la semaine était encore rattrapable sans
+    urgence. Une piste qu'on ne peut pas lancer est une piste qui n'existe pas.
+
+    Ce n'est pas une seconde décision : l'écran la rend en petit, sous la
+    première, et elle ne demande rien. Le §11.1 veut une décision qui domine,
+    pas un écran qui ne propose qu'une chose.
+    """
+    if proposition is None:
+        return None
+
+    if proposition["track"] == Track.CORPS:
+        return propose(user, today=today, now=now, sans_corps=True)
+
+    corps = _propose_corps(user, today=today, ignorer_la_priorite=True)
+    if corps is not None:
+        _situer_le_creneau(corps, today=today, now=now, tz=user.profile.timezone_name)
+    return corps
+
+
 # --------------------------------------------------------------------------
 # L'état complet de l'accueil
 # --------------------------------------------------------------------------
@@ -1949,6 +1987,14 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
 
     proposition = propose(
         user, today=today, comeback=sanctions["comeback"], now=now, minutes=minutes
+    )
+    # Le palier 3 du §14 ne montre qu'une chose : dix minutes, et rien à côté.
+    # Proposer une seconde séance à quelqu'un qui n'a rien fait depuis trois
+    # jours est exactement la rampe que le §14 refuse.
+    seconde = (
+        None
+        if sanctions["comeback"]
+        else autre_piste(user, today=today, proposition=proposition, now=now)
     )
 
     return {
@@ -2044,6 +2090,8 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
             else None
         ),
         "proposal": proposition,
+        # L'autre piste, quand la journée en porte deux (§11.4).
+        "autre_piste": seconde,
         "quests": [
             {
                 "kind": q.kind,

@@ -1,0 +1,87 @@
+/* Subordonnée par construction (§11.1).
+ *
+ * Pas de fond, pas de couleur de projet en aplat, pas de biseau : la décision
+ * du soir garde tout ça pour elle. Ici, un filet à gauche et du texte — assez
+ * pour être vue en descendant l'écran, jamais assez pour disputer le regard au
+ * bouton « Démarrer » qui est juste au-dessus. */
+.autre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: calc(var(--s2) * -1);
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--line-strong);
+}
+
+.autre__intro {
+  margin: 0;
+}
+
+.autre__ligne {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+
+.autre__pastille {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.autre__nom {
+  font-size: var(--t-md);
+  color: var(--text);
+}
+
+.autre__piste {
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* Le bouton pousse à droite : la ligne se lit « quoi », puis « lancer ». */
+.autre__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-left: auto;
+  padding: 8px 13px;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  clip-path: var(--clip-sm);
+  transition: color 160ms cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 160ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.autre__btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent2);
+}
+
+.autre__btn:disabled {
+  opacity: 0.55;
+}
+
+.autre__raison,
+.autre__error {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+
+.autre__error {
+  color: var(--danger);
+}
+
+@media (max-width: 520px) {
+  .autre__btn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}

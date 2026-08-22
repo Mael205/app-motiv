@@ -181,7 +181,13 @@ export const DecisionBlock = memo(function DecisionBlock({
         </div>
       )}
 
-      {task ? (
+      {vue.track === 'corps' ? (
+        /* Une séance de sport n'a ni étape ni jalon. Réclamer « le prochain
+           jalon » ici, comme le faisait le repli de l'Atelier, demandait une
+           roadmap à une piste qui n'en a pas — et le bouton se lisait alors
+           comme un projet mal rempli. */
+        null
+      ) : task ? (
         <div className="decision__task">
           <span className="label">{taskKind}</span>
           <p className="decision__task-text">{task}</p>

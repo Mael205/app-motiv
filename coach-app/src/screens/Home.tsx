@@ -1,6 +1,7 @@
 import type { HomeState, ModeExtra as EtatExtra } from '../types'
 import { useRevelation } from '../juice'
 import { useBriefing } from '../hooks/useBriefing'
+import { AutrePiste } from '../components/AutrePiste'
 import { BilanDuMatin } from '../components/BilanDuMatin'
 import { CorpsPanel } from '../components/CorpsPanel'
 import { DecisionBlock } from '../components/DecisionBlock'
@@ -159,7 +160,15 @@ export function Home({
         <SanctionList sanctions={state.sanctions} />
 
         {decision ? (
-          <DecisionBlock proposal={decision} onStarted={onStarted} />
+          <>
+            <DecisionBlock proposal={decision} onStarted={onStarted} />
+            {/* La seconde séance de la journée, quand il y en a une. Elle vient
+                après la décision et n'en est jamais une : le §11.1 veut une
+                chose qui domine, pas deux qui se disputent. */}
+            {state.autre_piste && (
+              <AutrePiste proposal={state.autre_piste} onStarted={onStarted} />
+            )}
+          </>
         ) : (
           <section className="panel empty">
             <h2 className="display empty__title">Aucun projet actif</h2>
