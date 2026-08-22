@@ -1152,7 +1152,10 @@ def end_session(
     total_apres = total_xp_before + session.xp_awarded
     niveau_apres = xp_rules.level_for(total_apres)
 
-    cartes = []
+    # Les défis d'abord : ce sont eux qui ont demandé le plus longtemps, et la
+    # file de révélation se joue dans l'ordre. Une carte de défi derrière deux
+    # communes de passage de niveau se lirait comme un lot de consolation.
+    cartes = progression.grant_defis(session.user)
     reliques = progression.grant_relics_for(session.user, [a["key"] for a in unlocked])
     for _ in range(max(0, niveau_apres - niveau_avant)):
         cartes.append(progression.draw_card(session.user, reason=loot_rules.MONTEE_DE_NIVEAU))
@@ -1267,12 +1270,16 @@ def complete_step(user, step: RoadmapStep, *, today: date) -> dict:
     )
     obtenus = achievements.synchroniser(user)
     reliques = progression.grant_relics_for(user, [a["key"] for a in obtenus])
+    # Terminer une étape déplace `etapes_finies` et `etapes_dans_une_saison` :
+    # c'est le second endroit où un défi peut tomber.
+    defis_remplis = progression.grant_defis(user)
 
     return {
         "id": step.id,
         "state": step.state,
         "boss_damage": damage,
         "card": carte,
+        "defi_cards": defis_remplis,
         "boss_phase": phase_franchie,
         "achievements": obtenus,
         "relics": reliques,

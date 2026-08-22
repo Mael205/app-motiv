@@ -249,3 +249,28 @@ def can_equip(equipped_keys, key: str) -> tuple[bool, str]:
             "le plafond existe pour que le choix se sente."
         )
     return True, ""
+
+
+# Ce que fait une relique, en français.
+#
+# La phrase vit ici et non dans le client pour la même raison que le reste des
+# textes du §11.10 : une valeur affichée à côté d'un effet mal nommé est pire
+# que pas de valeur du tout, et le client n'a pas le catalogue. « bouclier_supp
+# 1.0 » à l'écran ne disait rien à personne — c'était le nom de la variable, pas
+# celui de l'effet.
+EFFET_PHRASES = {
+    BOUCLIER_SUPP: "Un bouclier de streak en plus, en permanence.",
+    JOUR_OFF_SUPP: "Un jour off de plus par saison.",
+    PRIME_PONCTUALITE: "XP {pct} sur une séance démarrée à l'heure dite.",
+    PRIME_DUREE: "XP {pct} sur les séances longues.",
+    ECLATS_BONUS: "Éclats {pct} sur chaque gain.",
+    DEGATS_BOSS: "Dégâts {pct} sur le boss de saison.",
+}
+
+
+def phrase_effet(relique: Relic) -> str:
+    """L'effet d'une relique, dit comme on le dirait à voix haute."""
+    modele = EFFET_PHRASES.get(relique.effect, "")
+    if "{pct}" not in modele:
+        return modele
+    return modele.format(pct=f"+{round(relique.value * 100)} %")

@@ -201,6 +201,12 @@ class TestLaForge:
     def test_sans_assez_d_eclats_elle_refuse(self, user):
         _ouvrir_la_forge(user, eclats=5)
         with pytest.raises(ValueError, match="Éclats demandés"):
+            progression.forger(user, "theme_ardoise")
+
+    def test_une_carte_a_defi_ne_s_achete_pas(self, user):
+        """Le solde d'Éclats ne doit pas valoir trois mois de régularité."""
+        _ouvrir_la_forge(user, eclats=100000)
+        with pytest.raises(ValueError, match="se gagne"):
             progression.forger(user, "theme_eclipse")
 
     def test_une_carte_deja_possedee_est_refusee(self, user):
@@ -259,9 +265,27 @@ class TestLeContenu:
         assert len(set(cles)) == len(cles)
         assert len(set(charges)) == len(charges)
 
-    def test_chaque_rareté_a_de_quoi_tirer_dans_chaque_emplacement(self):
-        for rarete in loot_rules.RARETES:
+    def test_le_tirage_garde_de_quoi_tirer(self):
+        """Épiques et légendaires sont passées derrière un défi : leur vivier est
+        vide à dessein. Reste que le tirage ne doit jamais rendre les mains vides."""
+        for rarete in (loot_rules.COMMUN, loot_rules.RARE):
             assert loot_rules.PAR_RARETE[rarete], rarete
+
+    def test_chaque_defi_pend_a_une_carte_et_a_un_fait_qui_existent(self):
+        from forge.rules import achievements, defis
+
+        for defi in defis.CATALOGUE:
+            assert defi.carte in loot_rules.PAR_CLE, defi.carte
+            assert defi.fait in achievements.FAITS, defi.fait
+            assert defi.condition
+
+    def test_toutes_les_epiques_et_legendaires_ont_un_defi(self):
+        """Sinon une carte reste inatteignable : ni tirable, ni gagnable."""
+        from forge.rules import defis
+
+        for carte in loot_rules.CATALOGUE:
+            if carte.rarity in (loot_rules.EPIQUE, loot_rules.LEGENDAIRE):
+                assert carte.key in defis.CARTES_A_DEFI, carte.key
 
     def test_chaque_relique_pend_a_un_haut_fait_qui_existe(self):
         """Quatre reliques sur cinq étaient inatteignables : leurs hauts faits

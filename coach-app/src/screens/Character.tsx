@@ -154,10 +154,31 @@ export function Character({
                   {r.owned ? r.emblem : '·'}
                 </span>
                 <span className="relic__text">
-                  <span className="relic__label">{r.owned ? r.label : 'Relique scellée'}</span>
-                  <span className="relic__lore muted">
-                    {r.owned ? r.lore : `Se débloque avec le haut fait « ${r.achievement} ».`}
-                  </span>
+                  {/* Le nom est dit même scellé. « Relique scellée » douze fois
+                      de suite ne nommait rien : douze lignes identiques, aucune
+                      raison d'en viser une plutôt qu'une autre. */}
+                  <span className="relic__label">{r.label}</span>
+                  <span className="relic__lore muted">{r.owned ? r.lore : r.defi?.condition}</span>
+
+                  {/* Ce qu'elle fait, toujours dit — scellée comprise. Cacher
+                      l'effet d'une relique qu'on n'a pas revient à cacher la
+                      raison d'aller la chercher. */}
+                  <span className="relic__effet">{r.effet}</span>
+
+                  {/* Où l'on en est. La barre ne s'affiche que sur ce qui n'est
+                      pas encore gagné : une jauge pleine sur une relique
+                      possédée n'apprend rien. */}
+                  {!r.owned && r.defi && (
+                    <span className="relic__jauge">
+                      <span
+                        className="relic__jauge-fill"
+                        style={{ transform: `scaleX(${r.defi.valeur / r.defi.seuil})` }}
+                      />
+                      <span className="relic__jauge-chiffre num">
+                        {r.defi.valeur} / {r.defi.seuil}
+                      </span>
+                    </span>
+                  )}
                 </span>
                 {r.equipped && <span className="relic__on">Équipée</span>}
               </button>
@@ -205,12 +226,42 @@ export function Character({
                 }}
               >
                 <span className="slotcard__glyph" aria-hidden>
-                  {c.owned ? (c.kind === 'emblem' ? c.payload : '◈') : '?'}
+                  {c.owned ? (c.kind === 'emblem' ? c.payload : '◈') : c.defi ? '◇' : '?'}
                 </span>
-                <span className="slotcard__name">{c.owned ? c.label : '—'}</span>
+                {/* Le nom est dit même sur une carte qu'on n'a pas. Une grille de
+                    cent tuiles muettes ne donne aucune raison d'en viser une :
+                    c'était le défaut, et il coûtait toute la collection. */}
+                <span className="slotcard__name">{c.label}</span>
                 <span className="slotcard__rarity">{c.rarity_label}</span>
                 {c.copies > 1 && <span className="slotcard__copies num">×{c.copies}</span>}
               </button>
+
+              {/* Comment on l'obtient. Deux chemins et deux seuls : le défi de
+                  discipline pour les épiques et les légendaires, le tirage de
+                  fin de semaine pour le reste. */}
+              {!c.owned &&
+                (c.defi ? (
+                  <div className="slotcard__defi">
+                    <span className="slotcard__voie">{c.defi.voie}</span>
+                    <span className="slotcard__condition">{c.defi.condition}</span>
+                    <span className="slotcard__jauge">
+                      <span
+                        className="slotcard__jauge-fill"
+                        style={{ transform: `scaleX(${c.defi.valeur / c.defi.seuil})` }}
+                      />
+                    </span>
+                    <span className="slotcard__chiffre num">
+                      {c.defi.valeur} / {c.defi.seuil}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="slotcard__source">Tirage de fin de semaine</p>
+                ))}
+
+              {/* Ce qu'elle fait une fois équipée. Sur la carte possédée
+                  seulement : sur une carte scellée, la place appartient à la
+                  condition — c'est elle qui décide si on ira la chercher. */}
+              {c.owned && <p className="slotcard__utilite">{c.utilite}</p>}
 
               {/* Le retrait explicite. La bascule du serveur retire déjà la
                   carte au second clic, mais elle le faisait sans le dire : le

@@ -23,6 +23,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
+from . import defis
+
 COMMUN, RARE, EPIQUE, LEGENDAIRE = "commun", "rare", "epique", "legendaire"
 RARETES = (COMMUN, RARE, EPIQUE, LEGENDAIRE)
 
@@ -228,8 +230,24 @@ CATALOGUE: tuple[Card, ...] = (
 )
 
 PAR_CLE = {c.key: c for c in CATALOGUE}
+
+# Le vivier du tirage : tout, **sauf ce qui se gagne par un défi**.
+#
+# Les trente-six cartes épiques et légendaires ont chacune une condition de
+# discipline depuis le 21 août 2026 (voir `rules.defis`). Les laisser dans le
+# tirage aurait vidé le défi de son sens : une carte qu'on peut avoir par
+# chance n'est pas une carte qu'on vise, et un tirage heureux effacerait trois
+# mois de travail. Le tirage garde donc les communes et les rares — c'est-à-dire
+# tout ce qui n'a jamais rien demandé — et les deux systèmes cessent de se
+# marcher dessus.
+#
+# Un effet de bord voulu : quand toutes les épiques ont quitté le vivier, la
+# pitié du §12.6 n'a plus rien à faire monter au-delà du rare. `rarity_weights`
+# continue de calculer ses poids ; `draw` retombe sur la rareté disponible la
+# plus proche. Voir la note dans `draw`.
 PAR_RARETE: dict[str, list[Card]] = {
-    r: [c for c in CATALOGUE if c.rarity == r] for r in RARETES
+    r: [c for c in CATALOGUE if c.rarity == r and c.key not in defis.CARTES_A_DEFI]
+    for r in RARETES
 }
 
 
@@ -305,8 +323,28 @@ def draw(
         draws_since_rare=draws_since_rare, draws_since_epic=draws_since_epic, faveur=faveur
     )
     rarete = rng.choices(RARETES, weights=[poids[r] for r in RARETES], k=1)[0]
-    carte = rng.choice(PAR_RARETE[rarete])
+    carte = rng.choice(PAR_RARETE[_rarete_disponible(rarete)])
     return carte, carte.key in owned
+
+
+def _rarete_disponible(rarete: str) -> str:
+    """La rareté tirée, ou la plus proche qui ait encore des cartes.
+
+    Depuis que les épiques et les légendaires se gagnent par un défi, leurs
+    viviers sont vides : la pitié et la faveur peuvent encore désigner « épique »
+    sans qu'aucune carte épique ne soit tirable. Sans ce repli, le tirage lèverait
+    une exception à la première montée de pitié — c'est-à-dire chez quelqu'un qui
+    vient précisément d'enchaîner six semaines sans rien de rare.
+
+    On redescend plutôt que de monter : donner une légendaire faute d'épique
+    serait récompenser une pénurie.
+    """
+    ordre = list(RARETES)
+    for candidate in reversed(ordre[: ordre.index(rarete) + 1]):
+        if PAR_RARETE[candidate]:
+            return candidate
+    # Aucun vivier en dessous : on prend le premier qui existe, quel qu'il soit.
+    return next(r for r in ordre if PAR_RARETE[r])
 
 
 def shards_for(card: Card, *, duplicate: bool) -> int:
@@ -358,6 +396,13 @@ def peut_forger(card: Card, *, eclats: int, possedee: bool) -> tuple[bool, str]:
     if possedee:
         return False, "Tu l'as déjà. La forger ne rendrait qu'un doublon, à perte."
 
+    # Une carte à défi ne s'achète pas. Le solde d'Éclats mesure des doublons et
+    # des routines cochées ; laisser payer ici reviendrait à dire que trois mois
+    # de régularité et un stock de monnaie valent la même chose.
+    defi = defis.pour(card.key)
+    if defi is not None:
+        return False, f"Celle-ci se gagne, elle ne s'achète pas : {defi.condition}."
+
     prix = prix_de_forge(card)
     if eclats < prix:
         return False, f"{prix} Éclats demandés, tu en as {eclats}."
@@ -384,6 +429,10 @@ SESSION_LONGUE = "session"
 # Fabriquée à la Forge, pas tirée. Distinguée dans le journal parce que ce n'est
 # pas de la chance : c'est une dépense, et les deux ne se relisent pas pareil.
 FORGEE = "forgee"
+# Une carte gagnée par un défi de discipline. Ce n'est pas un tirage : elle
+# n'entre pas dans la pitié, et l'écran ne doit pas dire « carte trouvée » pour
+# ce qui a demandé trois mois.
+DEFI = "defi"
 
 RAISONS = {
     MONTEE_DE_NIVEAU: "Passage de niveau",
@@ -392,7 +441,35 @@ RAISONS = {
     ETAPE_TERMINEE: "Étape terminée",
     SESSION_LONGUE: "Session longue",
     FORGEE: "Forgée",
+    DEFI: "Défi rempli",
 }
+
+
+# À quoi sert une carte une fois équipée.
+#
+# La question se posait pour de bon : la grille montrait une rareté et un
+# glyphe, et rien ne disait ce qui changerait à l'écran. Une récompense dont on
+# ignore l'effet est une récompense qu'on n'équipe pas — et une carte jamais
+# équipée est exactement la « récompense creuse » que le §12.6 veut éviter.
+#
+# Ces phrases décrivent ce qui existe vraiment dans le client, pas une intention.
+# Les cinq emplacements cosmétiques, et rien d'autre. Le tuple existe pour être
+# vérifiable : un test s'y adosse pour garantir qu'aucune carte ne sort du
+# cosmétique, quelle que soit la façon dont on l'obtient.
+EMPLACEMENTS_ATTENDUS = ("theme", "emblem", "frame", "title", "finisher")
+
+UTILITES = {
+    "theme": "Peint tes surfaces personnelles : fiche de personnage, collection, "
+             "révélation de carte. L'accent de la saison, lui, ne bouge pas.",
+    "emblem": "Remplace le sceau de la saison sur le bandeau de l'accueil.",
+    "frame": "Encadre ton avatar, sur la fiche comme sur le bandeau.",
+    "title": "S'affiche sous ton nom, sur le bandeau de l'accueil.",
+    "finisher": "Joue à la fin de chaque session terminée.",
+}
+
+
+def utilite(card: Card) -> str:
+    return UTILITES.get(card.kind, "")
 
 
 # --------------------------------------------------------------------------

@@ -67,9 +67,29 @@ class TestLoot:
 
         assert {c.kind for c in loot.CATALOGUE} <= cosmetiques
 
-    def test_chaque_rarete_a_des_cartes(self):
-        for rarete in loot.RARETES:
+    def test_le_tirage_a_de_quoi_tirer(self):
+        """Le vivier a changé de sens le 21 août 2026.
+
+        Les épiques et les légendaires se gagnent désormais par un défi de
+        discipline, donc elles ont quitté le tirage : leurs viviers sont vides
+        **par construction**, et l'ancienne version de ce test — « chaque rareté
+        a des cartes » — vérifiait une règle qui n'existe plus. Ce qui reste vrai
+        et qui compte : le tirage ne doit jamais se retrouver sans rien à rendre.
+        """
+        for rarete in (loot.COMMUN, loot.RARE):
             assert loot.PAR_RARETE[rarete], f"aucune carte {rarete}"
+
+    def test_une_rarete_vide_retombe_sur_la_plus_proche(self):
+        """Sinon la pitié lève une exception chez celui qui l'a méritée."""
+        carte, _ = loot.draw(draws_since_rare=30, draws_since_epic=30)
+        assert carte.rarity in (loot.COMMUN, loot.RARE)
+
+    def test_aucune_carte_a_defi_ne_tombe_au_tirage(self):
+        """La règle qui donne son sens au défi : on ne peut pas l'avoir par chance."""
+        from forge.rules import defis
+
+        tirables = {c.key for cartes in loot.PAR_RARETE.values() for c in cartes}
+        assert not (tirables & defis.CARTES_A_DEFI)
 
     def test_la_pitie_monte_la_chance_sans_la_forcer_d_un_coup(self):
         """Une pitié qui bascule sèchement se lit comme un système qui triche."""

@@ -1070,8 +1070,15 @@ export interface OwnedCard extends Omit<LootCardDrawn, 'duplicate' | 'shards' | 
   owned: boolean
   copies: number
   equipped: boolean
-  /** Le prix de forge, présent seulement quand la voie « Forge » est ouverte. */
+  /** Le prix de forge, présent seulement quand la voie « Forge » est ouverte —
+   *  et jamais sur une carte à défi, qui ne s'achète pas. */
   forge_price?: number
+  /** Ce que la carte fait une fois équipée. Toujours renseigné : une carte dont
+   *  on ignore l'effet est une carte qu'on n'équipe pas (§12.6). */
+  utilite: string
+  /** Le défi qui la débloque, pour les épiques et les légendaires. `null` sur
+   *  les communes et les rares, qui restent au tirage. */
+  defi: { voie: string; condition: string; valeur: number; seuil: number } | null
 }
 
 export interface RelicEntry {
@@ -1084,6 +1091,18 @@ export interface RelicEntry {
   owned: boolean
   equipped: boolean
   achievement: string
+  /** Ce que la relique fait, en une phrase écrite par le serveur (§11.10). */
+  effet: string
+  /** Ce qu'il faut faire pour l'avoir, et où l'on en est. `null` quand le haut
+   *  fait a quitté le catalogue — une relique d'archive n'a plus de chemin. */
+  defi: {
+    achievement: string
+    titre: string
+    condition: string
+    valeur: number
+    seuil: number
+    registre: string
+  } | null
 }
 
 export interface ProgressionPanel {

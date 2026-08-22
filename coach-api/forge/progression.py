@@ -35,6 +35,7 @@ from .models import (
     Profile,
     Session,
 )
+from .rules import defis as defis_rules
 from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
 from .rules import momentum as momentum_rules
@@ -325,14 +326,38 @@ def collection(user) -> dict:
     montre que ce qu'on a ne donne aucune raison de continuer, et le §12.6 fait
     du loot un moteur d'envie, pas un coffre.
     """
+    from . import achievements as achievement_service
+
     possedees = {c.key: c for c in LootCard.objects.filter(user=user)}
     equipes = (user.profile.cosmetics or {})
+
+    # Lus une fois pour toute la grille : cent cartes qui interrogeraient chacune
+    # les compteurs feraient cent fois le travail pour le même chiffre.
+    mesures = achievement_service.faits(user)
+
+    def defi_de(carte) -> dict | None:
+        """Le défi d'une carte, et où l'on en est. ``None`` si elle se tire."""
+        d = defis_rules.pour(carte.key)
+        if d is None:
+            return None
+        valeur = mesures.get(d.fait, 0)
+        return {
+            "voie": d.voie,
+            "condition": d.condition,
+            "valeur": min(valeur, d.seuil),
+            "seuil": d.seuil,
+        }
 
     par_emplacement: dict[str, list[dict]] = {e: [] for e in EMPLACEMENTS}
     for carte in loot_rules.CATALOGUE:
         avoir = possedees.get(carte.key)
         par_emplacement.setdefault(carte.kind, []).append(
             {
+                # Ce qu'elle fait une fois équipée, et comment on l'obtient. Les
+                # deux manquaient : la grille montrait une rareté et un point
+                # d'interrogation, ce qui ne donne aucune raison d'en viser une.
+                "utilite": loot_rules.utilite(carte),
+                "defi": defi_de(carte),
                 "key": carte.key,
                 "label": carte.label,
                 "rarity": carte.rarity,
@@ -352,7 +377,10 @@ def collection(user) -> dict:
     if forge:
         for cartes in par_emplacement.values():
             for entree in cartes:
-                entree["forge_price"] = loot_rules.PRIX_FORGE[entree["rarity"]]
+                # Une carte à défi ne s'achète pas, quel que soit le solde : le
+                # bouton n'apparaît donc pas plutôt que de refuser après le clic.
+                if entree["defi"] is None:
+                    entree["forge_price"] = loot_rules.PRIX_FORGE[entree["rarity"]]
 
     return {
         "slots": par_emplacement,
@@ -457,9 +485,102 @@ def grant_relics_for(user, achievement_keys) -> list[dict]:
     return obtenues
 
 
+def grant_defis(user) -> list[dict]:
+    """Donne les cartes dont le défi vient d'être rempli (§12.6, 21 août 2026).
+
+    Appelée aux mêmes moments que la synchronisation des hauts faits, et pour
+    la même raison : les compteurs ne bougent qu'à la fin d'une session ou
+    d'une étape, et un défi rempli qui n'apparaîtrait qu'au prochain
+    rafraîchissement de l'écran se lirait comme une récompense en retard.
+
+    Idempotente : ``get_or_create`` sur la carte, donc rejouer la fonction ne
+    donne rien deux fois. C'est ce qui permet de l'appeler sans se demander si
+    elle a déjà tourné aujourd'hui.
+
+    Les cartes ainsi obtenues **ne comptent pas comme un tirage** : elles ne
+    touchent ni la pitié ni le compteur de tirages. Un défi rempli ne doit pas
+    éloigner la prochaine carte rare.
+    """
+    from . import achievements as achievement_service
+
+    mesures = achievement_service.faits(user)
+    possedees = set(LootCard.objects.filter(user=user).values_list("key", flat=True))
+
+    obtenues = []
+    for cle in defis_rules.atteints(mesures):
+        if cle in possedees:
+            continue
+        carte = loot_rules.PAR_CLE.get(cle)
+        if carte is None:
+            continue
+        _, cree = LootCard.objects.get_or_create(
+            user=user,
+            key=carte.key,
+            defaults={"rarity": carte.rarity, "kind": carte.kind, "copies": 1},
+        )
+        if not cree:
+            continue
+        defi = defis_rules.pour(carte.key)
+        obtenues.append(
+            {
+                "key": carte.key,
+                "label": carte.label,
+                "rarity": carte.rarity,
+                "rarity_label": loot_rules.RARETE_LABELS[carte.rarity],
+                "color": carte.color,
+                "kind": carte.kind,
+                "payload": carte.payload,
+                "duplicate": False,
+                "shards": 0,
+                "reason": loot_rules.DEFI,
+                "reason_label": loot_rules.RAISONS.get(loot_rules.DEFI, ""),
+                # De quoi écrire « défi rempli » et non « carte trouvée » : ce
+                # n'est pas le même événement, et le dire pareil effacerait la
+                # seule différence qui compte.
+                "defi": {"voie": defi.voie, "condition": defi.condition} if defi else None,
+            }
+        )
+    return obtenues
+
+
 def relic_panel(user) -> dict:
+    """Les reliques, avec **comment on les gagne** et **ce qu'elles font**.
+
+    L'écran n'en disait ni l'un ni l'autre : une relique scellée s'annonçait
+    « se débloque avec le haut fait *increvable* » — la clé de base de données,
+    pas la condition —, et une relique possédée affichait son effet sous forme
+    de nom de variable. Une récompense dont on ignore le prix et l'usage ne
+    tire aucun comportement : elle décore un écran.
+
+    Trois ajouts, tous calculés ici parce que le client n'a ni le catalogue des
+    hauts faits ni les compteurs : la **condition** en français, la
+    **progression** vers elle, et l'**effet** en une phrase.
+    """
+    from . import achievements as achievement_service
+    from .rules import achievements as achievement_rules
+
     possedees = {r.key: r for r in OwnedRelic.objects.filter(user=user)}
     equipees = [k for k, r in possedees.items() if r.equipped]
+
+    # Les compteurs ne sont lus qu'une fois pour tout le panneau : `faits()`
+    # touche une dizaine de tables, et le faire par relique multiplierait ça
+    # par quinze pour afficher le même chiffre.
+    mesures = achievement_service.faits(user)
+
+    def defi(relique) -> dict | None:
+        """Ce qu'il faut faire pour cette relique, et où l'on en est."""
+        haut_fait = achievement_rules.PAR_CLE.get(relique.achievement)
+        if haut_fait is None:
+            return None
+        valeur = mesures.get(haut_fait.fait, 0)
+        return {
+            "achievement": haut_fait.key,
+            "titre": haut_fait.label,
+            "condition": haut_fait.description,
+            "valeur": min(valeur, haut_fait.seuil),
+            "seuil": haut_fait.seuil,
+            "registre": haut_fait.registre,
+        }
 
     return {
         "max": relic_rules.MAX_EQUIPEES,
@@ -475,6 +596,10 @@ def relic_panel(user) -> dict:
                 "owned": r.key in possedees,
                 "equipped": r.key in equipees,
                 "achievement": r.achievement,
+                # Ce que la relique fait, dit comme on le dirait à voix haute.
+                "effet": relic_rules.phrase_effet(r),
+                # Ce qu'il faut faire pour l'avoir, et où l'on en est.
+                "defi": defi(r),
             }
             for r in relic_rules.CATALOGUE
         ],
