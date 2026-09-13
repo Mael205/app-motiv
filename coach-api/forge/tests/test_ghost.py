@@ -197,6 +197,21 @@ class TestEtatDeLAgent:
         etat = services.agent_state(user)
         assert set(etat["block_scroll"]) == {"armed_from", "armed"}
 
+    def test_l_interrupteur_coupe_le_blocage_meme_a_l_heure(self, django_user_model, settings):
+        from datetime import datetime, timezone as tz
+
+        from forge import services
+        from forge.models import Profile
+
+        user = django_user_model.objects.create_user(username="arthur", password="coach")
+        Profile.objects.create(user=user)
+        # Journée non validée, bien après le gardien : l'état serait armé.
+        tard = datetime(2026, 9, 14, 21, 45, tzinfo=tz.utc)
+        assert services.agent_state(user, now=tard)["block_scroll"]["armed"] is True
+
+        settings.COACH_BLOCKING_ENABLED = False
+        assert services.agent_state(user, now=tard)["block_scroll"]["armed"] is False
+
     def test_l_etat_donne_le_nom_du_projet_jamais_une_commande(self, django_user_model):
         """Le serveur ne transmet aucune commande — c'est la règle du §8."""
         from forge import services

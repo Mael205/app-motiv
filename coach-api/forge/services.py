@@ -11,6 +11,7 @@ import random
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, F, Max, Min, Sum, Value
 from django.db.models.functions import Greatest
@@ -477,6 +478,23 @@ def current_season(user, *, today: date) -> Season | None:
     )
 
 
+def entre_deux_saisons(user, *, today: date) -> bool:
+    """Le seul moment où l'on change de projet (§4.3, 13 septembre 2026).
+
+    Fermé tant qu'une saison couvre la journée, **y compris en veille** : une
+    saison gelée reprend où elle en était, et changer de projets pendant qu'elle
+    dort reviendrait à la reprendre avec d'autres. Ouvert sinon — les jours de
+    pause, les jours extra après un boss tombé, et une saison finie qui attend
+    sa clôture.
+    """
+    return not Season.objects.filter(
+        user=user,
+        status__in=[Season.RUNNING, Season.PAUSED],
+        starts_on__lte=today,
+        ends_on__gte=today,
+    ).exists()
+
+
 @transaction.atomic
 def open_season(
     user,
@@ -676,6 +694,8 @@ def boss_payload(season: Season | None, *, today: date | None = None) -> dict | 
 def _sanctions(
     state: streak_rules.StreakState, *, validated_today: bool
 ) -> sanction_rules.Sanctions:
+    if not settings.COACH_SANCTIONS_ENABLED:
+        return sanction_rules.Sanctions(level=0, day_validated=validated_today)
     return sanction_rules.evaluate(
         missed_run=state.missed_run,
         current_streak=state.current,
@@ -738,6 +758,8 @@ def sync_boss_regen(season: Season | None, history: list[streak_rules.Day]) -> i
         and season.starts_on <= jour.date <= season.ends_on
     )
     du = rates * season_rules.BOSS_REGEN_ON_MISSED_DAY
+    if not settings.COACH_SANCTIONS_ENABLED:
+        du = 0
     if du != boss.regen:
         boss.regen = du
         boss.save(update_fields=["regen"])
@@ -758,6 +780,9 @@ def sync_stake_forfeit(user, season: Season | None, state: streak_rules.StreakSt
     """
     if season is None or not season.stake_shards:
         return 0
+    if not settings.COACH_SANCTIONS_ENABLED:
+        # Rien de neuf ne part ; ce qui est déjà parti ne revient pas (§17).
+        return season.stake_forfeited
 
     cassures = sum(
         1
@@ -1948,6 +1973,7 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
     # clôture de semaine du §12.6, elles sont idempotentes et n'ont donc pas
     # besoin qu'un déclencheur nocturne ait tourné pour être justes — c'est ce
     # qui les rend fiables sur un hébergement qui s'endort.
+    sanctions_on = settings.COACH_SANCTIONS_ENABLED
     regen = sync_boss_regen(season, history)
     forfeited = sync_stake_forfeit(user, season, state)
     sanctions = sanction_state(
@@ -2009,15 +2035,18 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
         "phantom": progression.phantom_panel(user, today=today, now=now),
         "modifier": progression.season_modifier(season) if season else None,
         "validated_today": minutes_today >= DEGRADED_MINUTES,
-        "required_minutes": state.required_minutes,
+        "required_minutes": state.required_minutes if sanctions_on else state.floor_minutes,
         "minutes_today": minutes_today,
         "streak": {
             "current": state.current,
             "best": state.best,
             "shields": state.shields,
             "to_next_shield": max(0, streak_rules.DAYS_PER_SHIELD - state.consecutive_for_shield),
-            "sanction_level": state.sanction_level,
-            "message": streak_rules.message_for(state),
+            # Le mode terne se lit sur ce niveau côté client : sans sanctions, 0.
+            "sanction_level": state.sanction_level if sanctions_on else 0,
+            "message": streak_rules.message_for(
+                state, required_minutes=None if sanctions_on else state.floor_minutes
+            ),
         },
         "sanctions": sanctions,
         "progression": {**xp_rules.progression(total_xp), "rank": rang["code"]},
@@ -2344,9 +2373,10 @@ def free_slot(user, domain: str = slot_rules.CODE, *, today: date | None = None)
 def create_project_from_markdown(user, markdown: str) -> Project:
     """Crée un projet et sa roadmap depuis le markdown produit par un chat.
 
-    Si les trois slots sont pris, le projet est créé **au frigo** plutôt que
+    Si tous les slots sont pris, le projet est créé **au frigo** plutôt que
     refusé : la limite du §4.3 ne se contourne pas, mais l'idée ne se perd pas
-    non plus. L'échange de slot reste un geste du dimanche.
+    non plus. Remplir un slot vide se fait n'importe quand ; en sortir un projet
+    pour en mettre un autre attend la fin de la saison.
     """
     parsed = roadmap_import.parse(markdown)
     if not parsed.valid:
@@ -2701,7 +2731,8 @@ def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict
             else window.end - timedelta(minutes=profile.guardian_minutes_before_end)
         )
 
-    return {"armed_from": depuis.isoformat(), "armed": not validee and now >= depuis}
+    arme = settings.COACH_BLOCKING_ENABLED and not validee and now >= depuis
+    return {"armed_from": depuis.isoformat(), "armed": arme}
 
 
 @transaction.atomic

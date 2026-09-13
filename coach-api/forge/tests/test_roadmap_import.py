@@ -156,11 +156,11 @@ class TestCreation:
         ]
         assert slots == [1, 2, 3]
 
-    def test_le_quatrieme_projet_part_au_frigo(self, user):
+    def test_le_sixieme_projet_part_au_frigo(self, user):
         from forge import services
         from forge.models import Project
 
-        for i, d in enumerate(("code", "code", "corps")):
+        for i, d in enumerate(("code", "code", "corps", "creatif", "pratique")):
             services.create_project_from_markdown(user, f"# P{i}\n\nDomaine: {d}\n\n- [ ] Étape\n")
         quatrieme = services.create_project_from_markdown(
             user, "# Quatrième\n\nDomaine: savoir\n\n- [ ] Étape\n"

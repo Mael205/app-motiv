@@ -133,11 +133,11 @@ L'anti-fragilité est la mécanique la plus importante du produit.
 
 ### 4.3 Trois slots actifs + le frigo
 
-- **Maximum 3 projets actifs.** Hard limit. C'est le cœur du dispositif anti-dispersion.
+- **Cinq projets actifs au départ** *(trois jusqu'au 13 septembre 2026)*. Hard limit. C'est le cœur du dispositif anti-dispersion.
 - **Maximum 2 slots par domaine.** Deuxième limite dure : trois projets de code dans les trois slots, c'est une seule vie déguisée en trois. Le troisième slot doit venir d'un autre domaine — `code`, `corps`, `creatif`, `savoir`, `pratique`. Un projet qui ne trouve pas de slot compatible part au frigo, comme un quatrième projet. La règle se vérifie au moment où un projet prend un slot, pas après coup.
 - **Le frigo** : capture illimitée d'idées de projets. Champ libre, 5 secondes, accessible en un tap depuis le téléphone — par un lien épinglé sur l'écran d'accueil, ou par le menu « Partager » d'Android (§11.7).
-- **Échange de slot uniquement le dimanche.** Le reste de la semaine, le bouton est désactivé avec la date du prochain créneau. Un projet sorti d'un slot va en archive, pas à la poubelle : ses heures et son journal restent.
-- **Exception : un projet terminé se remplace immédiatement.** Le dimanche protège contre l'abandon d'un projet pour un autre plus excitant — pas contre la réussite. Quand la roadmap d'un projet est intégralement faite, son slot se libère le jour même et peut être repris sans attendre. Le slot peut aussi être **laissé vacant** ; il le reste jusqu'au dimanche, où il doit être rempli. Un slot vide indéfiniment serait une limite de 3 déguisée en limite de 2.
+- **Échange de slot uniquement entre deux saisons** *(tranché le 13 septembre 2026, à la place du dimanche)*. Une saison est un engagement sur les projets qu'on y a mis ; une semaine était trop courte pour protéger de l'abandon impulsif. Fermé tant qu'une saison couvre la journée, veille comprise ; ouvert les jours de pause, les jours extra et quand une saison finie attend sa clôture. Un projet sorti d'un slot va en archive, pas à la poubelle : ses heures et son journal restent.
+- **Exception : un projet terminé se remplace immédiatement.** La saison protège contre l'abandon d'un projet pour un autre plus excitant — pas contre la réussite. Quand la roadmap d'un projet est intégralement faite, son slot se libère le jour même et peut être repris sans attendre. **Remplir un slot vide n'est pas un échange** et se fait n'importe quand. Un slot laissé vacant doit être rempli entre deux saisons : un slot vide indéfiniment serait une limite de cinq déguisée en limite de quatre.
 - Pour éviter qu'une roadmap d'une seule étape serve à débloquer un échange, un projet n'est « terminé » que s'il a **au moins une session enregistrée**. Le système ne sanctionne pas la triche, il ne la rend simplement pas rentable.
 - **La piste Corps ne consomme aucun slot** (§11.4). Musculation, danse, course, foot y coexistent sans se disputer quoi que ce soit : elles alimentent le même objectif hebdomadaire de la piste, jamais le streak Atelier.
 - Chaque projet actif porte un **engagement hebdo** : nombre de sessions visées cette semaine (défaut 3). La somme des engagements est plafonnée à ce que la fenêtre du soir permet réellement — refuse et affiche l'incohérence s'il sur-engage.
@@ -152,8 +152,8 @@ L'XP monte avec le volume, or le volume est précisément le mode de défaillanc
 
 | Slot | Rang requis | Ce que ce rang représente |
 |---|---|---|
-| 4ᵉ | **B** | 6 semaines d'engagements tenus — une saison et demie |
-| 5ᵉ | **A** | 9 semaines |
+| 6ᵉ | **B** | 6 semaines d'engagements tenus — une saison et demie |
+| 7ᵉ | **A** | 9 semaines |
 
 Autrement dit : le droit de tenir quatre projets s'obtient en démontrant qu'on en tient trois. C'est la seule preuve qui vaille, et elle ne s'achète pas en enchaînant les sessions sur un seul projet — depuis le §4.4, le rang ne mesure plus le volume.
 
@@ -161,7 +161,7 @@ Les seuils sont délibérément atteignables. Adossés aux rangs A et S de l'anc
 
 - Un slot débloqué **ne se reprend jamais** rétroactivement (§17).
 - Il se **verrouille temporairement** au palier 2 de décrochage (§14) : les projets ne sont pas supprimés, le slot est gelé jusqu'à la reprise. Une sanction éteint, elle n'efface pas.
-- Le plafond absolu reste **cinq**. Au-delà, le §17 s'applique sans discussion.
+- Le plafond absolu est **huit** : sept au rang A, plus la voie « Ampleur » de l'ascendance. Au-delà, le §17 s'applique sans discussion.
 
 ### 4.4 Progression, XP et plafond
 
@@ -914,7 +914,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de streak qui casse au premier jour manqué.
 - Pas de score de productivité global, pas de comparaison sociale, pas de classement avec des inconnus. Le seul adversaire est son propre fantôme.
 - Pas de "bravo, tu es incroyable". Le ton reste factuel, y compris dans l'univers de saison.
-- Pas de plus de 3 projets actifs tant que le 4ᵉ slot n'est pas **gagné** au sens du §4.3, et jamais plus de cinq. L'insistance ne débloque rien ; les engagements tenus, si.
+- Pas de plus de 5 projets actifs tant que le 6ᵉ slot n'est pas **gagné** au sens du §4.3, et jamais plus de huit. L'insistance ne débloque rien ; les engagements tenus, si.
 - Pas de capture d'écran ni de keylogging par l'agent.
 - Pas de saisie manuelle d'une session terminée dans le passé.
 - Pas d'écran ouvert du type « qu'est-ce que tu veux faire ce soir ? », pas de champ libre à remplir avant de démarrer, pas de liste de tâches à arbitrer soi-même. Toute décision que le système peut prendre à sa place, il la prend (§0.9). Un espace vide au démarrage est un mode de défaillance, pas de la liberté.

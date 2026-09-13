@@ -357,7 +357,7 @@ def _projet_frigo(user, params, today):
         raise ActionRefusee(f"{projet.name} est déjà au frigo.")
 
     ok, motif = slot_rules.can_replace(
-        weekday=today.weekday(),
+        entre_saisons=services.entre_deux_saisons(user, today=today),
         project_finished=projet.completion >= 1.0,
         has_sessions=projet.sessions.exists(),
     )

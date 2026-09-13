@@ -2,7 +2,8 @@
 
 Deux limites dures, pas une :
 
-1. **Trois projets actifs au maximum.** Le cœur du dispositif anti-dispersion.
+1. **Cinq projets actifs au départ**, davantage avec le rang *(passé de trois à
+   cinq le 13 septembre 2026)*. Le cœur du dispositif anti-dispersion.
 2. **Deux slots au maximum par domaine.** Trois projets de code dans les trois
    slots, c'est une seule vie déguisée en trois : les mêmes outils, la même
    posture, la même fatigue. La diversité n'est pas un confort, c'est ce qui
@@ -19,8 +20,9 @@ from collections.abc import Iterable
 
 from . import ranks
 
-BASE_SLOTS = 3
-ABSOLUTE_MAX_SLOTS = 5
+BASE_SLOTS = 5
+# 7 au rang A, et la voie « Ampleur » en ajoute un.
+ABSOLUTE_MAX_SLOTS = 8
 MAX_PER_DOMAIN = 2
 
 # La piste Corps a ses propres slots, et ils ne bougent jamais : quatre activités
@@ -82,39 +84,41 @@ def assign_slot(
     return next((slot for slot in range(1, total_slots + 1) if slot not in used), None)
 
 
-SUNDAY = 6
-
-
-def can_replace(*, weekday: int, project_finished: bool, has_sessions: bool) -> tuple[bool, str]:
+def can_replace(
+    *, entre_saisons: bool, project_finished: bool, has_sessions: bool
+) -> tuple[bool, str]:
     """Peut-on sortir un projet de son slot aujourd'hui ?
 
-    Le dimanche protège contre l'abandon d'un projet pour un autre plus
-    excitant. Il ne protège pas contre la réussite : un projet dont la roadmap
-    est finie libère son slot le jour même.
+    **Seulement entre deux saisons** *(13 septembre 2026, à la place du
+    dimanche)*. Une saison est un engagement sur les projets qu'on y a mis :
+    changer en cours de route est exactement l'abandon impulsif d'un projet pour
+    un autre plus excitant, et une semaine était trop courte pour l'empêcher.
 
-    La session enregistrée n'est pas un soupçon, c'est une garde-fou : sans
-    elle, une roadmap d'une seule étape cochée servirait à contourner le
-    dimanche. Le système ne sanctionne pas la triche, il la rend inutile.
+    La réussite reste une exception : un projet dont la roadmap est finie libère
+    son slot le jour même, et remplir un slot vide n'est pas un échange.
+
+    La session enregistrée n'est pas un soupçon, c'est un garde-fou : sans elle,
+    une roadmap d'une seule étape cochée servirait à contourner la saison.
     """
-    if weekday == SUNDAY:
-        return True, "Dimanche : l'échange est ouvert."
+    if entre_saisons:
+        return True, "Entre deux saisons : l'échange est ouvert."
     if project_finished and has_sessions:
-        return True, "Roadmap terminée : le slot se libère sans attendre dimanche."
+        return True, "Roadmap terminée : le slot se libère sans attendre la fin de saison."
     if project_finished:
         return False, (
             "Roadmap marquée finie, mais aucune session enregistrée sur ce projet. "
-            "L'échange attend dimanche."
+            "L'échange attend la fin de la saison."
         )
-    return False, "L'échange de slot se fait le dimanche."
+    return False, "Les projets se changent entre deux saisons."
 
 
-def must_fill_vacancy(*, weekday: int, vacant: int) -> bool:
-    """Un slot laissé vacant doit être repris le dimanche.
+def must_fill_vacancy(*, entre_saisons: bool, vacant: int) -> bool:
+    """Un slot laissé vacant doit être repris à l'ouverture de la saison.
 
-    Sans cette règle, une limite de 3 se transformerait en limite de 2 par
-    simple inertie.
+    Sans cette règle, une limite de cinq se transformerait en limite de quatre
+    par simple inertie.
     """
-    return weekday == SUNDAY and vacant > 0
+    return entre_saisons and vacant > 0
 
 
 def refused_reason(
@@ -125,14 +129,14 @@ def refused_reason(
     if len({slot for slot, _ in taken}) >= total_slots:
         return (
             f"Les {total_slots} slots sont pris. Le projet part au frigo, "
-            "l'échange se fait le dimanche."
+            "l'échange se fait entre deux saisons."
         )
     same = sum(1 for _, d in taken if d == domain)
     if same >= MAX_PER_DOMAIN:
         label = DOMAIN_LABELS.get(domain, domain)
         return (
             f"Deux slots sont déjà en « {label} », et c'est le maximum. "
-            "Le projet part au frigo : le troisième slot est réservé à un autre domaine."
+            "Le projet part au frigo : les autres slots sont réservés à d'autres domaines."
         )
     return None
 

@@ -84,9 +84,16 @@ maintenant tout seul : onglet Journal, « Activer les notifications ».
 
 ## Décidé, pas encore construit
 
-Il n'en reste **qu'un**, et il est bloqué par la machine et non par une
-décision. Tout le reste de cette section a été construit le 20 août 2026 — le
-détail est plus bas.
+Tout le reste de cette section a été construit le 20 août 2026 — le détail est
+plus bas.
+
+- **Bloquer le téléphone avec AdGuard Home** *(décidé le 13 septembre 2026)*.
+  Le blocage de 21h ne tient aujourd'hui que sur le PC : fichier hosts et
+  extension. Le téléphone reste l'échappatoire la plus directe. AdGuard Home
+  tourne déjà comme sonde et voit tout le réseau ; il s'agit de lui faire
+  appliquer l'état armé du serveur aux domaines des catégories fermées, avec la
+  même porte de sortie que le PC. Limite connue : en 4G le téléphone ne passe
+  plus par AdGuard (voir « Limites assumées »).
 
 - **Sonde Android native (§9.2).** Le lecteur `UsageStats` est écrit et n'a
   jamais été compilé : il n'y a **ni SDK Android, ni Gradle, ni Kotlin** sur

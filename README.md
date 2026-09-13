@@ -52,6 +52,28 @@ npm run dev
 
 L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 
+### Au quotidien : tout lancer d'un coup
+
+```powershell
+powershell -ExecutionPolicy Bypass -File demarrer.ps1             # lance ce qui manque
+powershell -ExecutionPolicy Bypass -File demarrer.ps1 -Installer  # + à chaque ouverture de session
+powershell -ExecutionPolicy Bypass -File demarrer.ps1 -Arreter    # coupe tout
+```
+
+L'API, l'horloge (`tick --loop`), l'app construite sur `http://localhost:4173`
+et l'agent, en fond et sans fenêtre. L'app est reconstruite d'abord si son code
+a changé. Les journaux vont dans `%LOCALAPPDATA%\coach\logs`.
+
+Deux interrupteurs dans `coach-api/.env`, allumés par défaut, pour mettre le
+cadre en pause sans rien désinstaller :
+
+| Variable | À `0` |
+|---|---|
+| `COACH_BLOCKING_ENABLED` | le serveur n'arme jamais le blocage (§8.5) |
+| `COACH_SANCTIONS_ENABLED` | aucun prix du décrochage (§14) ; le streak compte toujours |
+
+La suite de tests force les deux à « allumé », quelle que soit la machine.
+
 ### 3. L'assistant — facultatif
 
 Rien à faire si le CLI `claude` est déjà installé et connecté : le coach le
@@ -304,10 +326,11 @@ jamais été essayé.
   dégâts au boss et Éclats ; le **rang** mesure la fiabilité — les semaines où
   tous les engagements ont été tenus — et lui seul ouvre des droits. Un système
   qui débloque sur l'XP récompenserait ce qui fait décrocher (§0.2).
-- Slots : trois de base, deux au maximum par domaine, un 4ᵉ au rang B et un 5ᵉ
+- Slots : cinq de base, deux au maximum par domaine, un 6ᵉ au rang B et un 7ᵉ
   au rang A. La piste Corps a ses deux slots, qui ne bougent jamais.
-- Un projet terminé libère son slot le jour même ; les autres échanges attendent
-  le dimanche, et un slot laissé vacant doit y être repris.
+- On change de projet **entre deux saisons**, jamais pendant. Un projet terminé
+  libère son slot le jour même, remplir un slot vide se fait n'importe quand, et
+  un slot laissé vacant doit être repris à l'ouverture de la saison suivante.
 - Gardes : budget hebdomadaire au lieu d'une abstinence, cumul de jours tenus
   qui ne redescend jamais, aucun jugement dans les messages, et rien qui sorte
   de l'app (§11.10).

@@ -60,9 +60,9 @@ const ENTRIES: { term: string; what: string; why: string }[] = [
     why: 'Le démarrage à froid est le coût le plus élevé du système. On le paie maintenant, pendant que le contexte est chaud.',
   },
   {
-    term: 'Les 3 slots',
-    what: 'Trois projets actifs maximum. L’échange se fait le dimanche uniquement.',
-    why: 'C’est le cœur du dispositif anti-dispersion. Une quatrième idée va au frigo, elle ne prend pas la place d’un projet.',
+    term: 'Les slots',
+    what: 'Cinq projets actifs au départ, deux par domaine au plus, un de plus aux rangs B et A. On change de projet entre deux saisons ; un projet terminé libère sa place tout de suite.',
+    why: 'C’est le cœur du dispositif anti-dispersion. Une idée de plus va au frigo, elle ne prend pas la place d’un projet en cours de saison.',
   },
   {
     term: 'Le frigo',

@@ -54,10 +54,10 @@ class TestEchelle:
         rangs = [RANK_ORDER.index(rank_for(n)) for n in range(0, 40)]
         assert rangs == sorted(rangs)
 
-    def test_le_quatrieme_slot_arrive_en_six_semaines(self):
+    def test_le_sixieme_slot_arrive_en_six_semaines(self):
         """Une saison et demie : assez long pour prouver, assez court pour être vu."""
         assert rewards_for(rank_for(5)).slots == BASE_SLOTS
-        assert rewards_for(rank_for(6)).slots == 4
+        assert rewards_for(rank_for(6)).slots == 6
 
 
 class TestRecompenses:
@@ -68,11 +68,11 @@ class TestRecompenses:
 
     def test_les_recompenses_se_cumulent(self):
         haut = rewards_for("A")
-        assert haut.slots == 5 and haut.extra_shields == 1 and haut.extra_days_off == 1
+        assert haut.slots == 7 and haut.extra_shields == 1 and haut.extra_days_off == 1
 
     def test_les_deux_derniers_rangs_ne_donnent_aucun_pouvoir(self):
-        """S et SS sont du prestige. Le plafond de slots reste à cinq."""
-        assert rewards_for("S").slots == rewards_for("SS").slots == 5
+        """S et SS sont du prestige. Le plafond de slots reste à sept."""
+        assert rewards_for("S").slots == rewards_for("SS").slots == 7
 
     def test_le_rang_F_n_ouvre_que_le_socle(self):
         base = rewards_for("F")
@@ -106,7 +106,7 @@ class TestSemainesTenues:
         assert next_rank(50) is None
 
     def test_le_prochain_deblocage_est_annonce(self):
-        assert "quatrième slot" in unlock_label("C")
+        assert "sixième slot" in unlock_label("C")
         assert "bouclier" in unlock_label("E")
         assert unlock_label("A") is None
 
@@ -121,11 +121,11 @@ class TestRangEnBase:
         Profile.objects.create(user=user)
         return user
 
-    def test_sans_historique_on_est_rang_F_avec_trois_slots(self, user):
+    def test_sans_historique_on_est_rang_F_avec_cinq_slots(self, user):
         from forge import services
 
         etat = services.rank_state(user, today=LUNDI)
-        assert etat["code"] == "F" and etat["slots"] == 3
+        assert etat["code"] == "F" and etat["slots"] == 5
 
     def test_le_rang_monte_avec_les_engagements_tenus(self, user):
         from forge import services
@@ -144,7 +144,7 @@ class TestRangEnBase:
         etat = services.rank_state(user, today=LUNDI)
         assert etat["weeks_kept"] == 6
         assert etat["code"] == "B"
-        assert etat["slots"] == 4, "le quatrième slot s'ouvre au rang B"
+        assert etat["slots"] == 6, "le sixième slot s'ouvre au rang B"
 
     def test_enchainer_les_sessions_ne_monte_pas_le_rang(self, user):
         """Le cœur du sujet : du volume sans engagement tenu ne donne aucun droit."""
@@ -163,7 +163,7 @@ class TestRangEnBase:
 
         etat = services.rank_state(user, today=LUNDI)
         assert etat["code"] == "F"
-        assert etat["slots"] == 3
+        assert etat["slots"] == 5
 
     def test_le_slot_supplementaire_est_reellement_attribuable(self, user):
         from forge import services

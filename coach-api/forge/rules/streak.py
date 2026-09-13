@@ -194,8 +194,13 @@ def _grant_shield(state: StreakState, on: date, *, reason: str) -> None:
     )
 
 
-def message_for(state: StreakState) -> str:
-    """Le message affiché après un jour raté. Il ne culpabilise pas (SPEC §4.2)."""
+def message_for(state: StreakState, *, required_minutes: int | None = None) -> str:
+    """Le message affiché après un jour raté. Il ne culpabilise pas (SPEC §4.2).
+
+    ``required_minutes`` remplace le seuil du soir quand la dette du §14 est
+    coupée ; par défaut, celui de l'état.
+    """
+    requis = state.required_minutes if required_minutes is None else required_minutes
     if state.missed_run == 0:
         return ""
     if state.missed_run == 1:
@@ -206,6 +211,6 @@ def message_for(state: StreakState) -> str:
     if state.missed_run == 2:
         return (
             f"Deux jours. Le streak est reparti de zéro. "
-            f"Ce soir : {state.required_minutes} min pour repartir."
+            f"Ce soir : {requis} min pour repartir."
         )
     return "On reprend. Une tâche, dix minutes."

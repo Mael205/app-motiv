@@ -47,9 +47,9 @@ RANK_LADDER = (
 
 RANK_ORDER = tuple(code for code, _ in RANK_LADDER)
 
-BASE_SLOTS = 3
-SLOT_AT_B = 4
-SLOT_AT_A = 5
+BASE_SLOTS = 5
+SLOT_AT_B = 6
+SLOT_AT_A = 7
 
 # Ce que chaque palier apporte. Les rangs intermédiaires donnent de la
 # **souplesse**, jamais de la puissance : un bouclier de plus et un jour off de
@@ -129,8 +129,8 @@ def unlock_label(rank: str) -> str | None:
     suivant = {
         "C": "un jour off de plus par saison",
         "D": "un bouclier de plus en réserve",
-        "B": "un quatrième slot de projet",
-        "A": "un cinquième slot de projet",
+        "B": "un sixième slot de projet",
+        "A": "un septième slot de projet",
     }
     niveau = _index(rank)
     for code, texte in sorted(suivant.items(), key=lambda item: _index(item[0])):

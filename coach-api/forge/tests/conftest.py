@@ -34,6 +34,18 @@ def mots_de_passe_rapides():
         yield
 
 
+@pytest.fixture(autouse=True, scope="session")
+def mecaniques_allumees():
+    """La suite teste le produit entier, quel que soit le ``.env`` de la machine.
+
+    Blocage et sanctions sont coupés en local depuis le 13 septembre 2026 ; sans
+    ce filet, chaque test du §8.5 et du §14 échouerait sur cette machine et
+    passerait ailleurs. Un test qui veut l'interrupteur coupé le dit lui-même.
+    """
+    with override_settings(COACH_BLOCKING_ENABLED=True, COACH_SANCTIONS_ENABLED=True):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def sans_modele_reel():
     set_provider(UnavailableProvider())

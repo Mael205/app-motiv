@@ -419,18 +419,16 @@ class TestVitrineEtSlots:
         """Le droit d'en ouvrir un de plus est suspendu, pas repris (§4.3)."""
         travaille(user, il_y_a=3, minutes=30)
         atelier = Track.objects.get(user=user)
-        for i in (2, 3):
-            Project.objects.create(
-                user=user, track=atelier, name=f"P{i}", slot=i,
-                domain=slot_rules.CREATIF if i == 3 else slot_rules.CODE,
-            )
+        domaines = {2: slot_rules.CREATIF, 3: slot_rules.CREATIF, 4: slot_rules.CORPS, 5: slot_rules.CORPS}
+        for i, domaine in domaines.items():
+            Project.objects.create(user=user, track=atelier, name=f"P{i}", slot=i, domain=domaine)
 
-        # Le rang ouvre un quatrième slot, mais deux jours ratés le gèlent.
+        # Le rang ouvre un sixième slot, mais deux jours ratés le gèlent.
         from unittest.mock import patch
 
         # Le faux rang est **complet** : le stock de boucliers et le plafond de
         # jours off se lisent aussi là-dedans depuis qu'ils s'appliquent enfin.
-        rang = {"slots": 4, "code": "B", "extra_shields": 0, "extra_days_off": 0}
+        rang = {"slots": 6, "code": "B", "extra_shields": 0, "extra_days_off": 0}
         with patch.object(services, "rank_state", return_value=rang):
             assert services.free_slot(user, slot_rules.SAVOIR, today=today) is None
 
@@ -546,3 +544,34 @@ class TestPlancherProgressif:
 
     def test_sans_dette_le_plancher_du_rang_est_le_seuil(self):
         assert streak_rules.StreakState(missed_run=0, floor_minutes=35).required_minutes == 35
+
+
+@pytest.mark.django_db
+class TestInterrupteur:
+    """Sanctions coupées (13 septembre 2026) : le streak compte, rien ne s'éteint."""
+
+    def test_deux_jours_rates_ne_coutent_rien(self, user, today, settings):
+        settings.COACH_SANCTIONS_ENABLED = False
+        saison = services.open_season(
+            user, starts_on=today - timedelta(days=10), stake=100, modifier_key="aube"
+        )
+        travaille(user, il_y_a=3, minutes=300, saison=saison)   # puis deux jours ratés
+        saison.boss.damage_taken = 1000
+        saison.boss.save()
+
+        etat = services.home_state(user)
+
+        assert etat["sanctions"]["active"] is False
+        assert etat["sanctions"]["lines"] == []
+        assert etat["streak"]["sanction_level"] == 0
+        # Pas de dette : le seuil du soir est le plancher, et le message le dit.
+        plancher = services.floor_minutes(user, today=today)
+        assert etat["required_minutes"] == plancher
+        assert f"Ce soir : {plancher} min" in etat["streak"]["message"]
+        saison.refresh_from_db()
+        saison.boss.refresh_from_db()
+        user.profile.refresh_from_db()
+        assert saison.boss.regen == 0
+        assert saison.stake_forfeited == 0
+        assert user.profile.shards == 500
+        assert services.sanctions_for(user, today=today).early_block is False

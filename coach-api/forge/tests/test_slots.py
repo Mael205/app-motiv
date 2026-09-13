@@ -1,6 +1,6 @@
 """Tests des deux limites dures de l'attribution de slot (SPEC §4.3).
 
-Trois projets actifs au maximum, et deux slots au maximum par domaine. La
+Cinq projets actifs au départ, et deux slots au maximum par domaine. La
 seconde limite existe parce que trois projets de code dans les trois slots,
 c'est une seule vie déguisée en trois.
 """
@@ -29,8 +29,15 @@ class TestAttribution:
     def test_un_trou_est_repris(self):
         assert assign_slot([(1, CODE), (3, CORPS)], SAVOIR) == 2
 
-    def test_aucun_slot_quand_les_trois_sont_pris(self):
-        assert assign_slot([(1, CODE), (2, CORPS), (3, SAVOIR)], CORPS) is None
+    def test_aucun_slot_quand_tous_sont_pris(self):
+        pris = [(1, CODE), (2, CORPS), (3, SAVOIR), (4, "creatif"), (5, "pratique")]
+        assert assign_slot(pris, CORPS) is None
+
+    def test_cinq_slots_au_depart(self):
+        from forge.rules.slots import BASE_SLOTS
+
+        assert BASE_SLOTS == 5
+        assert assign_slot([(1, CODE), (2, CORPS), (3, SAVOIR), (4, "creatif")], "pratique") == 5
 
 
 class TestDiversite:
@@ -49,7 +56,7 @@ class TestDiversite:
         assert "slots sont pris" not in raison, "ce n'est pas la bonne raison"
 
     def test_le_refus_par_saturation_des_slots_a_sa_propre_raison(self):
-        raison = refused_reason([(1, CODE), (2, CORPS), (3, SAVOIR)], CORPS)
+        raison = refused_reason([(1, CODE), (2, CORPS), (3, SAVOIR)], CORPS, total_slots=3)
         assert "slots sont pris" in raison
 
     def test_aucune_raison_quand_le_projet_passe(self):
@@ -127,16 +134,17 @@ class TestSlotsOuverts:
         assert unlocked_slots("F") == BASE_SLOTS
         assert unlocked_slots("C") == BASE_SLOTS
 
-    def test_le_rang_B_ouvre_le_quatrieme(self):
+    def test_le_rang_B_ouvre_le_sixieme(self):
         from forge.rules.slots import unlocked_slots
 
-        assert unlocked_slots("B") == 4
+        assert unlocked_slots("B") == 6
 
-    def test_le_rang_A_ouvre_le_cinquieme_et_c_est_le_plafond(self):
+    def test_le_rang_A_ouvre_le_septieme(self):
         from forge.rules.slots import ABSOLUTE_MAX_SLOTS, unlocked_slots
 
-        assert unlocked_slots("A") == 5
-        assert unlocked_slots("SS") == ABSOLUTE_MAX_SLOTS == 5
+        assert unlocked_slots("A") == 7
+        assert unlocked_slots("SS") == 7
+        assert ABSOLUTE_MAX_SLOTS == 8, "la voie « Ampleur » ajoute le huitième"
 
     def test_la_piste_corps_ne_grandit_jamais(self):
         """Quatre activités physiques sont de la dispersion aussi (SPEC §11.4)."""
@@ -144,7 +152,7 @@ class TestSlotsOuverts:
 
         assert slots_for_track("corps", "F") == CORPS_SLOTS == 2
         assert slots_for_track("corps", "SS") == 2, "le rang n'ouvre pas de slot Corps"
-        assert slots_for_track("atelier", "SS") == 5
+        assert slots_for_track("atelier", "SS") == 7
 
     def test_les_slots_ouverts_sont_reellement_attribuables(self):
         from forge.rules.slots import CODE, CORPS, SAVOIR, assign_slot
@@ -155,36 +163,68 @@ class TestSlotsOuverts:
 
 
 class TestEchangeDeSlot:
-    """Le dimanche protège contre l'abandon, pas contre la réussite."""
+    """La saison protège contre l'abandon, pas contre la réussite."""
 
-    def test_le_dimanche_l_echange_est_ouvert(self):
+    def test_entre_deux_saisons_l_echange_est_ouvert(self):
         from forge.rules.slots import can_replace
 
-        ok, _ = can_replace(weekday=6, project_finished=False, has_sessions=True)
+        ok, _ = can_replace(entre_saisons=True, project_finished=False, has_sessions=True)
         assert ok
 
-    def test_en_semaine_on_ne_lache_pas_un_projet_en_cours(self):
+    def test_en_saison_on_ne_lache_pas_un_projet_en_cours(self):
         from forge.rules.slots import can_replace
 
-        ok, raison = can_replace(weekday=1, project_finished=False, has_sessions=True)
-        assert not ok and "dimanche" in raison
+        ok, raison = can_replace(entre_saisons=False, project_finished=False, has_sessions=True)
+        assert not ok and "saisons" in raison
 
     def test_un_projet_termine_libere_son_slot_le_jour_meme(self):
         from forge.rules.slots import can_replace
 
-        ok, raison = can_replace(weekday=1, project_finished=True, has_sessions=True)
+        ok, raison = can_replace(entre_saisons=False, project_finished=True, has_sessions=True)
         assert ok and "sans attendre" in raison
 
     def test_une_roadmap_finie_sans_session_ne_debloque_rien(self):
-        """Sinon une roadmap d'une étape cochée contournerait le dimanche."""
+        """Sinon une roadmap d'une étape cochée contournerait la saison."""
         from forge.rules.slots import can_replace
 
-        ok, raison = can_replace(weekday=1, project_finished=True, has_sessions=False)
+        ok, raison = can_replace(entre_saisons=False, project_finished=True, has_sessions=False)
         assert not ok and "aucune session" in raison
 
-    def test_un_slot_vacant_doit_etre_repris_le_dimanche(self):
+    def test_un_slot_vacant_doit_etre_repris_entre_deux_saisons(self):
         from forge.rules.slots import must_fill_vacancy
 
-        assert must_fill_vacancy(weekday=6, vacant=1)
-        assert not must_fill_vacancy(weekday=2, vacant=1), "en semaine, la vacance est permise"
-        assert not must_fill_vacancy(weekday=6, vacant=0)
+        assert must_fill_vacancy(entre_saisons=True, vacant=1)
+        assert not must_fill_vacancy(entre_saisons=False, vacant=1), "en saison, la vacance est permise"
+        assert not must_fill_vacancy(entre_saisons=True, vacant=0)
+
+
+@pytest.mark.django_db
+class TestFenetreEntreDeuxSaisons:
+    def test_fermee_pendant_la_saison_ouverte_apres(self, django_user_model):
+        from datetime import date, timedelta
+
+        from forge import services
+        from forge.models import Profile
+
+        user = django_user_model.objects.create_user(username="u", password="p")
+        Profile.objects.create(user=user)
+        debut = date(2026, 9, 1)
+        saison = services.open_season(user, starts_on=debut)
+
+        assert services.entre_deux_saisons(user, today=debut - timedelta(days=1))
+        assert not services.entre_deux_saisons(user, today=debut + timedelta(days=12))
+        assert services.entre_deux_saisons(user, today=saison.ends_on + timedelta(days=1))
+
+    def test_une_saison_en_veille_reste_fermee(self, django_user_model):
+        from datetime import date
+
+        from forge import services
+        from forge.models import Profile, Season
+
+        user = django_user_model.objects.create_user(username="u", password="p")
+        Profile.objects.create(user=user)
+        saison = services.open_season(user, starts_on=date(2026, 9, 1))
+        saison.status = Season.PAUSED
+        saison.save()
+
+        assert not services.entre_deux_saisons(user, today=date(2026, 9, 10))

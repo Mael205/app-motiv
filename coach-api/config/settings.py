@@ -151,6 +151,16 @@ COACH = {
 # est l'état par défaut d'une machine fraîche, pas un cas de panne.
 COACH_AI_ENABLED = os.getenv("COACH_AI_ENABLED", "1") not in ("0", "false", "False")
 
+# Interrupteur du blocage (§8.5). À 0, le serveur ne s'arme jamais : l'extension
+# et le service de blocage restent installés mais n'ont rien à fermer. Le calcul
+# de l'instant continue, pour que rallumer ne change rien d'autre.
+COACH_BLOCKING_ENABLED = os.getenv("COACH_BLOCKING_ENABLED", "1") not in ("0", "false", "False")
+
+# Interrupteur du prix du décrochage (§14). À 0 : ni mode terne, ni vitrine
+# fermée, ni dette, ni slot gelé, ni boss qui récupère, ni mise entamée, ni écran
+# de reprise. Le streak et les boucliers continuent de compter.
+COACH_SANCTIONS_ENABLED = os.getenv("COACH_SANCTIONS_ENABLED", "1") not in ("0", "false", "False")
+
 # "auto" (défaut) : le CLI « claude » s'il est installé, sinon le SDK.
 # "cli"           : impose le CLI, donc l'abonnement déjà payé.
 # "api"           : impose le SDK, donc une clé facturée à l'usage.
