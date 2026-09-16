@@ -56,6 +56,7 @@ from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
+from .rules import jour as jour_rules
 from .rules import sommeil as sommeil_rules
 from .rules import modifiers as modifier_rules
 from .rules import ranks as rank_rules
@@ -1974,6 +1975,7 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
     # besoin qu'un déclencheur nocturne ait tourné pour être justes — c'est ce
     # qui les rend fiables sur un hébergement qui s'endort.
     sanctions_on = settings.COACH_SANCTIONS_ENABLED
+    jour = projet_du_jour(user, today=today)
     regen = sync_boss_regen(season, history)
     forfeited = sync_stake_forfeit(user, season, state)
     sanctions = sanction_state(
@@ -2035,6 +2037,28 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
         "phantom": progression.phantom_panel(user, today=today, now=now),
         "modifier": progression.season_modifier(season) if season else None,
         "validated_today": minutes_today >= DEGRADED_MINUTES,
+        # Le contrat du jour (§11.2), tel que l'accueil et le blocage le lisent.
+        # Distinct de `validated_today`, qui reste le streak du §4.2 : dix
+        # minutes sur n'importe quoi tiennent le streak, elles ne tiennent pas
+        # le rendez-vous.
+        "jour": {
+            "libre": jour.libre,
+            "tenu": jour.tenu,
+            "requis_minutes": jour_rules.MINUTES_REQUISES,
+            "heure_de_blocage": jour_rules.HEURE_DE_BLOCAGE,
+            "phrase": jour_rules.phrase(jour),
+            "attendus": [
+                {
+                    "project_id": a.project_id,
+                    "name": a.name,
+                    "heure": a.heure,
+                    "minutes": a.minutes,
+                    "restantes": a.restantes,
+                    "fait": a.fait,
+                }
+                for a in jour.attendus
+            ],
+        },
         "required_minutes": state.required_minutes if sanctions_on else state.floor_minutes,
         "minutes_today": minutes_today,
         "streak": {
@@ -2689,49 +2713,74 @@ def agent_state(user, *, now: datetime | None = None) -> dict:
     }
 
 
-def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict:
-    """À partir de quand le scroll passif se bloque, et jusqu'à quoi (§8.5, §14).
+def projet_du_jour(user, *, today: date) -> jour_rules.Jour:
+    """Les rendez-vous d'aujourd'hui, et les minutes déjà posées sur chacun.
 
-    **Le serveur dit quand, l'agent décide comment.** C'est l'état « armé » qui
-    manquait : sans lui, ni l'agent ni l'extension n'ont de quoi savoir s'ils
-    doivent bloquer, et le blocage effectif du J5 n'aurait rien à interroger.
-
-    Par défaut il s'arme à la fin du sas de détente s'il a été pris, sinon à
-    l'heure du gardien — les deux moments que le §8.5 nomme. Le **palier 2** du
-    §14 l'avance à l'ouverture de la fenêtre du soir.
-
-    Il se lève à la validation de la journée, jamais à une heure fixe : « le
-    retour est conditionné, pas puni ». Un blocage qui tomberait à minuit quoi
-    qu'il arrive n'aurait rien demandé.
-
-    **Un instant, un booléen, rien d'autre.** Le motif — sas, gardien, palier 2
-    — reste ici : il dirait à qui lit le jeton de sonde qu'on a raté deux jours,
-    et le §8 refuse à l'agent tout ce qui ressemble à de l'historique. L'heure
-    seule suffit à décider quoi bloquer.
+    Lu depuis les créneaux fixes du §11.2 : ce sont eux le contrat, et ils se
+    règlent au calme. Un projet sans créneau ce jour-là n'est pas attendu, même
+    s'il est actif et en retard — l'app ne s'invite pas dans une soirée qu'on ne
+    lui a pas promise.
     """
-    window = evening_window(today, profile.windows_by_weekday(), profile.timezone_name)
-    minutes = (
-        Session.objects.filter(user=user, coach_day=today, status=Session.DONE).aggregate(
-            t=Sum("actual_minutes")
-        )["t"]
-        or 0
-    )
-    validee = minutes >= DEGRADED_MINUTES
-
-    atelier, _ = Track.objects.get_or_create(user=user, kind=Track.ATELIER)
-    sanctions = _sanctions(streak_state(user, atelier, today=today), validated_today=validee)
-
-    if sanctions.early_block:
-        depuis = window.start
-    else:
-        sas = RelaxWindow.objects.filter(user=user, coach_day=today).first()
-        depuis = (
-            sas.ends_at
-            if sas
-            else window.end - timedelta(minutes=profile.guardian_minutes_before_end)
+    creneaux = (
+        TimeSlot.objects.filter(
+            project__user=user,
+            project__status=Project.ACTIVE,
+            active=True,
+            weekday=today.weekday(),
         )
+        .select_related("project")
+        .order_by("start_time")
+    )
+    minutes = {
+        row["project"]: row["t"]
+        for row in Session.objects.filter(user=user, coach_day=today, status=Session.DONE)
+        .values("project")
+        .annotate(t=Sum("actual_minutes"))
+    }
 
-    arme = settings.COACH_BLOCKING_ENABLED and not validee and now >= depuis
+    vus: set[int] = set()
+    attendus = []
+    for creneau in creneaux:
+        projet = creneau.project
+        if projet.id in vus:      # deux créneaux le même jour ne doublent pas la dette
+            continue
+        vus.add(projet.id)
+        attendus.append(
+            jour_rules.Attendu(
+                project_id=projet.id,
+                name=projet.name,
+                minutes=minutes.get(projet.id, 0) or 0,
+                heure=creneau.start_time.strftime("%Hh%M"),
+            )
+        )
+    return jour_rules.evaluer(attendus)
+
+
+def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict:
+    """À partir de quand le scroll passif se bloque, et jusqu'à quoi (§8.5).
+
+    **Le serveur dit quand, l'agent décide comment.** Sans cet état « armé », ni
+    l'agent ni l'extension n'ont de quoi savoir s'ils doivent bloquer.
+
+    **21h, et le projet du jour** *(13 septembre 2026)*. L'heure est fixe et se
+    récite de mémoire, là où « fin de fenêtre moins quatre-vingt-dix minutes »
+    se calculait. Ce qui lève le blocage n'est plus dix minutes sur n'importe
+    quoi, mais les vingt-cinq minutes dues au projet qui avait rendez-vous :
+    une soirée passée ailleurs compte partout ailleurs, et laisse le rendez-vous
+    entier. Un **jour libre** — aucun créneau — ne bloque rien.
+
+    Le sas de détente ne joue plus : la journée est libre jusqu'à 21h, ce qui en
+    fait un sas permanent et rend le bouton inutile.
+
+    **Un instant, un booléen, rien d'autre.** Le motif ne sort pas d'ici : il
+    dirait à qui lit le jeton de sonde ce qu'on n'a pas fait, et le §8 refuse à
+    l'agent tout ce qui ressemble à de l'historique.
+    """
+    zone = ZoneInfo(profile.timezone_name)
+    depuis = datetime.combine(today, time(jour_rules.HEURE_DE_BLOCAGE), tzinfo=zone)
+    jour = projet_du_jour(user, today=today)
+
+    arme = settings.COACH_BLOCKING_ENABLED and not jour.tenu and now >= depuis
     return {"armed_from": depuis.isoformat(), "armed": arme}
 
 

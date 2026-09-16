@@ -120,6 +120,15 @@ export const DecisionBlock = memo(function DecisionBlock({
   }
 
   const brief = 'source' in vue ? vue : null
+
+  /** Ce qu'on lit avant de démarrer : **sa propre note**, d'abord.
+   *
+   * L'app ne sait pas quelle tâche précise il faut faire — la roadmap bouge, le
+   * travail déborde, et rien de tout ça ne se vérifie. Ce qu'on s'est écrit à
+   * chaud la dernière fois vaut donc mieux qu'une tâche décidée à froid par un
+   * modèle, et elle passe devant (13 septembre 2026). La proposition du modèle
+   * ne sert plus que le premier soir d'un projet, quand aucune note n'existe.
+   */
   const task = vue.amorce || vue.step?.label
 
   // Le plan de la soirée. `coupee` est la portion qu'on ne finira pas ce soir —
@@ -131,7 +140,11 @@ export const DecisionBlock = memo(function DecisionBlock({
   // D'ou vient la tache affichee. Le dire n'est pas de la transparence pour la
   // forme : une tache decidee par un modele et une amorce qu'on a ecrite
   // soi-meme la veille ne se relisent pas avec la meme confiance.
-  const taskKind = brief?.source === 'modele' ? 'Décidé pour ce soir' : vue.amorce ? 'Ton amorce' : 'Étape en cours'
+  const taskKind = vue.amorce
+    ? 'Ta note de la dernière fois'
+    : brief?.source === 'modele'
+      ? 'Proposé pour ce soir'
+      : 'Étape en cours'
 
   if (entering) {
     return (
@@ -191,6 +204,13 @@ export const DecisionBlock = memo(function DecisionBlock({
         <div className="decision__task">
           <span className="label">{taskKind}</span>
           <p className="decision__task-text">{task}</p>
+          {/* L'étape reste affichée sous la note, jamais à sa place : elle donne
+              le contexte — où l'on en est du projet — sans prétendre dire quoi
+              faire ce soir. Deux lignes qui se complètent, pas deux consignes
+              qui se contredisent. */}
+          {vue.amorce && vue.step?.label && (
+            <p className="decision__step">Étape en cours : {vue.step.label}</p>
+          )}
           {/* « Fini quand » a maintenant deux sources, et l'ordre compte : la
               définition du modèle est taillée pour ce soir, le critère de
               sortie de l'étape a été écrit à la création du projet et vaut pour

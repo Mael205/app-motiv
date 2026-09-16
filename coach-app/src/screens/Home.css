@@ -11,6 +11,26 @@
   background: color-mix(in srgb, var(--gold) 13%, transparent);
 }
 
+/* Ce que la journée demande. Volontairement sobre : la décision est juste en
+   dessous et doit rester la seule chose lumineuse de l'écran (§11.1). */
+.jour {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.jour__heure {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.jour--tenu .jour__phrase {
+  color: var(--muted);
+}
+
 .empty {
   text-align: center;
   padding: 30px 22px;

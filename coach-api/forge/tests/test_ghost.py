@@ -198,14 +198,17 @@ class TestEtatDeLAgent:
         assert set(etat["block_scroll"]) == {"armed_from", "armed"}
 
     def test_l_interrupteur_coupe_le_blocage_meme_a_l_heure(self, django_user_model, settings):
-        from datetime import datetime, timezone as tz
+        from datetime import datetime, time, timezone as tz
 
         from forge import services
-        from forge.models import Profile
+        from forge.models import Profile, Project, TimeSlot, Track
 
         user = django_user_model.objects.create_user(username="arthur", password="coach")
         Profile.objects.create(user=user)
-        # Journée non validée, bien après le gardien : l'état serait armé.
+        # Un rendez-vous ce lundi-là, et rien de posé dessus : l'état serait armé.
+        track = Track.objects.create(user=user, kind=Track.ATELIER)
+        projet = Project.objects.create(user=user, track=track, name="Evolve", slot=1)
+        TimeSlot.objects.create(project=projet, weekday=0, start_time=time(20))
         tard = datetime(2026, 9, 14, 21, 45, tzinfo=tz.utc)
         assert services.agent_state(user, now=tard)["block_scroll"]["armed"] is True
 

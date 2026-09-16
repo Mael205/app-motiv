@@ -543,9 +543,32 @@ export interface RoutineCheckResult {
   panel: EntretienPanel
 }
 
+/** Un projet qui a rendez-vous aujourd'hui, et où il en est. */
+export interface JourAttendu {
+  project_id: number
+  name: string
+  heure: string
+  minutes: number
+  restantes: number
+  fait: boolean
+}
+
+/** Ce que la journée demande (§11.2). À ne pas confondre avec `validated_today`,
+ *  qui est le streak : dix minutes sur n'importe quoi tiennent le streak, elles
+ *  ne tiennent pas le rendez-vous du jour. */
+export interface JourState {
+  libre: boolean
+  tenu: boolean
+  requis_minutes: number
+  heure_de_blocage: number
+  phrase: string
+  attendus: JourAttendu[]
+}
+
 export interface HomeState {
   day: string
   now: string
+  jour: JourState
   validated_today: boolean
   required_minutes: number
   minutes_today: number

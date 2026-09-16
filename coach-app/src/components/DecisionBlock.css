@@ -188,6 +188,14 @@
   color: var(--rose);
 }
 
+/* L'étape en cours, sous la note. Du contexte, pas une consigne : elle se lit
+   après la note et ne doit jamais lui prendre le regard. */
+.decision__step {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 /* La definition de fini : ce qui permet de s'arreter sans se demander si c'est
    fait. Discrete, mais toujours visible — la cacher derriere un depliant la
    rendrait inutile, puisqu'on ne la depliera pas un soir de fatigue. */

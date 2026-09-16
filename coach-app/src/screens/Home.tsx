@@ -159,6 +159,20 @@ export function Home({
 
         <SanctionList sanctions={state.sanctions} />
 
+        {/* Ce que la journée demande, et à partir de quand ça se voit. Une seule
+            phrase, au-dessus de la décision : c'est la seule information dont on
+            a besoin avant d'appuyer, et le §11.1 refuse tout ce qui dispute la
+            place au bouton. Un jour libre le dit aussi — un silence se lit comme
+            un oubli. */}
+        <p className={`jour${state.jour.tenu ? ' jour--tenu' : ''}`}>
+          <span className="jour__phrase">{state.jour.phrase}</span>
+          {!state.jour.tenu && !state.jour.libre && (
+            <span className="jour__heure">
+              Réseaux bloqués à partir de {state.jour.heure_de_blocage}h
+            </span>
+          )}
+        </p>
+
         {decision ? (
           <>
             <DecisionBlock proposal={decision} onStarted={onStarted} />

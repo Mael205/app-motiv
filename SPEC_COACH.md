@@ -224,6 +224,11 @@ Le rang **ne redescend jamais** : il compte les semaines tenues cumulées, pas l
 
 Il veut parfois scroller avant de bosser. Ne pas l'interdire — le cadrer.
 
+> **Rendu inutile le 13 septembre 2026 par le §11.11.** La journée est libre
+> jusqu'à 21h : c'est un sas permanent, et un bouton qui ouvre une permission
+> déjà acquise ne sert plus à rien. Le bouton reste affiché tant qu'il n'a pas
+> été retiré, mais il ne commande plus le blocage.
+
 - Bouton **"Sas de détente : 30 min"**. Pendant ce temps, rien n'est bloqué, aucune notification, aucun jugement.
 - À la fin du sas : notification ferme sur les deux surfaces, et l'agent PC arme le blocage du scroll passif jusqu'à la validation de la session du jour.
 - Le sas est limité à **une utilisation par soir**. Deuxième tentative → refusée, avec le temps restant avant la fin de la fenêtre affiché.
@@ -466,11 +471,27 @@ AgentEvent(id, user, type, payload, created_at)                          # appen
 
 ## 11. Mécaniques complémentaires
 
+### 11.11 Le projet du jour — ce que la journée demande
+
+*(Tranché le 13 septembre 2026. Remplace la partie du §11.1 qui imposait une tâche.)*
+
+**L'app ne sait pas quelle tâche précise il faut faire, et cesse de faire semblant.** La roadmap change en cours de route, le travail réel déborde de ce qui était prévu, et aucune tâche ne se vérifie de l'extérieur. Une consigne fausse ou invérifiable s'apprend à contourner.
+
+Ce qui se vérifie, c'est **sur quoi** et **combien de temps** :
+
+- **la contrainte** : chaque projet qui a un créneau aujourd'hui veut ses **25 minutes**, mesurées par le serveur ;
+- **la tâche** redevient la **note laissée à soi-même** à la fin de la séance précédente (§11.3). L'étape de roadmap s'affiche dessous, comme contexte et jamais comme consigne. Le modèle ne propose plus une tâche que le premier soir d'un projet, quand aucune note n'existe ;
+- **travailler ailleurs ne libère pas la soirée.** Les minutes posées sur un autre projet comptent partout — XP, heures, boss — et laissent le rendez-vous entier. Sans quoi un créneau n'est qu'une préférence ;
+- **un jour sans créneau est un jour libre.** Rien n'est dû, rien ne se bloque. La contrainte vient du contrat signé au calme, pas d'une app qui voudrait qu'on travaille tous les soirs ;
+- **à 21h**, ce qui n'est pas fait se voit : le blocage du §8.5 s'arme, et se lève dès que le rendez-vous est tenu. L'heure est fixe et se récite de mémoire.
+
+Le streak du §4.2 n'est **pas** touché : dix minutes sur n'importe quoi le tiennent toujours. Les deux compteurs répondent à deux questions différentes — « est-ce que je m'y suis mis » et « est-ce que j'ai tenu le rendez-vous d'aujourd'hui ».
+
 ### 11.1 L'app décide, l'utilisateur exécute
 
 À 21h, fatigué, face à 3 projets, il ne choisit pas : il ouvre YouTube. **La paralysie du choix est un mode de défaillance réel, pas une hypothèse.**
 
-- L'écran d'accueil affiche **une seule proposition** : projet + durée + tâche, avec un bouton unique "Démarrer".
+- L'écran d'accueil affiche **une seule proposition** : projet + durée + la note de la dernière fois, avec un bouton unique "Démarrer". Depuis le §11.11, la tâche n'est plus imposée — elle est rappelée.
 - Le projet est calculé côté serveur : engagement hebdo restant, retard relatif, dernier passage, créneau du jour, état du boss.
 - Changer de projet reste possible mais coûte un tap supplémentaire ("autre chose") — jamais au même niveau visuel que le bouton principal.
 - Aucun écran de sélection au démarrage. La liste des projets vit dans un autre onglet.
