@@ -426,3 +426,53 @@
   color: var(--muted);
   border-top: 1px solid var(--line);
 }
+
+/* Les cartes de buff. Une ligne par carte, la charge en chiffre, et un bouton
+   qui engage — le geste est explicite par construction (§12.6). */
+.buffs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.buff {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid var(--muted);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.buff--rare { border-left-color: #5fa8de; }
+.buff--epique { border-left-color: #8b6fe8; }
+.buff--legendaire { border-left-color: #e8a33d; }
+
+.buff--arme {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.buff__texte {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.buff__ligne {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.buff__btn {
+  flex: none;
+}
+
+.buff__erreur {
+  font-size: 13px;
+  color: var(--rose);
+}

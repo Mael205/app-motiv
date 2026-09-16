@@ -1212,6 +1212,23 @@ export interface ProgressionPanel {
     shards: number
     equipped: Record<string, string>
   }
+  /** Les charges de carte, et ce qui est armé aujourd'hui (§12.6).
+   *
+   *  Une carte donne une **charge** à dépenser, pas un passif : c'est ce qui
+   *  fait qu'un mauvais tirage coûte une occasion et non une puissance qui
+   *  manquerait tous les jours. Les reliques, elles, restent les passifs. */
+  buffs: {
+    cartes: {
+      key: string
+      label: string
+      rarity: string
+      charges: number
+      ligne: string
+      lore: string
+      touche_au_cadre: boolean
+    }[]
+    armes: { key: string; effect: string; value: number; ligne: string }[]
+  }
   pending_cards: LootCardDrawn[]
 }
 

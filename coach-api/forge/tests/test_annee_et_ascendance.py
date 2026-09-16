@@ -31,6 +31,7 @@ from forge.models import (
     Session,
     Track,
 )
+from forge.rules import buffs as buff_rules
 from forge.rules import loot as loot_rules
 from forge.rules import seasons as season_rules
 from forge.rules import years as regles
@@ -184,36 +185,36 @@ class TestLaForge:
         user.profile.shards = 10_000
         user.profile.save()
         with pytest.raises(ValueError, match="pas ouverte"):
-            progression.forger(user, "theme_braise")
+            progression.forger(user, "etincelle")
 
     def test_elle_fait_enfin_descendre_les_eclats(self, user):
         """Le seul endroit du produit où des Éclats sortent."""
         _ouvrir_la_forge(user, eclats=1000)
-        carte = loot_rules.PAR_CLE["theme_encre"]
+        carte = buff_rules.PAR_CLE["braise_ardente"]
 
         resultat = progression.forger(user, carte.key)
 
         user.profile.refresh_from_db()
         assert user.profile.shards == 1000 - loot_rules.prix_de_forge(carte)
         assert resultat["shards"] < 0
-        assert LootCard.objects.filter(user=user, key=carte.key).exists()
+        assert LootCard.objects.get(user=user, key=carte.key).kind == "buff"
 
     def test_sans_assez_d_eclats_elle_refuse(self, user):
         _ouvrir_la_forge(user, eclats=5)
         with pytest.raises(ValueError, match="Éclats demandés"):
-            progression.forger(user, "theme_ardoise")
+            progression.forger(user, "etincelle")
 
-    def test_une_carte_a_defi_ne_s_achete_pas(self, user):
-        """Le solde d'Éclats ne doit pas valoir trois mois de régularité."""
-        _ouvrir_la_forge(user, eclats=100000)
-        with pytest.raises(ValueError, match="se gagne"):
-            progression.forger(user, "theme_eclipse")
+    def test_une_carte_deja_possedee_se_recharge(self, user):
+        """Depuis le 16 septembre 2026, une carte est une charge, pas un objet.
 
-    def test_une_carte_deja_possedee_est_refusee(self, user):
-        _ouvrir_la_forge(user, eclats=1000)
-        LootCard.objects.create(user=user, key="theme_braise", rarity="commun", kind="theme")
-        with pytest.raises(ValueError, match="déjà"):
-            progression.forger(user, "theme_braise")
+        L'ancien refus — « tu l'as déjà, ce ne serait qu'un doublon à perte » —
+        n'a plus de sens : une seconde charge se dépense comme la première.
+        """
+        _ouvrir_la_forge(user, eclats=2000)
+        progression.forger(user, "etincelle")
+        progression.forger(user, "etincelle")
+
+        assert LootCard.objects.get(user=user, key="etincelle").copies == 2
 
     def test_forger_coute_bien_plus_que_ce_qu_un_doublon_rapporte(self):
         """Si forger devenait rentable, l'ouverture d'une carte perdrait son sens."""
@@ -224,7 +225,7 @@ class TestLaForge:
         """Un achat n'est pas un tirage : l'y compter reviendrait à acheter sa chance."""
         _ouvrir_la_forge(user, eclats=1000)
         avant = progression._pity(user)
-        progression.forger(user, "theme_encre")
+        progression.forger(user, "braise_ardente")
         assert progression._pity(user) == avant
 
 

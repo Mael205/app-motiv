@@ -119,6 +119,9 @@ export function Character({
       </div>
 
       <div className="char__col">
+        {/* --- Cartes de buff --------------------------------------------- */}
+        <BuffPanel panel={panel} onUsed={setPanel} />
+
         {/* --- Reliques -------------------------------------------------- */}
         <section className="panel">
         <div className="char__head">
@@ -128,9 +131,9 @@ export function Character({
           </span>
         </div>
         <p className="section-hint">
-          Les seuls bonus du système, et ils se gagnent par un haut fait — jamais
-          par un tirage. Trois équipées au maximum : le plafond existe pour que le
-          choix se sente.
+          Les bonus <strong>permanents</strong>, gagnés par un haut fait — jamais par un
+          tirage. Trois équipées au maximum : le plafond existe pour que le choix se
+          sente. Les cartes, elles, donnent des charges à dépenser.
         </p>
 
         <ul className="relics">
@@ -378,5 +381,94 @@ function describeShape(shape: ProgressionPanel['skills']['shape']): string {
       ? "L'essentiel est au même endroit."
       : 'Le travail est réparti.') +
     (arret ? ` ${arret} branche${arret > 1 ? 's' : ''} à l'arrêt.` : '')
+  )
+}
+
+/** Les cartes de buff : des charges à dépenser, pas des passifs (§12.6).
+ *
+ * *(Inversé le 16 septembre 2026 : les cartes donnent les buffs, les hauts faits
+ * donnent l'apparence.)*
+ *
+ * Le geste est explicite, et c'est tout l'intérêt. Une carte qui s'appliquerait
+ * toute seule au meilleur moment serait un passif — donc une relique —, et la
+ * malchance au tirage se paierait alors tous les jours au lieu de coûter une
+ * occasion.
+ */
+function BuffPanel({
+  panel,
+  onUsed,
+}: {
+  panel: ProgressionPanel
+  onUsed: (panel: ProgressionPanel) => void
+}) {
+  const [busy, setBusy] = useState('')
+  const [erreur, setErreur] = useState('')
+
+  const { cartes, armes } = panel.buffs
+
+  async function depenser(key: string) {
+    setBusy(key)
+    setErreur('')
+    try {
+      await api.useCard(key)
+      onUsed(await api.progression())
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Carte refusée.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="char__head">
+        <span className="label">Cartes</span>
+        <span className="num char__count">{cartes.reduce((n, c) => n + c.charges, 0)}</span>
+      </div>
+      <p className="section-hint">
+        Une carte se dépense quand tu le décides, et vaut pour la journée. Aucune ne
+        touche au blocage, au couvre-feu ni au streak — seul le sas peut être rouvert.
+      </p>
+
+      {armes.length > 0 && (
+        <ul className="buffs buffs--armes">
+          {armes.map((b) => (
+            <li key={b.key} className="buff buff--arme">
+              <span className="buff__label">Armé · {b.ligne}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {erreur && <p className="buff__erreur">{erreur}</p>}
+
+      {cartes.length === 0 ? (
+        <p className="muted">
+          Aucune charge. Les cartes tombent en terminant une étape ou en posant une
+          longue séance — jamais autrement.
+        </p>
+      ) : (
+        <ul className="buffs">
+          {cartes.map((c) => (
+            <li key={c.key} className={`buff buff--${c.rarity}`}>
+              <div className="buff__texte">
+                <span className="buff__label">
+                  {c.label} <span className="num">×{c.charges}</span>
+                </span>
+                <span className="buff__ligne">{c.ligne}</span>
+              </div>
+              <button
+                type="button"
+                className="buff__btn"
+                onClick={() => depenser(c.key)}
+                disabled={busy === c.key}
+              >
+                Utiliser
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

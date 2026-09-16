@@ -145,15 +145,23 @@ class TestLoot:
         assert ligne.copies == 2
         assert LootCard.objects.filter(user=user, key=premiere["key"]).count() == 1
 
-    def test_un_doublon_rend_des_eclats(self, user):
+    def test_un_doublon_donne_une_charge_de_plus(self, user):
+        """Depuis le 16 septembre 2026, un doublon n'est plus une déception.
+
+        Une carte donne une charge à dépenser : la deuxième copie sert donc
+        autant que la première, là où l'ancienne conversion en Éclats payait
+        pour ne rien recevoir.
+        """
         rng_seed = 11
-        progression.draw_card(user, reason="test", rng=random.Random(rng_seed))
+        premiere = progression.draw_card(user, reason="test", rng=random.Random(rng_seed))
         avant = user.profile.shards
 
-        progression.draw_card(user, reason="test", rng=random.Random(rng_seed))
+        seconde = progression.draw_card(user, reason="test", rng=random.Random(rng_seed))
         user.profile.refresh_from_db()
 
-        assert user.profile.shards > avant
+        assert seconde["duplicate"] and seconde["key"] == premiere["key"]
+        assert LootCard.objects.get(user=user, key=premiere["key"]).copies == 2
+        assert user.profile.shards == avant, "une charge, pas des Éclats"
 
     def test_la_pitie_se_recalcule_depuis_le_journal(self, user):
         """Un compteur stocké dériverait, et une pitié déréglée se lit comme de la triche."""

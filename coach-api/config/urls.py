@@ -44,6 +44,7 @@ urlpatterns = [
     path("api/season/voie", api.choose_voie),
     path("api/achievements", api.achievements_panel),
     path("api/loot/<str:key>/equip", api.equip_card),
+    path("api/loot/<str:key>/use", api.use_card),
     path("api/loot/<str:key>/forge", api.forge_card),
     path("api/relics/<str:key>/toggle", api.toggle_relic),
     path("api/sessions/<int:session_id>/debrief", api.debrief),

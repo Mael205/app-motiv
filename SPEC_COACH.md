@@ -789,8 +789,20 @@ Le modificateur est **tiré au sort parmi 3 propositions** à l'ouverture — un
 
 - Les **Éclats** sont la monnaie interne. Gagnés par les sessions, les hauts faits et les fins de saison.
 - **Mise de saison** : à l'ouverture, il mise un montant d'Éclats. Saison réussie → mise doublée. Saison ratée → mise perdue. Enjeu réel, aucune conséquence matérielle.
-- Les Éclats achètent uniquement du **cosmétique** : thèmes, emblèmes, effets de la séquence de fin de session, titres, cadres d'avatar.
-- **Cartes de loot** au passage de niveau et à la clôture de semaine, avec raretés (commun / rare / épique / légendaire) et animation d'ouverture. Aucune carte ne donne d'XP ni ne modifie une règle.
+**Les cartes donnent des buffs, les hauts faits donnent l'apparence** *(inversé le 16 septembre 2026, contre l'ancienne règle « le loot est de l'apparence, jamais du pouvoir »)*.
+
+Ce que cette règle protégeait : une carte se tire, donc lui donner du pouvoir revient à récompenser la chance. Trois garde-fous remplacent l'interdiction, et ce sont eux qu'il faut tenir :
+
+1. **le tirage est déjà payé par du travail.** Rien ne tombe sans avoir terminé une étape ou posé une longue séance. C'est le *contenu* du tirage qui est aléatoire, jamais le droit d'y accéder ;
+2. **une charge, pas un passif.** Une carte donne une charge qu'on dépense quand on veut, et qui vaut pour la journée. La malchance coûte donc une occasion, jamais une puissance qui manquerait tous les jours — c'est ce qui la distingue d'une relique (§12.8), permanente et gagnée par un haut fait, donc par du travail nommé ;
+3. **le cadre reste hors d'atteinte.** Aucune carte ne touche au blocage, au couvre-feu, au streak, aux boucliers, au rang, aux slots ni aux gardes. La seule brèche est le **sas** (§4.6) — déjà une soupape bornée et payante. Aucune carte ne peut acheter une soirée.
+
+Sept effets, énumération fermée : rallonger le sas, en ouvrir un second, en épargner le coût, majorer l'XP d'une séance, ses dégâts au boss, les Éclats du jour, ou incliner le prochain tirage.
+
+- **Rotation par saison.** Chaque saison ouvre son propre lot de cartes tirables, et la fenêtre glisse d'une carte par saison : deux saisons voisines partagent une partie de leur lot, donc une carte manquée revient — plus tard, pas jamais. Ce qui a été tiré reste acquis ; seule la pêche change.
+- **Un doublon n'est plus une déception** : il ajoute une charge au lieu de se convertir en Éclats.
+- **Chaque haut fait donne une apparence** (thème, emblème, cadre, titre, effet de fin), attribuée de façon déterministe. Ce qui se gagne par du travail nommé donne ce qui se montre ; ce qui se tire donne ce qui se joue. La **Forge** fabrique donc des charges, jamais des apparences : pouvoir acheter une apparence en Éclats viderait ce qu'elle raconte.
+- **Cartes de loot** au passage de niveau et à la clôture de semaine, avec raretés (commun / rare / épique / légendaire) et animation d'ouverture.
 - **Ce qui déclenche un tirage, et sur quel mode.** Ce qui est *rare* se donne, ce qui est *fréquent* se tire : une étape de roadmap terminée rend une carte garantie, une séance longue en rend une avec une probabilité qui monte avec les minutes réellement travaillées (nulle sous 25 min, plafonnée à un quart). Garantir la carte de séance inonderait la collection en un mois ; la refuser laisserait l'avancement du produit sans écho.
 - **L'effort incline le tirage, il ne l'achète pas** *(tranché le 19 août 2026)*. Une étape terminée après cinq heures de travail rend une meilleure carte qu'une étape expédiée : les minutes posées dessus depuis son démarrage déplacent une part des poids du commun vers le rare et l'épique. Le déclencheur reste **terminer** — rien ne tombe pour avoir peiné sans finir —, la faveur est plafonnée, et le commun reste toujours possible. Sans plafond, le travail deviendrait une monnaie d'achat de cartes et l'ouverture perdrait ce qui la rend agréable.
 
@@ -805,6 +817,7 @@ Reprise directe du contre-la-montre de jeu de course, et c'est la mécanique de 
 ### 12.8 Hauts faits et reliques
 
 - **Hauts faits** (vocabulaire Dofus assumé) : accomplissements permanents à débloquer — *Premier sang* (première session), *Increvable* (28 jours sans bouclier), *Chirurgien* (10 étapes de roadmap terminées dans une saison), *Retour du néant* (reprendre après un streak cassé), *Ermite* (une semaine sans une minute de scroll passif), *Polyvalent* (trois branches de compétences progressent la même semaine).
+- Depuis le 16 septembre 2026, **chaque** haut fait donne aussi une apparence (§12.6), et les rares donnent en plus une relique. Les deux ne se marchent pas dessus : l'apparence se montre, la relique agit.
 - **Reliques** : quelques hauts faits rares donnent un **bonus passif permanent et modéré** — un 4ᵉ bouclier maximum, un jour off supplémentaire par saison, +5 % d'XP avant 20h. Plafonnées à 3 reliques équipées, pour que la progression reste sensible sans devenir absurde.
 
 ### 12.9 Arbre de compétences
@@ -990,7 +1003,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de « journée tenue, vérifiée » : une sonde peut marquer une journée, jamais la certifier propre (§11.10). Le silence d'une sonde n'est pas une preuve.
 - Pas d'URL complète, pas de titre de page, pas de contenu dans un signal de sonde. Une catégorie et une durée, rien d'autre.
 - Pas de trois projets du même domaine dans les trois slots (§4.3).
-- Pas de cosmétique qui modifie une règle. Le loot est de l'apparence, jamais du pouvoir — sinon le système récompense la chance et plus le travail.
+- ~~Pas de cosmétique qui modifie une règle.~~ *(Levé le 16 septembre 2026 — voir §12.6.)* Ce qui reste interdit, et qui portait tout le poids de cette règle : **aucune carte ne touche au cadre** — blocage, couvre-feu, streak, boucliers, rang, slots, gardes —, à la seule exception du sas ; **aucune carte ne tombe sans travail** ; et une carte reste une **charge à dépenser**, jamais un passif. Une carte qui rendrait une journée « tenue » sans travail ferait du cœur du système un objet décoratif.
 - Pas d'argent réel en jeu. La mise est en Éclats.
 - Pas de qualité de session, de temps d'écran ni de fuite de temps dans le bilan envoyé à l'ami.
 - Pas d'animation sur le chemin critique d'une action.

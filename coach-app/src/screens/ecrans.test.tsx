@@ -39,6 +39,7 @@ const PANNE = () => Promise.reject(new ApiError('Le serveur ne répond pas. Vér
    il déplace juste l'endroit où ça casse. */
 const PROGRESSION: ProgressionPanel = {
   showcase_locked: false,
+  buffs: { cartes: [], armes: [] },
   skills: { branches: [], shape: SHAPE, tiers: [] },
   momentum: {
     level: 0,

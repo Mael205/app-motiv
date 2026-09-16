@@ -1326,6 +1326,39 @@ class Achievement(models.Model):
         ordering = ("-unlocked_at",)
 
 
+class BuffActif(models.Model):
+    """Une charge de carte dépensée, en attente de son événement (§12.6).
+
+    Le modèle est volontairement pauvre : un effet, une valeur, une journée, et
+    l'instant où il a été consommé. Tout le reste — ce que l'effet fait, ce qu'il
+    a le droit de toucher — vit dans ``rules/buffs.py``, sans Django.
+
+    **Armé pour la journée du coach, et pas plus.** Un buff qu'on active et qu'on
+    oublie trois semaines finirait par s'appliquer à une séance qui n'a rien à
+    voir, et la carte cesserait d'être un choix pour devenir un hasard de plus.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="buffs"
+    )
+    key = models.CharField(max_length=32)
+    effect = models.CharField(max_length=32)
+    value = models.FloatField(default=0)
+    day = models.DateField()
+    activated_at = models.DateTimeField(default=timezone.now)
+    # Rempli quand l'événement attendu a eu lieu. Un buff consommé reste en
+    # base : le §17 interdit d'effacer ce qui a eu lieu, et c'est aussi ce qui
+    # permet de relire une soirée sans se demander d'où venait le doublement.
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-activated_at",)
+        indexes = [models.Index(fields=["user", "day", "effect"])]
+
+    def __str__(self) -> str:
+        return f"{self.key} ({self.effect})"
+
+
 class RelaxWindow(models.Model):
     """Sas de détente : une seule utilisation par soir, révoqué le lendemain d'un jour raté."""
 

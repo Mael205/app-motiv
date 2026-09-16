@@ -51,6 +51,7 @@ from .models import (
 )
 from .probeauth import ProbeTokenAuthentication
 from .rules import hiatus as hiatus_rules
+from .rules import buffs as buff_rules
 from .rules import jour as jour_rules
 from .rules import regime as regime_rules
 from .rules import seasons as season_rules
@@ -1346,6 +1347,32 @@ def action_link(request, token: str):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def use_card(request, key: str):
+    """Dépense une charge de carte et arme son effet pour la journée (§12.6).
+
+    Le geste est **explicite** et c'est tout l'intérêt : une carte qui
+    s'appliquerait toute seule au meilleur moment serait un passif, donc une
+    relique — et la malchance au tirage se paierait alors tous les jours.
+    """
+    today = _today(request)
+    try:
+        buff = progression.armer_buff(request.user, key, today=today)
+    except ValueError as erreur:
+        return Response({"detail": str(erreur)}, status=status.HTTP_409_CONFLICT)
+
+    return Response(
+        {
+            "key": buff.key,
+            "effect": buff.effect,
+            "value": buff.value,
+            "inventaire": progression.inventaire_de_buffs(request.user, today=today),
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def start_relax(request):
     """Le sas : il interrompt la soirée au lieu de la précéder (§4.6, 16/09/2026).
 
@@ -1371,6 +1398,13 @@ def start_relax(request):
         )
 
     minutes = _regime(request.user, today).sas_minutes
+    # Les trois cartes qui touchent au sas — la seule brèche autorisée dans le
+    # cadre (§12.6). Elles s'appliquent ici et nulle part ailleurs.
+    rallonge = progression.buff_arme(request.user, buff_rules.SAS_PLUS, day=today)
+    if rallonge is not None:
+        minutes += int(progression.consommer_buff(rallonge))
+    second = progression.buff_arme(request.user, buff_rules.SAS_SECOND, day=today)
+    gratuit = progression.buff_arme(request.user, buff_rules.SAS_GRATUIT, day=today)
     # Soixante secondes avant qu'il ouvre, comme la porte de sortie du §8.5.
     # L'attente **est** le mécanisme, pas un délai technique : elle laisse passer
     # l'impulsion, et c'est l'impulsion qu'on cherche à ne pas servir.
@@ -1380,12 +1414,24 @@ def start_relax(request):
         coach_day=today,
         defaults={"started_at": debut, "ends_at": debut + timedelta(minutes=minutes)},
     )
-    if created:
+    if created and gratuit is None:
         # Le sas coûte une journée de réseaux (§11.10), comme si une sonde
         # l'avait vue : sans prix visible, une permission gratuite se prend tous
-        # les soirs. Le budget hebdomadaire reste la seule limite, et le cumul
-        # de jours tenus ne redescend pas — le §11.10 l'interdit.
+        # les soirs. La carte « Blanc-seing » paie ce prix à sa place — c'est
+        # tout ce qu'elle fait.
         services.marquer_garde_reseaux(request.user, day=today, motif="sas")
+    elif created and gratuit is not None:
+        progression.consommer_buff(gratuit)
+    if not created and second is not None:
+        # Un second sas : la fenêtre du jour est remplacée, la carte consommée.
+        progression.consommer_buff(second)
+        window.started_at = debut
+        window.ends_at = debut + timedelta(minutes=minutes)
+        window.save(update_fields=["started_at", "ends_at"])
+        created = True
+        if gratuit is None:
+            services.marquer_garde_reseaux(request.user, day=today, motif="sas")
+
     if not created:
         left = int((window.ends_at - now).total_seconds() // 60)
         return Response(
@@ -1647,6 +1693,8 @@ def progression_panel(request):
             "momentum": progression.heat(user, today=today),
             "relics": progression.relic_panel(user),
             "collection": progression.collection(user),
+            # Les charges de carte, et ce qui est armé aujourd'hui (§12.6).
+            "buffs": progression.inventaire_de_buffs(user, today=today),
             "pending_cards": ferme["drawn"],
         }
     )

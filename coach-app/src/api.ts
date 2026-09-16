@@ -205,6 +205,12 @@ export const api = {
 
   achievements: () => request<HautsFaits>('/achievements'),
 
+  /** Dépense une charge de carte et arme son effet pour la journée (§12.6). */
+  useCard: (key: string) =>
+    request<{ key: string; effect: string; value: number }>(`/loot/${key}/use`, {
+      method: 'POST',
+    }),
+
   /** Fabrique une carte contre des Éclats. Ouvert par la voie « Forge ». */
   forgeCard: (key: string) =>
     request<LootCardDrawn>(`/loot/${key}/forge`, { method: 'POST' }),

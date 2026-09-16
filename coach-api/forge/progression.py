@@ -33,6 +33,7 @@ from .models import (
     LootDraw,
     OwnedRelic,
     Profile,
+    Season,
     Session,
 )
 from .rules import defis as defis_rules
@@ -40,6 +41,8 @@ from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
 from .rules import momentum as momentum_rules
 from .rules import phantom as phantom_rules
+from .rules import achievements as achievement_rules
+from .rules import buffs as buff_rules
 from .rules import relics as relic_rules
 from .rules import seasons as season_rules
 from .rules import skills as skill_rules
@@ -186,41 +189,59 @@ def _pity(user) -> tuple[int, int]:
 
 
 def draw_card(
-    user, *, reason: str, faveur: float = 0.0, rng: random.Random | None = None
+    user, *, reason: str, faveur: float = 0.0, rng: random.Random | None = None, day=None
 ) -> dict:
-    """Tire une carte, la range, et rend de quoi jouer l'animation d'ouverture.
+    """Tire une carte de **buff** dans le lot de la saison, et range la charge.
+
+    *(Inversé le 16 septembre 2026 : les cartes donnent des buffs, les hauts
+    faits donnent l'apparence.)*
 
     ``faveur`` incline le tirage vers le haut sans rien garantir. Elle vient de
     l'effort posé avant le déclencheur — les heures d'une étape terminée — et
-    vaut zéro partout ailleurs, ce qui laisse les autres tirages exactement
-    comme ils étaient.
-    """
-    possedees = set(LootCard.objects.filter(user=user).values_list("key", flat=True))
-    depuis_rare, depuis_epique = _pity(user)
+    vaut zéro partout ailleurs.
 
-    carte, doublon = loot_rules.draw(
-        owned=possedees,
+    **Un doublon n'est plus une déception.** Il ajoute une charge de la même
+    carte au lieu de se convertir en Éclats : une charge se dépense, donc la
+    deuxième copie sert autant que la première.
+    """
+    from . import services
+
+    saison = services.current_season(user, today=day) if day else None
+    if saison is None:
+        saison = Season.objects.filter(user=user).order_by("-index").first()
+    lot = buff_rules.lot_de_saison(saison.index if saison else 1)
+
+    depuis_rare, depuis_epique = _pity(user)
+    if day is not None:
+        # La carte « Main chanceuse » : le tirage part d'un cran plus haut. Elle
+        # incline, elle ne garantit rien — comme la faveur de l'effort.
+        chance = buff_arme(user, buff_rules.TIRAGE_CHANCEUX, day=day)
+        if chance is not None:
+            faveur = min(1.0, faveur + consommer_buff(chance))
+
+    carte = _tirer_dans_le_lot(
+        lot,
         draws_since_rare=depuis_rare,
         draws_since_epic=depuis_epique,
         faveur=faveur,
         rng=rng,
     )
-    eclats = loot_rules.shards_for(carte, duplicate=doublon)
+    possedee = LootCard.objects.filter(user=user, key=carte.key).first()
+    doublon = possedee is not None
+    eclats = 0
 
-    if doublon:
-        LootCard.objects.filter(user=user, key=carte.key).update(copies=F("copies") + 1)
+    if possedee is not None:
+        LootCard.objects.filter(pk=possedee.pk).update(copies=F("copies") + 1)
     else:
         LootCard.objects.create(
             user=user,
             key=carte.key,
             rarity=carte.rarity,
-            kind=carte.kind,
+            kind="buff",
             reason=reason,
         )
 
     if eclats:
-        from . import services
-
         profil = user.profile
         # Les deux primes s'additionnent : la relique du §12.8 et la voie
         # « Exigence » de l'ascendance, qui paie en Éclats un plancher plus haut.
@@ -246,14 +267,40 @@ def draw_card(
         "label": carte.label,
         "rarity": carte.rarity,
         "rarity_label": loot_rules.RARETE_LABELS[carte.rarity],
-        "color": carte.color,
-        "kind": carte.kind,
-        "payload": carte.payload,
+        "color": loot_rules.RARETE_COLORS[carte.rarity],
+        "kind": "buff",
+        "payload": carte.ligne,
+        "lore": carte.lore,
         "duplicate": doublon,
         "shards": eclats,
         "reason": reason,
         "reason_label": loot_rules.RAISONS.get(reason, ""),
     }
+
+
+def _tirer_dans_le_lot(
+    lot, *, draws_since_rare: int, draws_since_epic: int, faveur: float, rng=None
+):
+    """Tire une carte du lot de la saison, avec la pitié et la faveur du §12.6.
+
+    La rareté se tire d'abord, comme avant. Si le lot n'a rien à cette rareté —
+    huit cartes sur treize, ça arrive —, on redescend d'un cran plutôt que de
+    retirer : remonter donnerait une légendaire à qui vise un commun.
+    """
+    rng = rng or random.Random()
+    poids = loot_rules.rarity_weights(
+        draws_since_rare=draws_since_rare, draws_since_epic=draws_since_epic, faveur=faveur
+    )
+    table = buff_rules.par_rarete(tuple(lot))
+    rarete = rng.choices(
+        loot_rules.RARETES, weights=[poids[r] for r in loot_rules.RARETES], k=1
+    )[0]
+
+    rangs = list(loot_rules.RARETES)
+    for cran in range(rangs.index(rarete), -1, -1):
+        if table.get(rangs[cran]):
+            return rng.choice(table[rangs[cran]])
+    return rng.choice(list(lot))
 
 
 def forger(user, key: str) -> dict:
@@ -270,7 +317,10 @@ def forger(user, key: str) -> dict:
     """
     from . import services
 
-    carte = loot_rules.PAR_CLE.get(key)
+    # Depuis l'inversion du 16 septembre 2026, la Forge fabrique une **charge de
+    # buff** et non une apparence : les apparences se gagnent par un haut fait,
+    # et pouvoir les acheter en Éclats viderait ce qu'elles racontent.
+    carte = buff_rules.PAR_CLE.get(key)
     if carte is None:
         raise ValueError("Carte inconnue.")
     if not services.ascendance_effects(user).forge_ouverte:
@@ -280,8 +330,9 @@ def forger(user, key: str) -> dict:
         )
 
     profil = user.profile
-    possedee = LootCard.objects.filter(user=user, key=key).exists()
-    ok, motif = loot_rules.peut_forger(carte, eclats=profil.shards, possedee=possedee)
+    # Une charge se rachète, contrairement à une apparence : « déjà possédée »
+    # n'a plus de sens ici, seul le prix compte.
+    ok, motif = loot_rules.peut_forger(carte, eclats=profil.shards, possedee=False)
     if not ok:
         raise ValueError(motif)
 
@@ -289,9 +340,13 @@ def forger(user, key: str) -> dict:
     profil.shards -= prix
     profil.save(update_fields=["shards"])
 
-    LootCard.objects.create(
-        user=user, key=carte.key, rarity=carte.rarity, kind=carte.kind, reason=loot_rules.FORGEE
-    )
+    ligne = LootCard.objects.filter(user=user, key=carte.key, kind="buff").first()
+    if ligne is not None:
+        LootCard.objects.filter(pk=ligne.pk).update(copies=F("copies") + 1)
+    else:
+        LootCard.objects.create(
+            user=user, key=carte.key, rarity=carte.rarity, kind="buff", reason=loot_rules.FORGEE
+        )
     # ``shards`` compte ce qu'un tirage **rend**, et une forge ne rend rien :
     # elle dépense. Le prix n'est pas perdu pour autant — il se retrouve depuis
     # la rareté, qui est stockée, et ``prix_de_forge`` est une fonction pure.
@@ -309,9 +364,9 @@ def forger(user, key: str) -> dict:
         "label": carte.label,
         "rarity": carte.rarity,
         "rarity_label": loot_rules.RARETE_LABELS[carte.rarity],
-        "color": carte.color,
-        "kind": carte.kind,
-        "payload": carte.payload,
+        "color": loot_rules.RARETE_COLORS[carte.rarity],
+        "kind": "buff",
+        "payload": carte.ligne,
         "duplicate": False,
         "shards": -prix,
         "reason": loot_rules.FORGEE,
@@ -456,6 +511,51 @@ def relic_bonuses(user) -> relic_rules.Bonuses:
     """Les bonus actifs. Passe toujours par ``rules.relics`` pour le plafond."""
     equipees = OwnedRelic.objects.filter(user=user, equipped=True).values_list("key", flat=True)
     return relic_rules.bonuses(list(equipees))
+
+
+def grant_skins_for(user, achievement_keys) -> list[dict]:
+    """Chaque haut fait donne une apparence (§12.6, inversé le 16 septembre 2026).
+
+    C'est l'autre moitié de l'inversion : ce qui se **gagne par du travail nommé**
+    donne ce qui se **montre**, et ce qui se tire donne ce qui se joue. Une
+    apparence obtenue par un haut fait raconte quelque chose — « vingt-huit jours
+    sans céder un bouclier » —, là où la même couleur tirée au sort ne racontait
+    que d'avoir cliqué.
+
+    L'attribution est **déterministe** : le rang du haut fait dans son catalogue
+    désigne l'apparence dans le sien. Un tirage ici rendrait deux comptes
+    différents pour la même vie, et rendrait le catalogue impossible à relire.
+    """
+    catalogue = loot_rules.CATALOGUE
+    if not catalogue:
+        return []
+
+    obtenues = []
+    for cle in achievement_keys:
+        if cle not in achievement_rules.CLES:
+            continue
+        carte = catalogue[achievement_rules.CLES.index(cle) % len(catalogue)]
+        if LootCard.objects.filter(user=user, key=carte.key).exists():
+            continue
+        LootCard.objects.create(
+            user=user,
+            key=carte.key,
+            rarity=carte.rarity,
+            kind=carte.kind,
+            reason="haut_fait",
+        )
+        obtenues.append(
+            {
+                "key": carte.key,
+                "label": carte.label,
+                "rarity": carte.rarity,
+                "rarity_label": loot_rules.RARETE_LABELS[carte.rarity],
+                "kind": carte.kind,
+                "payload": carte.payload,
+                "color": carte.color,
+            }
+        )
+    return obtenues
 
 
 def grant_relics_for(user, achievement_keys) -> list[dict]:
@@ -839,3 +939,94 @@ def season_modifier(season) -> dict:
         "line": modifier_rules.describe(effets),
         "active": effets.active,
     }
+
+
+# --------------------------------------------------------------------------
+# Les buffs de carte (SPEC §12.6, inversé le 16 septembre 2026)
+# --------------------------------------------------------------------------
+
+def inventaire_de_buffs(user, *, today) -> dict:
+    """Les charges possédées, et ce qui est armé aujourd'hui.
+
+    Les cartes de buff se rangent dans la même table que les apparences : une
+    ligne par clé, ``copies`` compte les charges. Un doublon n'est donc plus une
+    déception convertie en Éclats, c'est une charge de plus.
+    """
+    from .models import BuffActif, LootCard
+
+    cartes = []
+    for ligne in LootCard.objects.filter(user=user, kind="buff", copies__gt=0):
+        buff = buff_rules.PAR_CLE.get(ligne.key)
+        if buff is None:
+            continue
+        cartes.append(
+            {
+                "key": buff.key,
+                "label": buff.label,
+                "rarity": buff.rarity,
+                "charges": ligne.copies,
+                "ligne": buff.ligne,
+                "lore": buff.lore,
+                "touche_au_cadre": buff_rules.touche_au_cadre(buff.effect),
+            }
+        )
+
+    armes = [
+        {
+            "key": b.key,
+            "effect": b.effect,
+            "value": b.value,
+            "ligne": buff_rules.PAR_CLE[b.key].ligne if b.key in buff_rules.PAR_CLE else "",
+        }
+        for b in BuffActif.objects.filter(user=user, day=today, used_at__isnull=True)
+    ]
+    return {"cartes": sorted(cartes, key=lambda c: c["label"]), "armes": armes}
+
+
+def armer_buff(user, key: str, *, today):
+    """Dépense une charge et arme l'effet pour la journée. Lève ``ValueError``.
+
+    Deux refus, et ils disent la même chose : on ne dépense que ce qu'on a, et
+    on n'empile pas deux fois le même effet. Sans le second, deux « ×2 » sur la
+    même séance donneraient un ×4 que personne n'a calibré.
+    """
+    from .models import BuffActif, LootCard
+
+    buff = buff_rules.PAR_CLE.get(key)
+    if buff is None:
+        raise ValueError("Cette carte n'existe pas.")
+
+    ligne = LootCard.objects.filter(user=user, key=key, kind="buff", copies__gt=0).first()
+    if ligne is None:
+        raise ValueError(f"Aucune charge de « {buff.label} » en réserve.")
+
+    if BuffActif.objects.filter(
+        user=user, day=today, effect=buff.effect, used_at__isnull=True
+    ).exists():
+        raise ValueError(f"« {buff.label} » ferait doublon : un effet du même genre est déjà armé.")
+
+    ligne.copies -= 1
+    ligne.save(update_fields=["copies"])
+    return BuffActif.objects.create(
+        user=user, key=buff.key, effect=buff.effect, value=buff.value, day=today
+    )
+
+
+def buff_arme(user, effect: str, *, day):
+    """Le buff de cet effet armé aujourd'hui, ou ``None``."""
+    from .models import BuffActif
+
+    return BuffActif.objects.filter(
+        user=user, day=day, effect=effect, used_at__isnull=True
+    ).first()
+
+
+def consommer_buff(buff) -> float:
+    """Marque le buff comme consommé et rend sa valeur. ``1.0`` si rien n'était armé."""
+    from django.utils import timezone as dj
+
+    if buff is None:
+        return 1.0
+    buff.used_at = dj.now()
+    buff.save(update_fields=["used_at"])
+    return buff.value
