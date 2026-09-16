@@ -848,7 +848,7 @@ def creneaux(request):
 
 def _regime(user, today: date) -> regime_rules.Regime:
     saison = services.current_season(user, today=today)
-    return regime_rules.pour(saison.index if saison else 1)
+    return regime_rules.pour_jour(saison.index if saison else 1, today.weekday())
 
 
 def _creneau_json(creneau: TimeSlot) -> dict:
@@ -1370,13 +1370,22 @@ def start_relax(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    saison = services.current_season(request.user, today=today)
-    minutes = regime_rules.pour(saison.index if saison else 1).sas_minutes
+    minutes = _regime(request.user, today).sas_minutes
+    # Soixante secondes avant qu'il ouvre, comme la porte de sortie du §8.5.
+    # L'attente **est** le mécanisme, pas un délai technique : elle laisse passer
+    # l'impulsion, et c'est l'impulsion qu'on cherche à ne pas servir.
+    debut = now + timedelta(seconds=services.SAS_ATTENTE_SECONDES)
     window, created = RelaxWindow.objects.get_or_create(
         user=request.user,
         coach_day=today,
-        defaults={"started_at": now, "ends_at": now + timedelta(minutes=minutes)},
+        defaults={"started_at": debut, "ends_at": debut + timedelta(minutes=minutes)},
     )
+    if created:
+        # Le sas coûte une journée de réseaux (§11.10), comme si une sonde
+        # l'avait vue : sans prix visible, une permission gratuite se prend tous
+        # les soirs. Le budget hebdomadaire reste la seule limite, et le cumul
+        # de jours tenus ne redescend pas — le §11.10 l'interdit.
+        services.marquer_garde_reseaux(request.user, day=today, motif="sas")
     if not created:
         left = int((window.ends_at - now).total_seconds() // 60)
         return Response(
@@ -1388,7 +1397,12 @@ def start_relax(request):
         )
 
     return Response(
-        {"started_at": window.started_at.isoformat(), "ends_at": window.ends_at.isoformat()},
+        {
+            "started_at": window.started_at.isoformat(),
+            "ends_at": window.ends_at.isoformat(),
+            "attente_secondes": services.SAS_ATTENTE_SECONDES,
+            "minutes": minutes,
+        },
         status=status.HTTP_201_CREATED,
     )
 

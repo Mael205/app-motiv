@@ -31,7 +31,7 @@ l'écart qu'on ne remarque pas en le vivant et qu'on mesure en regardant derriè
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import time
 
 # Le point de départ, et le pas.
@@ -48,9 +48,25 @@ SAS_DEPART_MINUTES = 20
 SAS_PAS_MINUTES = 2
 SAS_PLANCHER_MINUTES = 10
 
+# Le week-end n'est pas un mardi *(16 septembre 2026)*. Vendredi et samedi soir,
+# les deux heures reculent d'une heure — pas le sas, qui est déjà une soupape.
+#
+# Ce n'est pas une faveur : un couvre-feu à 22h un samedi est la règle qu'on
+# enfreint, et une règle qu'on enfreint entraîne à enfreindre les autres. Mieux
+# vaut une frontière qu'on tient six jours sur sept qu'une frontière de principe
+# qui saute le week-end et emporte la semaine avec elle.
+SOIRS_DE_WEEKEND = (4, 5)          # vendredi, samedi — 0 = lundi
+DECALAGE_WEEKEND_MINUTES = 60
+
 COUVRE_FEU_DEPART = time(23)
 COUVRE_FEU_PAS_MINUTES = 10
 COUVRE_FEU_PLANCHER = time(22)
+
+
+def _decale(heure: time, minutes: int) -> time:
+    """Recule une heure, en restant dans la journée. Minuit se dit ``00h00``."""
+    total = (heure.hour * 60 + heure.minute + minutes) % (24 * 60)
+    return time(total // 60, total % 60)
 
 
 def _avance(depart: time, pas: int, plancher: time, saisons: int) -> time:
@@ -85,6 +101,23 @@ class Regime:
             f"Sas de détente : {self.sas_minutes} min, une fois par soir.",
             f"Couvre-feu à {self.couvre_feu:%Hh%M}, quoi qu'il arrive.",
         )
+
+
+def pour_jour(index: int, weekday: int) -> Regime:
+    """Le régime d'un soir précis. Vendredi et samedi reculent d'une heure.
+
+    ``weekday`` est celui de la **journée du coach** : une soirée de vendredi
+    qui déborde sur samedi 1h reste vendredi, et c'est ce qu'on veut — c'est la
+    soirée qui est du week-end, pas l'horloge.
+    """
+    base = pour(index)
+    if weekday not in SOIRS_DE_WEEKEND:
+        return base
+    return replace(
+        base,
+        blocage=_decale(base.blocage, DECALAGE_WEEKEND_MINUTES),
+        couvre_feu=_decale(base.couvre_feu, DECALAGE_WEEKEND_MINUTES),
+    )
 
 
 def pour(index: int) -> Regime:

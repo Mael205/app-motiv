@@ -235,6 +235,13 @@ Il veut parfois scroller avant de bosser. Ne pas l'interdire — le cadrer.
 > l'extension, qui lève **deux heures** d'un coup. Entre une permission de vingt
 > minutes et une permission de deux heures, c'est la première qu'on veut rendre
 > facile.
+>
+> **Il coûte deux choses** *(16 septembre 2026)*. D'abord **soixante secondes
+> d'attente** avant d'ouvrir, comme la porte de sortie du §8.5 : l'attente est
+> le mécanisme, pas un délai technique — c'est l'impulsion qu'on cherche à ne
+> pas servir. Ensuite **une journée de réseaux** sur la garde correspondante
+> (§11.10), écrite comme une sonde et donc corrigeable à la main. Sans prix
+> visible, une permission gratuite se prend tous les soirs.
 
 - Bouton **"Sas de détente : 30 min"**. Pendant ce temps, rien n'est bloqué, aucune notification, aucun jugement.
 - À la fin du sas : notification ferme sur les deux surfaces, et l'agent PC arme le blocage du scroll passif jusqu'à la validation de la session du jour.
@@ -373,6 +380,8 @@ Règles de mise en œuvre : easing systématique (jamais de linéaire sauf le cu
 3. **Journal automatique depuis git** : `git log --since=<début de session>` sur les dépôts déclarés, envoyé pour pré-remplir le debrief. Lit aussi `TODO.md` pour l'import de roadmap.
 4. **Mesure d'activité via ActivityWatch.** L'agent n'implémente pas son propre suivi de fenêtre : il lit l'API locale d'ActivityWatch (`localhost:5600`), qui gère déjà proprement la fenêtre active, l'inactivité clavier/souris, le multi-écran et la veille. L'agent se contente de catégoriser (travail du projet / travail hors projet / scroll passif / jeu / autre) et d'agréger. Si ActivityWatch n'est pas installé, l'agent le signale et la qualité de session est simplement absente. **Aucune capture d'écran, aucun keylogging** — même pour soi, la ligne est là.
 5. **Blocage du scroll passif** : actif uniquement après le sas de détente ou après le gardien du soir sans session. Domaines pleins (TikTok, X, Instagram, Reddit) via fichier hosts, YouTube via l'extension. L'élévation nécessaire au fichier hosts est isolée dans un petit service Windows séparé qui n'accepte que deux ordres, `block` et `unblock`, via un pipe local — l'agent lui-même tourne en utilisateur normal. Toujours désactivable en 2 clics avec temporisation de 60 secondes : la friction suffit, l'emprisonnement non.
+   - **Trois ordres depuis le 16 septembre 2026**, et toujours aucune liste venue de l'extérieur : `block`, `unblock`, et `nuit` — le couvre-feu du §11.11, qui ajoute YouTube en entier.
+   - **Le résolveur ferme aussi, et lui seul atteint le téléphone** *(16 septembre 2026, écrit et **éteint**)*. AdGuard Home est déjà là comme sonde (§9) ; `adguard_blocage.py` lui applique le même niveau, dans ses règles utilisateur, entre deux marqueurs — ce qui est autour appartient à l'utilisateur et est réécrit tel quel. Il ne s'allume qu'avec `blocage = true` dans la config locale : fermer le réseau de toute la maison ne s'active pas par surprise. Deux limites assumées : en **4G** le téléphone n'y passe plus, et le fichier hosts reste la couche qui tient si le résolveur tombe. Le sas et la porte de sortie le désarment comme le reste, sinon le contournement devient un changement de DNS.
 6. **Notifications Windows natives** relayant les mêmes déclencheurs que le push mobile, avec boutons d'action (démarrer 10 min, reporter 15 min).
 7. **Détection de session fantôme** : si une session tourne depuis > durée + 15 min sans activité, l'agent alerte le serveur qui clôture au temps réellement actif.
    - **L'agent rapporte, le serveur décide.** L'agent envoie l'instant de la dernière activité mesurée ; c'est le serveur qui vérifie les deux conditions et clôture. Un agent bavard ou compromis ne peut pas fermer une session en cours.
@@ -506,6 +515,10 @@ Un cadre fixe cesse d'être un cadre : on s'y installe, et la marge qu'il laissa
 | Blocage du projet (§11.11) | 21h00 | −15 min | **19h00** |
 | Sas de détente (§4.6) | 20 min | −2 min | **10 min** |
 | Couvre-feu (§11.11) | 23h00 | −10 min | **22h00** |
+
+**Le week-end n'est pas un mardi** *(16 septembre 2026)*. Vendredi et samedi soir, le blocage et le couvre-feu reculent d'une heure — pas le sas, qui est déjà une soupape. Ce n'est pas une faveur : un couvre-feu à 22h un samedi est la règle qu'on enfreint, et une règle qu'on enfreint entraîne à enfreindre les autres. Mieux vaut une frontière tenue six jours sur sept qu'une frontière de principe qui saute le week-end et emporte la semaine avec elle. Le jour compté est celui de la **journée du coach** : une soirée de vendredi qui déborde sur 1h du matin reste vendredi.
+
+**Le régime s'annonce à l'ouverture de la saison**, avec les modificateurs, et l'écran ne le souligne que les fois où quelque chose bouge. Un cadre qui se durcit sans le dire se vit comme une panne : on découvre un soir que les réseaux ferment plus tôt, et on cherche le bug plutôt que la règle.
 
 Le pas de quinze minutes n'est pas un chiffre rond : il place le plancher de 19h à la **neuvième saison**, soit fin avril, et la première saison entièrement en régime dur en mai. C'est l'horizon choisi ; les deux autres pentes sont calées dessus.
 
@@ -983,6 +996,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas d'animation sur le chemin critique d'une action.
 - Pas de sanction rétroactive : jamais de retrait d'XP acquise, d'heures travaillées, d'étapes terminées, de niveau ou de haut fait. Une sanction éteint ou verrouille temporairement, elle n'efface rien (§14).
 - Pas de durcissement sans plancher (§11.12), et jamais de régime qui change en cours de saison.
+- Pas de blocage réseau qu'on ne puisse lever depuis l'app (§8.5) : le sas et la porte de sortie désarment aussi le résolveur, sinon le contournement devient un changement de DNS.
 - Pas de sanction qui s'empile au-delà du troisième jour de décrochage. Passé ce seuil, le système devient une rampe de retour, pas une facture.
 
 ---

@@ -40,6 +40,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import adguard
+import adguard_blocage
 import blocage
 import gardien
 import profiles as profiles_module
@@ -324,6 +325,42 @@ def afficher_notifications(etat: dict, suivi: Suivi) -> None:
             print(f"  notification affichée : {notification['title']}")
 
 
+def relayer_au_resolveur(
+    config: dict, etat: dict, categoriser: Categoriser, *, verbose: bool
+) -> None:
+    """Applique le blocage sur le résolveur — le seul qui atteigne le téléphone.
+
+    **Éteint tant que ``blocage = true`` n'est pas écrit** sous ``[adguard]``
+    dans ``config.local.toml`` : fermer le réseau de la maison ne s'active pas
+    par surprise à la première mise à jour de l'agent.
+
+    Une panne du résolveur n'est pas une raison de tout arrêter : le fichier
+    hosts et l'extension ont déjà fait leur part, et le §8 veut un agent qui
+    continue quand une de ses sondes tombe.
+    """
+    section = config.get("adguard") or {}
+    if not section.get("url") or not section.get("blocage"):
+        return
+
+    bloc = (etat or {}).get("block_scroll") or {}
+    niveau = bloc.get("niveau", "") if bloc.get("armed") else ""
+
+    try:
+        fermes = adguard_blocage.appliquer(
+            section["url"],
+            section.get("username", ""),
+            section.get("password", ""),
+            niveau=niveau,
+            categories=categoriser.mapping,
+        )
+    except adguard.ProbeError as error:
+        print(f"AdGuard : {error}. Le blocage réseau n'a pas changé.")
+        return
+
+    if verbose:
+        print(f"Résolveur : {len(fermes)} domaine(s) fermé(s).")
+
+
 def poll_adguard(config: dict, categoriser: Categoriser, *, since: datetime, verbose: bool) -> None:
     """Lit le résolveur, catégorise **ici**, n'envoie que des catégories."""
     section = config.get("adguard") or {}
@@ -436,6 +473,7 @@ def cycle(
             ordre = blocage.synchroniser(etat)
             if verbose and ordre:
                 print(f"Blocage : {ordre}.")
+            relayer_au_resolveur(config, etat, categoriser, verbose=verbose)
 
     poll_adguard(config, categoriser, since=since, verbose=verbose)
 

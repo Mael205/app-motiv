@@ -1979,7 +1979,7 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
     jour = projet_du_jour(user, today=today)
     # Le régime de la saison : les trois heures qui décident de la soirée. Lu
     # une fois ici, et jamais recalculé côté client — c'est une règle.
-    regle = regime_rules.pour(season.index if season else 1)
+    regle = regime_rules.pour_jour(season.index if season else 1, today.weekday())
     sas = RelaxWindow.objects.filter(user=user, coach_day=today).first()
     regen = sync_boss_regen(season, history)
     forfeited = sync_stake_forfeit(user, season, state)
@@ -2168,11 +2168,15 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
         "relax": {
             "minutes": regle.sas_minutes,
             "used": sas is not None,
+            "starts_at": sas.started_at.isoformat() if sas else None,
             "ends_at": sas.ends_at.isoformat() if sas else None,
             "active": bool(sas and sas.started_at <= now < sas.ends_at),
+            # Demandé, pas encore ouvert : les soixante secondes d'attente.
+            "pending": bool(sas and now < sas.started_at),
         },
         "regime": {
             "index": regle.index,
+            "weekend": today.weekday() in regime_rules.SOIRS_DE_WEEKEND,
             "blocage": f"{regle.blocage:%Hh%M}",
             "couvre_feu": f"{regle.couvre_feu:%Hh%M}",
             "sas_minutes": regle.sas_minutes,
@@ -2803,7 +2807,7 @@ def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict
     """
     zone = ZoneInfo(profile.timezone_name)
     saison = current_season(user, today=today)
-    regle = regime_rules.pour(saison.index if saison else 1)
+    regle = regime_rules.pour_jour(saison.index if saison else 1, today.weekday())
 
     depuis = datetime.combine(today, regle.blocage, tzinfo=zone)
     couvre_feu = datetime.combine(today, regle.couvre_feu, tzinfo=zone)
@@ -3100,6 +3104,38 @@ def gardes_panel(user, *, today: date) -> dict:
         "gardes": payload,
         "to_declare": sum(1 for g in payload if not g["declared_today"]),
     }
+
+
+# L'attente avant que le sas ouvre (§4.6). Le même chiffre que la porte de
+# sortie de l'extension, et pour la même raison : soixante secondes suffisent à
+# laisser passer l'impulsion, et n'emprisonnent personne.
+SAS_ATTENTE_SECONDES = 60
+
+
+def marquer_garde_reseaux(user, *, day: date, motif: str = "") -> bool:
+    """Marque la journée sur les gardes de catégorie « réseaux ».
+
+    Appelée quand le sas s'ouvre : il rouvre les réseaux, donc il en coûte une
+    journée. Écrit comme une **sonde** et non comme une déclaration à la main —
+    l'utilisateur garde le dernier mot et peut corriger (§11.10), et une
+    déclaration manuelle déjà posée n'est jamais écrasée.
+    """
+    marquees = False
+    for garde in Garde.objects.filter(user=user, active=True, auto_category="reseaux"):
+        existante = GardeDay.objects.filter(garde=garde, day=day).first()
+        if existante and existante.origin == GardeDay.MAIN:
+            continue
+        GardeDay.objects.update_or_create(
+            garde=garde,
+            day=day,
+            defaults={
+                "occurred": True,
+                "origin": GardeDay.SONDE,
+                "declared_at": timezone.now(),
+            },
+        )
+        marquees = True
+    return marquees
 
 
 @transaction.atomic

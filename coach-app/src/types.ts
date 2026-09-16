@@ -626,8 +626,12 @@ export interface HomeState {
   relax: {
     minutes: number
     used: boolean
+    /** L'instant où il ouvre : soixante secondes après le clic (§4.6). */
+    starts_at: string | null
     ends_at: string | null
     active: boolean
+    /** Demandé, pas encore ouvert. L'attente laisse passer l'impulsion. */
+    pending: boolean
   }
   /** Le régime de la saison : les trois heures qui décident de la soirée. Il se
    *  resserre d'une saison à l'autre et ne bouge jamais en cours de saison. */
@@ -929,6 +933,17 @@ export interface SeasonOffer {
   starts_on: string
   ends_on: string
   boss: { name: string; hp: number }
+  /** Ce que la saison resserre (§11.12). `change` n'est vrai que si quelque
+   *  chose bouge par rapport à la saison qui s'achève. */
+  regime: {
+    index: number
+    blocage: string
+    couvre_feu: string
+    sas_minutes: number
+    dur: boolean
+    lignes: string[]
+    change: boolean
+  }
   modifiers: {
     key: string
     name: string

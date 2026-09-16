@@ -35,6 +35,7 @@ from .rules import contract as contract_rules
 from .rules import loot as loot_rules
 from .rules import modifiers as modifier_rules
 from .rules import phantom as phantom_rules
+from .rules import regime as regime_rules
 from .rules import seasons as season_rules
 from .rules import xp as xp_rules
 from .rules import years as year_rules
@@ -470,10 +471,31 @@ def next_offer(user, *, today: date) -> dict | None:
         # basse ressemble à une punition tirée au sort ; avec elle, c'est la
         # suite de ce qui vient de se passer.
         "acte": season_rules.acte_de_voie(voie, position),
+        # Ce que la saison resserre, dit **avant** de l'engager (§11.12). Un
+        # cadre qui se durcit sans l'annoncer se vit comme une panne : on
+        # découvre un soir que les réseaux ferment plus tôt, et on cherche le
+        # bug plutôt que la règle.
+        "regime": _regime_annonce(plan.index),
         "modifiers": propositions,
         "phantoms": _phantom_offer(user, index=index),
         "shards": user.profile.shards,
         "contract": _contract_offer(user, plan),
+    }
+
+
+def _regime_annonce(index: int) -> dict:
+    """Ce que la saison resserre, dit avant de l'engager (§11.12)."""
+    regle = regime_rules.pour(index)
+    return {
+        "index": regle.index,
+        "blocage": f"{regle.blocage:%Hh%M}",
+        "couvre_feu": f"{regle.couvre_feu:%Hh%M}",
+        "sas_minutes": regle.sas_minutes,
+        "dur": regle.dur,
+        "lignes": list(regle.lignes()),
+        # Vrai quand quelque chose bouge par rapport à la saison qui s'achève :
+        # l'écran n'insiste que les fois où il y a une nouvelle à donner.
+        "change": regle != regime_rules.pour(max(1, index - 1)),
     }
 
 

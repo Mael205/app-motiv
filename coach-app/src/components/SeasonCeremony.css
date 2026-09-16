@@ -126,6 +126,22 @@
   text-shadow: 0 0 48px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
+/* Le cadre annoncé : trois faits, lus une fois, à l'endroit où l'on engage la
+   saison. Discret par rapport aux modificateurs — on ne le choisit pas. */
+.open__regime {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+.open__regime-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .open__baseline {
   position: relative;
   z-index: 2;

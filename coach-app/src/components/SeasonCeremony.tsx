@@ -303,6 +303,25 @@ function Opening({ offer, onOpened }: { offer: SeasonOffer; onOpened: () => void
         <p className="open__baseline">« {offer.baseline} »</p>
       </div>
 
+      {/* Ce que la saison resserre, **avant** de l'engager (§11.12). Un cadre
+          qui se durcit sans l'annoncer se vit comme une panne : on découvre un
+          soir que les réseaux ferment plus tôt, et on cherche le bug plutôt que
+          la règle. Affiché en fait, sans adjectif — le §17 interdit la menace
+          autant que le reproche. */}
+      <section className="open__block">
+        <p className="label">
+          Le cadre de cette saison{offer.regime.change ? ' — il se resserre' : ''}
+        </p>
+        <ul className="open__regime">
+          {offer.regime.lignes.map((ligne) => (
+            <li key={ligne}>{ligne}</li>
+          ))}
+        </ul>
+        <p className="open__regime-note">
+          Vendredi et samedi soir, les deux heures reculent d'une heure.
+        </p>
+      </section>
+
       <section className="open__block">
         <p className="label">Modificateur — un seul pour quatre semaines</p>
         <ul className="open__choices">

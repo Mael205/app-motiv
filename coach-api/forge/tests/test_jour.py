@@ -262,3 +262,94 @@ class TestRegimeDeSaison:
         assert "20h30" in lignes and "22h40" in lignes and "16 min" in lignes
         for mot in ("attention", "sinon", "puni", "mérite"):
             assert mot not in lignes
+
+
+class TestWeekEnd:
+    """Vendredi et samedi reculent d'une heure (16 septembre 2026)."""
+
+    def test_le_vendredi_et_le_samedi_reculent(self):
+        vendredi = regime_rules.pour_jour(1, 4)
+        samedi = regime_rules.pour_jour(1, 5)
+
+        assert vendredi.blocage == time(22) and vendredi.couvre_feu == time(0, 0)
+        assert samedi.blocage == time(22)
+
+    def test_la_semaine_ne_bouge_pas(self):
+        for jour in (0, 1, 2, 3, 6):
+            assert regime_rules.pour_jour(1, jour) == regime_rules.pour(1)
+
+    def test_le_sas_ne_grandit_pas_le_week_end(self):
+        """C'est déjà une soupape : l'élargir le samedi n'ouvrirait rien de plus."""
+        assert regime_rules.pour_jour(1, 5).sas_minutes == regime_rules.pour(1).sas_minutes
+
+    def test_le_durcissement_s_applique_aussi_au_week_end(self):
+        """Neuvième saison : 19h en semaine, 20h le samedi. La marche reste."""
+        assert regime_rules.pour_jour(9, 5).blocage == time(20)
+        assert regime_rules.pour_jour(9, 5).couvre_feu == time(23)
+
+
+@pytest.mark.django_db
+class TestLeSasCouteQuelqueChose:
+    """Soixante secondes d'attente, et une journée de réseaux (16/09/2026)."""
+
+    def client(self, user):
+        from rest_framework.test import APIClient
+
+        api = APIClient()
+        api.force_authenticate(user=user)
+        return api
+
+    def test_le_sas_n_ouvre_qu_apres_soixante_secondes(self, user):
+        from django.utils import timezone as dj
+
+        from forge.models import RelaxWindow
+
+        projet(user, "Evolve", slot=1)
+        reponse = self.client(user).post("/api/relax/start")
+
+        assert reponse.status_code == 201
+        assert reponse.json()["attente_secondes"] == 60
+        fenetre = RelaxWindow.objects.get(user=user)
+        assert fenetre.started_at > dj.now()
+
+    def test_le_sas_marque_une_journee_de_reseaux(self, user):
+        from forge.models import Garde, GardeDay
+
+        garde = Garde.objects.create(
+            user=user, name="Réseaux sociaux", weekly_budget=2, auto_category="reseaux"
+        )
+        self.client(user).post("/api/relax/start")
+
+        jour = GardeDay.objects.get(garde=garde)
+        assert jour.occurred is True
+        assert jour.origin == GardeDay.SONDE, "écrit comme une sonde : corrigeable à la main"
+
+    def test_une_declaration_a_la_main_n_est_jamais_ecrasee(self, user):
+        """§11.10 : l'utilisateur a le dernier mot, y compris contre la machine."""
+        from django.utils import timezone as dj
+
+        from forge.models import Garde, GardeDay
+
+        garde = Garde.objects.create(
+            user=user, name="Réseaux sociaux", weekly_budget=2, auto_category="reseaux"
+        )
+        GardeDay.objects.create(
+            garde=garde,
+            day=_aujourdhui(user),
+            occurred=False,
+            origin=GardeDay.MAIN,
+            declared_at=dj.now(),
+        )
+
+        self.client(user).post("/api/relax/start")
+
+        assert GardeDay.objects.get(garde=garde).occurred is False
+
+
+def _aujourdhui(user):
+    from django.utils import timezone as dj
+
+    from forge.rules.calendar import coach_day
+
+    profile = user.profile
+    return coach_day(dj.now(), profile.timezone_name, profile.day_rollover_hour)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { Icon } from './art/Icons'
 import './RelaxGate.css'
@@ -24,12 +24,16 @@ export function RelaxGate({
   used,
   minutes,
   actif = false,
+  attente = false,
+  ouvreA = null,
   revoked = false,
   onStarted,
 }: {
   used: boolean
   minutes: number
   actif?: boolean
+  attente?: boolean
+  ouvreA?: string | null
   revoked?: boolean
   onStarted: () => void
 }) {
@@ -55,6 +59,12 @@ export function RelaxGate({
         validée.
       </p>
     )
+  }
+
+  // Les soixante secondes d'attente, comptées à l'écran. C'est le mécanisme,
+  // pas un délai technique : on regarde passer l'impulsion.
+  if (attente) {
+    return <Attente ouvreA={ouvreA} minutes={minutes} onOuvert={onStarted} />
   }
 
   if (actif) {
@@ -83,4 +93,40 @@ export function RelaxGate({
       {message && <p className="relax__error">{message}</p>}
     </div>
   )
+}
+
+/** Le décompte avant ouverture. Il ne propose pas d'annuler : le sas est déjà
+ *  consommé, et un bouton « annuler » ferait de l'attente une formalité à
+ *  cliquer plutôt qu'un temps à passer. */
+function Attente({
+  ouvreA,
+  minutes,
+  onOuvert,
+}: {
+  ouvreA: string | null
+  minutes: number
+  onOuvert: () => void
+}) {
+  const [restant, setRestant] = useState(() => secondesAvant(ouvreA))
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const reste = secondesAvant(ouvreA)
+      setRestant(reste)
+      if (reste <= 0) onOuvert()
+    }, 1000)
+    return () => clearInterval(id)
+  }, [ouvreA, onOuvert])
+
+  return (
+    <p className="relax relax--used">
+      <Icon.clock size={15} /> Sas dans <span className="num">{restant}</span> s, puis {minutes} min
+      d'ouverture.
+    </p>
+  )
+}
+
+function secondesAvant(quand: string | null): number {
+  if (!quand) return 0
+  return Math.max(0, Math.ceil((new Date(quand).getTime() - Date.now()) / 1000))
 }

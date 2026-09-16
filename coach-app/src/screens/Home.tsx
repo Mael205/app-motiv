@@ -207,11 +207,13 @@ export function Home({
 
         {/* Le sas ne s'affiche plus toute la soirée : il sert quand quelque
             chose est fermé. Avant l'heure de blocage, il n'ouvrirait rien. */}
-        {(!state.jour.tenu || state.relax.active) && (
+        {(!state.jour.tenu || state.relax.active || state.relax.pending) && (
           <RelaxGate
             used={state.relax.used}
             minutes={state.relax.minutes}
             actif={state.relax.active}
+            attente={state.relax.pending}
+            ouvreA={state.relax.starts_at}
             revoked={state.sanctions.relax_revoked}
             onStarted={onStarted}
           />

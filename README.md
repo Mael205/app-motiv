@@ -372,12 +372,18 @@ jamais été essayé.
   fait arme le blocage jusqu'à ce qu'il le soit.
 - **La semaine a son écran**, dans l'onglet Projets : lisible tous les jours,
   modifiable le dimanche seulement.
+- **Le blocage par le résolveur**, écrit et **éteint** : AdGuard Home, déjà là
+  comme sonde, sait appliquer le même niveau que le fichier hosts — et c'est le
+  seul point qui atteigne le téléphone. S'allume avec `blocage = true` sous
+  `[adguard]` dans `coach-agent/config.local.toml`.
 - **Le couvre-feu et le régime de saison (§11.12)** : à 23h tout ferme, quoi
   qu'il arrive, YouTube compris ; le sas de détente sert alors de soupape —
   20 minutes, une fois par jour, couvre-feu compris. Les trois heures se
   resserrent d'une saison à l'autre : blocage de 21h à **19h** par pas de 15 min,
   sas de 20 à 10 min, couvre-feu de 23h à 22h, planchers atteints à la neuvième
   saison. Rien ne bouge en cours de saison, et rater une saison ne durcit rien.
+  Vendredi et samedi soir, blocage et couvre-feu reculent d'une heure. Le sas
+  attend soixante secondes avant d'ouvrir et coûte une journée de réseaux.
 - Proposition unique côté serveur : projet, durée, note. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - **Le jeu (§12)** : arbre de compétences par branche — quarante heures
