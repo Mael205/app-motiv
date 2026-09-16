@@ -1000,9 +1000,19 @@ def armer_buff(user, key: str, *, today):
 
     ligne.copies -= 1
     ligne.save(update_fields=["copies"])
-    return BuffActif.objects.create(
+    arme = BuffActif.objects.create(
         user=user, key=buff.key, effect=buff.effect, value=buff.value, day=today
     )
+
+    if buff.effect == buff_rules.JOUR_OFF:
+        # La trêve passe par le vrai mécanisme du §11.5 : c'est le jour off qui
+        # rend la journée neutre pour le streak, pas un cas particulier écrit
+        # ici. Hors quota, et c'est tout ce que la carte achète.
+        from .models import DayOff
+
+        DayOff.objects.get_or_create(user=user, date=today)
+
+    return arme
 
 
 def buff_arme(user, effect: str, *, day):

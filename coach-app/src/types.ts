@@ -129,6 +129,11 @@ export interface ProjectDetail {
   track: string
   domain: string
   domain_label: string
+  /** Long cours ou court terme (§4.3). **Aucune règle n'en dépend** : la vitesse
+   *  d'avancement varie et la roadmap change, donc tout ce qui s'appuierait
+   *  dessus finirait faux. C'est une étiquette pour relire sa liste. */
+  horizon: 'long' | 'court'
+  horizon_label: string
   verification: string
   verification_label: string
   repos: number

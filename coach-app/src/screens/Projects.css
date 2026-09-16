@@ -407,3 +407,23 @@
   font-size: 11.5px;
   color: color-mix(in srgb, var(--project) 75%, var(--text));
 }
+
+/* L'étiquette d'horizon. Discrète à dessein : elle ne décide de rien, donc elle
+   ne doit pas peser autant qu'un compteur d'étapes. */
+.horizon {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.horizon--long {
+  border-color: color-mix(in srgb, var(--project, var(--accent)) 55%, transparent);
+  color: var(--text);
+}

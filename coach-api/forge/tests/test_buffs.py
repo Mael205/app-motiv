@@ -44,20 +44,39 @@ def carte(user, key: str, charges: int = 1) -> LootCard:
 class TestLaFrontiere:
     """Ce qu'aucune carte n'a le droit de faire."""
 
-    def test_seul_le_sas_touche_au_cadre(self):
-        hors_jeu = [
-            b for b in buff_rules.CATALOGUE
-            if buff_rules.touche_au_cadre(b.effect)
-        ]
+    def test_une_seule_carte_efface_une_soiree(self):
+        """La limite haute du système. Au-delà, une carte remplacerait une séance."""
+        effacent = [b for b in buff_rules.CATALOGUE if buff_rules.efface_une_soiree(b.effect)]
 
-        assert {b.effect for b in hors_jeu} <= set(buff_rules.EFFETS_DE_SAS)
+        assert len(effacent) == 1
+        assert effacent[0].rarity == "legendaire", "la seule qui rende une soirée est la plus rare"
 
-    def test_aucun_effet_ne_touche_au_streak_ni_au_rang(self):
+    def test_les_autres_deplacent_ou_allegent_mais_n_effacent_pas(self):
+        """« Carte blanche » change le projet, « Report » le jour, « Petit pas » la barre."""
+        for effect in (buff_rules.CARTE_BLANCHE, buff_rules.REPORT, buff_rules.PETIT_PAS):
+            assert not buff_rules.efface_une_soiree(effect)
+
+    def test_aucune_carte_ne_touche_au_streak_ni_au_rang(self):
         """Une carte qui rendrait un bouclier ferait du cœur du système un objet."""
-        interdits = ("streak", "bouclier", "shield", "rang", "rank", "slot", "garde", "blocage")
+        # « couvre » n'est pas dans la liste : « Plein ciel » nomme le couvre-feu
+        # comme **borne**, ce qui est l'inverse d'y toucher.
+        interdits = ("streak", "bouclier", "shield", "rang", "rank", "slot", "blocage")
 
         for buff in buff_rules.CATALOGUE:
             assert not any(mot in buff.effect for mot in interdits)
+
+    def test_aucune_carte_ne_recule_le_blocage_ni_le_couvre_feu(self):
+        """Les deux heures du régime (§11.12) sont hors d'atteinte, sans exception."""
+        from forge.rules import regime as regime_rules
+
+        heures = {"blocage", "couvre_feu", "sas_minutes"}
+        for buff in buff_rules.CATALOGUE:
+            assert buff.effect not in heures
+        assert regime_rules.pour(1).blocage == regime_rules.pour_jour(1, 0).blocage
+
+    def test_le_plancher_ne_descend_jamais_sous_quinze_minutes(self):
+        """« Petit pas » allège la barre, il ne supprime pas le démarrage."""
+        assert buff_rules.PETIT_PAS_MINUTES == 15
 
     def test_le_catalogue_n_invente_aucun_effet(self):
         for buff in buff_rules.CATALOGUE:
@@ -273,3 +292,95 @@ class TestLesQuatreAutresCartes:
         # Le cadre, lui, est intact : le blocage s'arme toujours le soir venu.
         tard = datetime.combine(jour, time(22, 30), tzinfo=PARIS)
         assert "armed" in services.agent_state(user, now=tard)["block_scroll"]
+
+
+@pytest.mark.django_db
+class TestLesCartesDeSoiree:
+    """Ce qui se déplace, ce qui s'allège, et la seule chose qui s'efface."""
+
+    def prevu(self, user, nom="Bot STS2", jour_semaine=None):
+        from forge.models import TimeSlot
+
+        jour = _aujourdhui(user)
+        projet = Project.objects.create(
+            user=user, track=Track.objects.get(user=user), name=nom, slot=1
+        )
+        TimeSlot.objects.create(
+            project=projet,
+            weekday=jour.weekday() if jour_semaine is None else jour_semaine,
+            start_time=time(20, 30),
+        )
+        return projet
+
+    def poser(self, user, projet, minutes):
+        from django.utils import timezone as dj
+
+        debut = dj.now() - timedelta(minutes=minutes)
+        return Session.objects.create(
+            user=user,
+            project=projet,
+            planned_minutes=minutes,
+            actual_minutes=minutes,
+            status=Session.DONE,
+            coach_day=_aujourdhui(user),
+            started_at=debut,
+            ended_at=dj.now(),
+        )
+
+    def test_carte_blanche_laisse_un_autre_projet_tenir_la_journee(self, user):
+        jour = _aujourdhui(user)
+        self.prevu(user)
+        autre = Project.objects.create(
+            user=user, track=Track.objects.get(user=user), name="Proto UE5", slot=2
+        )
+        self.poser(user, autre, 30)
+        assert not services.projet_du_jour(user, today=jour).tenu
+
+        carte(user, "carte_blanche")
+        progression.armer_buff(user, "carte_blanche", today=jour)
+
+        assert services.projet_du_jour(user, today=jour).tenu
+
+    def test_carte_blanche_ne_dispense_pas_de_travailler(self, user):
+        """Ce qui est rendu, c'est le choix du projet — jamais la soirée."""
+        jour = _aujourdhui(user)
+        self.prevu(user)
+        carte(user, "carte_blanche")
+        progression.armer_buff(user, "carte_blanche", today=jour)
+
+        assert not services.projet_du_jour(user, today=jour).tenu
+
+    def test_petit_pas_descend_la_barre_a_quinze(self, user):
+        jour = _aujourdhui(user)
+        projet = self.prevu(user)
+        self.poser(user, projet, 15)
+        assert not services.projet_du_jour(user, today=jour).tenu
+
+        carte(user, "petit_pas")
+        progression.armer_buff(user, "petit_pas", today=jour)
+
+        etat = services.projet_du_jour(user, today=jour)
+        assert etat.tenu and etat.attendus[0].requis == 15
+
+    def test_le_report_libere_ce_soir_et_charge_demain(self, user):
+        jour = _aujourdhui(user)
+        self.prevu(user)
+        carte(user, "report")
+        progression.armer_buff(user, "report", today=jour)
+
+        assert services.projet_du_jour(user, today=jour).libre
+
+        demain = services.projet_du_jour(user, today=jour + timedelta(days=1))
+        assert [a.name for a in demain.attendus] == ["Bot STS2"], "la dette se paie demain"
+
+    def test_la_treve_pose_un_vrai_jour_off(self, user):
+        """C'est le §11.5 qui rend la journée neutre, pas un cas particulier."""
+        from forge.models import DayOff
+
+        jour = _aujourdhui(user)
+        self.prevu(user)
+        carte(user, "treve")
+        progression.armer_buff(user, "treve", today=jour)
+
+        assert services.projet_du_jour(user, today=jour).libre
+        assert DayOff.objects.filter(user=user, date=jour).exists()

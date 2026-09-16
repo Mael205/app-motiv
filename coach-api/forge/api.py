@@ -130,6 +130,9 @@ def projects(request):
                 "track": project.track.kind,
                 "domain": project.domain,
                 "domain_label": slot_rules.DOMAIN_LABELS.get(project.domain, project.domain),
+                # Étiquette de lecture, sans effet sur aucune règle (§4.3).
+                "horizon": project.horizon,
+                "horizon_label": dict(Project.HORIZONS).get(project.horizon, ""),
                 "verification": project.verification,
                 "verification_label": verification_rules.LABELS.get(
                     project.verification, project.verification
@@ -879,6 +882,38 @@ def creneau_detail(request, creneau_id: int):
 
     creneau.delete()
     return Response({"removed": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def project_horizon(request, project_id: int):
+    """Long cours ou court terme (§4.3, 16 septembre 2026).
+
+    Modifiable **à tout moment**, contrairement aux slots et aux créneaux : rien
+    n'en dépend. C'est une étiquette qui aide à relire sa liste, et un projet
+    court qui s'étale devient un projet long le jour où on s'en rend compte —
+    sans que ça change une seule règle.
+    """
+    projet = Project.objects.filter(user=request.user, id=project_id).first()
+    if not projet:
+        return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    horizon = request.data.get("horizon")
+    if horizon not in dict(Project.HORIZONS):
+        return Response(
+            {"detail": "Horizon attendu : « long » ou « court »."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    projet.horizon = horizon
+    projet.save(update_fields=["horizon"])
+    return Response(
+        {
+            "id": projet.id,
+            "horizon": projet.horizon,
+            "horizon_label": dict(Project.HORIZONS)[projet.horizon],
+        }
+    )
 
 
 @api_view(["POST"])

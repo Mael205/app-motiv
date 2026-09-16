@@ -230,6 +230,10 @@ function ProjectCard({
             {project.slot ? `Slot ${project.slot}` : 'Hors slot'} · {project.domain_label} · {done} sur{' '}
             {project.steps.length} étapes
           </span>
+          {/* Long cours ou court terme : une étiquette, et rien d'autre. Elle se
+              change d'un clic parce qu'aucune règle n'en dépend — un projet court
+              qui s'étale devient long le jour où on s'en aperçoit. */}
+          <HorizonTag project={project} />
           <span className="pcard__commit">
             <Icon.target size={13} /> {project.weekly_commitment} sessions visées par semaine
           </span>
@@ -531,5 +535,41 @@ function ProgressRing({ percent }: { percent: number }) {
         <i>%</i>
       </span>
     </div>
+  )
+}
+
+/** L'horizon d'un projet : long cours, ou court terme.
+ *
+ * *(16 septembre 2026.)* **Aucune règle n'en dépend**, et c'est ce qui permet
+ * de le changer d'un clic, n'importe quand : la vitesse d'avancement varie, la
+ * roadmap change, et une mécanique adossée à cette étiquette finirait fausse.
+ * Elle sert à relire sa liste — « la basse, c'est l'année ; le bot, c'est trois
+ * semaines » — et à rien d'autre.
+ */
+function HorizonTag({ project }: { project: ProjectDetail }) {
+  const [horizon, setHorizon] = useState(project.horizon)
+  const [busy, setBusy] = useState(false)
+
+  async function basculer() {
+    const vise = horizon === 'long' ? 'court' : 'long'
+    setBusy(true)
+    try {
+      const rendu = await api.setHorizon(project.id, vise)
+      setHorizon(rendu.horizon as 'long' | 'court')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={`horizon horizon--${horizon}`}
+      onClick={basculer}
+      disabled={busy}
+      title="Long cours ou court terme — une étiquette, sans effet sur les règles"
+    >
+      {horizon === 'long' ? 'Long cours' : 'Court terme'}
+    </button>
   )
 }

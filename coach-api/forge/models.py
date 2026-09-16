@@ -132,6 +132,19 @@ class Project(models.Model):
         default=rules_verification.MANUELLE,
         help_text="Comment ce projet prouve qu'on a travaillé dessus (SPEC §6)",
     )
+    # Long cours ou court terme (16 septembre 2026). **Aucune règle n'en dépend**,
+    # et c'est délibéré : la vitesse d'avancement varie, la roadmap change, et
+    # tout ce qui s'appuierait dessus finirait faux. C'est une étiquette, pour
+    # lire sa liste de projets et savoir ce qu'on regarde — « la basse, c'est
+    # l'année ; le bot STS2, c'est trois semaines ».
+    LONG, COURT = "long", "court"
+    HORIZONS = [(LONG, "Long cours"), (COURT, "Court terme")]
+    horizon = models.CharField(
+        max_length=8,
+        choices=HORIZONS,
+        default=COURT,
+        help_text="Étiquette de lecture, sans effet sur aucune règle",
+    )
     is_coach_project = models.BooleanField(default=False)
     weekly_commitment = models.PositiveSmallIntegerField(default=3)
     # Ce que le projet vise, et ce qui le borne. Écrits une fois à la création,

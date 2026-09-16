@@ -48,14 +48,17 @@ class Attendu:
     name: str
     minutes: int
     heure: str = ""
+    # Ce que ce rendez-vous demande **ce soir**. Vingt-cinq minutes par défaut ;
+    # une carte « Petit pas » descend la barre à quinze pour la journée (§12.6).
+    requis: int = MINUTES_REQUISES
 
     @property
     def fait(self) -> bool:
-        return self.minutes >= MINUTES_REQUISES
+        return self.minutes >= self.requis
 
     @property
     def restantes(self) -> int:
-        return max(0, MINUTES_REQUISES - self.minutes)
+        return max(0, self.requis - self.minutes)
 
 
 @dataclass(frozen=True)
@@ -103,6 +106,6 @@ def phrase(jour: Jour) -> str:
         a = restant[0]
         if a.minutes:
             return f"{a.name} : {a.minutes} min posées, {a.restantes} pour tenir la journée."
-        return f"{a.name} : {MINUTES_REQUISES} min pour tenir la journée."
+        return f"{a.name} : {a.requis} min pour tenir la journée."
     noms = ", ".join(a.name for a in restant)
     return f"{len(restant)} rendez-vous à tenir : {noms}."

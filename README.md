@@ -389,12 +389,19 @@ jamais été essayé.
 - **Les cartes donnent des buffs, les hauts faits donnent l'apparence** *(16 sept.
   2026)*. Une carte rend du **temps d'écran**, jamais des chiffres : sas rallongé
   de 10 à 45 min, second sas, sas gratuit, sas sans attente, sas mis de côté pour
-  demain, sas jusqu'au couvre-feu, ou une journée sans notification. C'est une
+  demain, sas jusqu'au couvre-feu, une journée sans notification — et quatre
+  cartes de soirée : « Carte blanche » (n'importe quel projet tient le
+  rendez-vous), « Petit pas » (15 min au lieu de 25), « Report » (la séance passe
+  à demain, qui en portera deux) et « Trêve », la seule qui efface une soirée.
+  C'est une
   **charge** à dépenser dans la journée, jamais un passif ; les reliques restent
   les passifs et se gagnent par un haut fait. Chaque saison ouvre son propre lot
   de cartes tirables. Ce qui reste interdit : qu'une carte touche au cadre
   (blocage, couvre-feu, streak, rang, gardes) ailleurs que par le sas, et qu'elle
   tombe sans travail.
+- **Long cours ou court terme** : une étiquette par projet, sans effet sur aucune
+  règle, qui se change d'un clic. Ce qui varie — la vitesse, la roadmap — rendrait
+  fausse toute mécanique qu'on y accrocherait.
 - **Le jeu (§12)** : arbre de compétences par branche — quarante heures
   dispersées sur trois projets de moteur de jeu restent quarante heures de
   moteur de jeu —, cartes de loot à quatre raretés avec pitié progressive,

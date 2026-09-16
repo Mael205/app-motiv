@@ -205,6 +205,13 @@ export const api = {
 
   achievements: () => request<HautsFaits>('/achievements'),
 
+  /** Long cours ou court terme. Modifiable à tout moment : rien n'en dépend. */
+  setHorizon: (id: number, horizon: 'long' | 'court') =>
+    request<{ id: number; horizon: string; horizon_label: string }>(`/projects/${id}/horizon`, {
+      method: 'POST',
+      body: JSON.stringify({ horizon }),
+    }),
+
   /** Dépense une charge de carte et arme son effet pour la journée (§12.6). */
   useCard: (key: string) =>
     request<{ key: string; effect: string; value: number }>(`/loot/${key}/use`, {

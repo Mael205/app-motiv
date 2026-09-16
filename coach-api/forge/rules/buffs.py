@@ -50,6 +50,13 @@ SAS_DEMAIN = "sas_demain"          # un sas de plus, demain
 SAS_JUSQU_AU_COUVRE_FEU = "sas_jusqu_au_couvre_feu"   # le sas court jusqu'à 23h
 SILENCE = "silence"                # le coach ne notifie pas aujourd'hui
 
+# Les quatre cartes qui sortent du sas (16 septembre 2026). Aucune ne supprime
+# le travail dû — sauf la dernière, et c'est pour ça qu'elle est légendaire.
+CARTE_BLANCHE = "carte_blanche"    # ce soir, n'importe quel projet tient le rendez-vous
+REPORT = "report"                  # le rendez-vous du jour passe à demain
+PETIT_PAS = "petit_pas"            # ce soir, quinze minutes suffisent
+JOUR_OFF = "jour_off"              # une journée neutre, hors quota
+
 EFFETS = (
     SAS_PLUS,
     SAS_SECOND,
@@ -58,7 +65,20 @@ EFFETS = (
     SAS_DEMAIN,
     SAS_JUSQU_AU_COUVRE_FEU,
     SILENCE,
+    CARTE_BLANCHE,
+    REPORT,
+    PETIT_PAS,
+    JOUR_OFF,
 )
+
+# Les effets qui durent une journée entière et ne se consomment donc pas sur un
+# événement : ils valent du lever au coucher, et se relisent tels quels.
+EFFETS_DU_JOUR = (SILENCE, CARTE_BLANCHE, PETIT_PAS, REPORT, JOUR_OFF)
+
+# Le plancher qu'une carte peut descendre — jamais plus bas. « Petit pas »
+# abaisse la barre d'un soir ; il ne supprime pas le démarrage, qui est le vrai
+# coût (§4.1).
+PETIT_PAS_MINUTES = 15
 
 # Les effets qui touchent au sas — la seule brèche autorisée dans le cadre.
 EFFETS_DE_SAS = (
@@ -97,6 +117,14 @@ class Buff:
             return "Un sas de plus demain."
         if self.effect == SAS_JUSQU_AU_COUVRE_FEU:
             return "Le prochain sas court jusqu'au couvre-feu."
+        if self.effect == CARTE_BLANCHE:
+            return "Ce soir, n'importe quel projet tient le rendez-vous."
+        if self.effect == REPORT:
+            return "Le rendez-vous d'aujourd'hui passe à demain — qui en portera deux."
+        if self.effect == PETIT_PAS:
+            return f"Ce soir, {PETIT_PAS_MINUTES} minutes suffisent au lieu de 25."
+        if self.effect == JOUR_OFF:
+            return "Une journée neutre, hors quota : ni tenue, ni ratée."
         return "Le coach ne t'envoie aucune notification aujourd'hui."
 
 
@@ -125,6 +153,25 @@ CATALOGUE: tuple[Buff, ...] = (
     Buff("silence", "Silence", COMMUN, SILENCE, 1,
          "Aucune notification aujourd'hui. Le blocage, lui, ne se tait pas : "
          "ce qui disparaît est le rappel, jamais le cadre."),
+
+    # ---- La soirée : ce qui se déplace, et ce qui s'allège ------------
+    #
+    # Aucune de ces cartes n'efface le travail, sauf la dernière. « Carte
+    # blanche » change le projet, « Report » change le jour, « Petit pas »
+    # change la barre — les trois laissent l'obligation de s'y mettre, qui est
+    # le vrai coût (§4.1).
+    Buff("carte_blanche", "Carte blanche", COMMUN, CARTE_BLANCHE, 1,
+         "Le rendez-vous tient avec le projet que tu veux. Tu poses tes minutes quand même : "
+         "ce n'est pas la soirée qui est rendue, c'est le choix."),
+    Buff("petit_pas", "Petit pas", RARE, PETIT_PAS, 1,
+         "Quinze minutes au lieu de vingt-cinq. Le démarrage reste dû, et c'est lui "
+         "qui coûte le plus cher."),
+    Buff("report", "Report", EPIQUE, REPORT, 1,
+         "La séance de ce soir est due demain, en plus de celle de demain. Rien n'est effacé, "
+         "tout est déplacé — et la dette se paie."),
+    Buff("treve", "Trêve", LEGENDAIRE, JOUR_OFF, 1,
+         "Une journée neutre, hors quota. La seule carte du jeu qui rende une soirée entière, "
+         "et la seule à être légendaire pour cette raison."),
 )
 
 PAR_CLE = {b.key: b for b in CATALOGUE}
@@ -164,10 +211,20 @@ def par_rarete(lot: tuple[Buff, ...]) -> dict[str, list[Buff]]:
 
 
 def touche_au_cadre(effect: str) -> bool:
-    """Vrai si l'effet sort de la couche jeu. Seul le sas a le droit (§4.6).
+    """Vrai si l'effet touche à la soirée elle-même, et pas seulement au sas.
 
     Existe pour être appelée par un test : la frontière se perd au premier effet
     ajouté à la va-vite, et c'est exactement ce que l'ancienne interdiction du
     §17 empêchait.
     """
-    return effect in EFFETS_DE_SAS
+    return effect in (CARTE_BLANCHE, REPORT, PETIT_PAS, JOUR_OFF)
+
+
+def efface_une_soiree(effect: str) -> bool:
+    """La seule carte qui rende une soirée entière. Il n'y en a qu'une, exprès.
+
+    Les autres déplacent le travail ou l'allègent ; celle-ci le supprime. C'est
+    la limite haute de tout le système : au-delà, une carte remplacerait une
+    séance, et le §17 redeviendrait nécessaire.
+    """
+    return effect == JOUR_OFF

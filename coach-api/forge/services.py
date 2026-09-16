@@ -48,6 +48,7 @@ from .models import (
 )
 from . import achievements, filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
+from .rules import buffs as buff_rules
 from .rules import contract as contract_rules
 from .rules import capacite as capacite_rules
 from .rules import corps as corps_rules
@@ -2751,13 +2752,34 @@ def projet_du_jour(user, *, today: date) -> jour_rules.Jour:
     règlent au calme. Un projet sans créneau ce jour-là n'est pas attendu, même
     s'il est actif et en retard — l'app ne s'invite pas dans une soirée qu'on ne
     lui a pas promise.
+
+    **Quatre cartes entrent ici** (§12.6), et aucune n'efface le travail sauf la
+    dernière : « Report » déplace la soirée à demain, « Carte blanche » laisse
+    n'importe quel projet la tenir, « Petit pas » descend la barre à quinze
+    minutes, « Trêve » rend la journée neutre.
     """
+    from .models import BuffActif
+
+    def carte(effect: str, *, jour: date) -> bool:
+        return BuffActif.objects.filter(user=user, day=jour, effect=effect).exists()
+
+    hier = today - timedelta(days=1)
+
+    # Reportée ou mise en trêve, la journée ne demande rien. Le report, lui,
+    # n'efface pas : il inscrit la dette sur demain, juste en dessous.
+    if carte(buff_rules.JOUR_OFF, jour=today) or carte(buff_rules.REPORT, jour=today):
+        return jour_rules.evaluer([])
+
+    jours_attendus = [today.weekday()]
+    if carte(buff_rules.REPORT, jour=hier):
+        jours_attendus.append(hier.weekday())
+
     creneaux = (
         TimeSlot.objects.filter(
             project__user=user,
             project__status=Project.ACTIVE,
             active=True,
-            weekday=today.weekday(),
+            weekday__in=jours_attendus,
         )
         .select_related("project")
         .order_by("start_time")
@@ -2768,6 +2790,17 @@ def projet_du_jour(user, *, today: date) -> jour_rules.Jour:
         .values("project")
         .annotate(t=Sum("actual_minutes"))
     }
+
+    requis = (
+        buff_rules.PETIT_PAS_MINUTES
+        if carte(buff_rules.PETIT_PAS, jour=today)
+        else jour_rules.MINUTES_REQUISES
+    )
+    # « Carte blanche » : les minutes de la journée comptent quel que soit le
+    # projet sur lequel elles ont été posées. Le travail reste dû — c'est le
+    # choix du projet qui est rendu, pas la soirée.
+    libres = carte(buff_rules.CARTE_BLANCHE, jour=today)
+    total = sum(minutes.values())
 
     vus: set[int] = set()
     attendus = []
@@ -2780,8 +2813,9 @@ def projet_du_jour(user, *, today: date) -> jour_rules.Jour:
             jour_rules.Attendu(
                 project_id=projet.id,
                 name=projet.name,
-                minutes=minutes.get(projet.id, 0) or 0,
+                minutes=total if libres else (minutes.get(projet.id, 0) or 0),
                 heure=creneau.start_time.strftime("%Hh%M"),
+                requis=requis,
             )
         )
     return jour_rules.evaluer(attendus)
