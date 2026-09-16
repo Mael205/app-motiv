@@ -34,6 +34,11 @@ $morceaux = @(
        Args = @((Join-Path $agent 'agent.py'), '--quiet') }
 )
 
+# Les noms d'hôte autorisés à atteindre l'app, en plus de localhost. Vite coupe
+# la connexion sans page d'erreur quand l'en-tête Host lui est inconnu — vu du
+# téléphone, ça ressemble exactement à un serveur éteint (voir vite.config.ts).
+$env:COACH_HOSTS = 'pc-mal.taild78169.ts.net'
+
 function Trouver($motif) {
     Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like $motif }
 }
