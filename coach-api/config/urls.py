@@ -73,6 +73,8 @@ urlpatterns = [
     path("api/preuves", api.preuves),
     path("api/ponctuels", api.ponctuels),
     path("api/ponctuels/<int:ponctuel_id>", api.ponctuel_detail),
+    path("api/creneaux", api.creneaux),
+    path("api/creneaux/<int:creneau_id>", api.creneau_detail),
     path("api/journal", api.journal),
     path("api/relax/start", api.start_relax),
     path("api/days-off", api.declare_day_off),

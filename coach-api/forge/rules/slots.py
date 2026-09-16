@@ -179,6 +179,28 @@ DIMANCHE = 6
 ENGAGEMENT_MAX = 14
 
 
+def peut_changer_creneaux(*, weekday: int) -> tuple[bool, str]:
+    """La semaine se règle le dimanche, et ne se renégocie pas ensuite (§11.2).
+
+    *(13 septembre 2026.)* C'est la même raison qu'au §4.3 : ce qui se décide au
+    calme tient, ce qui se décide à 21h un soir de fatigue est exactement ce
+    dont le dispositif doit protéger. Déplacer mardi soir le rendez-vous de
+    mardi soir n'est pas un ajustement, c'est l'annuler avec une étape de plus.
+
+    Une semaine, et pas une saison : un emploi du temps tient à des cours, à des
+    horaires de travail, à des choses qui bougent toutes les semaines. Un projet
+    non — d'où l'échange de slot entre deux saisons.
+    """
+    if weekday == DIMANCHE:
+        return True, "Dimanche : la semaine se règle."
+    return False, "La semaine se règle le dimanche. Les créneaux sont figés jusque-là."
+
+
+def prochain_dimanche(weekday: int) -> int:
+    """Jours à attendre avant le prochain réglage. 0 si c'est aujourd'hui."""
+    return (DIMANCHE - weekday) % 7
+
+
 def peut_changer_engagement(*, actuel: int, vise: int, weekday: int) -> tuple[bool, str]:
     """Rend ``(autorise, motif)``. Le motif est affiche tel quel."""
     if vise < 1:

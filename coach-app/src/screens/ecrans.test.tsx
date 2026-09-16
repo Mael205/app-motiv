@@ -88,7 +88,7 @@ describe('Projets — quand le serveur ne répond pas', () => {
     await userEvent.click(await attendreLaPanne())
 
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
-    expect(screen.getByText(/les trois slots/i)).toBeInTheDocument()
+    expect(screen.getByText(/les slots/i)).toBeInTheDocument()
     expect(projets).toHaveBeenCalledTimes(2)
   })
 })

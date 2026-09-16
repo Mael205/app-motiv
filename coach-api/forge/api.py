@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from django.utils import timezone
-from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime, parse_time
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -45,10 +45,13 @@ from .models import (
     RoadmapStep,
     Routine,
     Session,
+    TimeSlot,
+    Track,
     WeeklyReport,
 )
 from .probeauth import ProbeTokenAuthentication
 from .rules import hiatus as hiatus_rules
+from .rules import jour as jour_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -758,6 +761,115 @@ def daily_report(request):
             "phrase": bilan.phrase,
         }
     )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def creneaux(request):
+    """La semaine : quel projet, quel jour, quelle heure (SPEC §11.2, §11.11).
+
+    ``GET`` rend la grille entière et dit si elle est ouverte. ``POST`` pose un
+    créneau, ``DELETE`` sur ``/api/creneaux/<id>`` en retire un — et les deux
+    n'acceptent que le dimanche : ce qui se décide au calme tient, ce qui se
+    décide un soir de fatigue est exactement ce dont le dispositif protège.
+
+    La grille reste **lisible tous les jours**. C'est elle qui dit ce que la
+    journée demande, et la cacher six jours sur sept reviendrait à cacher le
+    contrat qu'on est en train de tenir.
+    """
+    today = _today(request)
+    ouvert, motif = slot_rules.peut_changer_creneaux(weekday=today.weekday())
+
+    if request.method == "POST":
+        if not ouvert:
+            return Response({"detail": motif}, status=status.HTTP_409_CONFLICT)
+
+        projet = Project.objects.filter(
+            user=request.user, id=request.data.get("project_id"), status=Project.ACTIVE
+        ).first()
+        if not projet:
+            return Response({"detail": "Projet introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            weekday = int(request.data["weekday"])
+            heure = parse_time(request.data["heure"])
+            minutes = int(request.data.get("minutes") or 25)
+        except (KeyError, TypeError, ValueError):
+            return Response(
+                {"detail": "Donne un jour (0 = lundi) et une heure (HH:MM)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if heure is None or not 0 <= weekday <= 6:
+            return Response(
+                {"detail": "Jour entre 0 et 6, heure au format HH:MM."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        conflit = TimeSlot.objects.filter(
+            project__user=request.user, weekday=weekday, active=True, start_time=heure
+        ).first()
+        if conflit:
+            return Response(
+                {"detail": f"{conflit.project.name} occupe déjà ce créneau."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        creneau = TimeSlot.objects.create(
+            project=projet, weekday=weekday, start_time=heure, duration_minutes=minutes
+        )
+        return Response(_creneau_json(creneau), status=status.HTTP_201_CREATED)
+
+    projets = Project.objects.filter(
+        user=request.user, status=Project.ACTIVE, track__kind=Track.ATELIER
+    ).prefetch_related("timeslots")
+    return Response(
+        {
+            "ouvert": ouvert,
+            "motif": motif,
+            "jours_avant_ouverture": slot_rules.prochain_dimanche(today.weekday()),
+            "requis_minutes": jour_rules.MINUTES_REQUISES,
+            "heure_de_blocage": jour_rules.HEURE_DE_BLOCAGE,
+            "projets": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "color": p.color,
+                    "emblem": p.emblem,
+                    "creneaux": [
+                        _creneau_json(c) for c in p.timeslots.all() if c.active
+                    ],
+                }
+                for p in projets
+            ],
+        }
+    )
+
+
+def _creneau_json(creneau: TimeSlot) -> dict:
+    return {
+        "id": creneau.id,
+        "project_id": creneau.project_id,
+        "weekday": creneau.weekday,
+        "heure": creneau.start_time.strftime("%H:%M"),
+        "minutes": creneau.duration_minutes,
+    }
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def creneau_detail(request, creneau_id: int):
+    """Retire un créneau. Dimanche seulement, comme la pose."""
+    today = _today(request)
+    ouvert, motif = slot_rules.peut_changer_creneaux(weekday=today.weekday())
+    if not ouvert:
+        return Response({"detail": motif}, status=status.HTTP_409_CONFLICT)
+
+    creneau = TimeSlot.objects.filter(project__user=request.user, id=creneau_id).first()
+    if not creneau:
+        return Response({"detail": "Créneau introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+    creneau.delete()
+    return Response({"removed": True})
 
 
 @api_view(["POST"])

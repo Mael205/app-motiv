@@ -362,7 +362,15 @@ jamais été essayé.
   implémentés ; la preuve appliquée est celle que le projet a déclarée, jamais
   une autre. Les trois moyens automatiques — `git`, `fichiers`, `premier_plan` —
   sont implémentés.
-- Proposition unique côté serveur : projet, durée, tâche. Aucun écran de choix.
+- **Le projet du jour (§11.11)** : la contrainte porte sur ce qui se mesure — chaque
+  projet qui a un créneau aujourd'hui veut ses 25 minutes —, et la tâche redevient
+  la note qu'on s'est laissée en fin de séance, l'étape de roadmap s'affichant
+  dessous comme contexte. Travailler ailleurs compte partout et laisse le
+  rendez-vous entier ; un jour sans créneau est libre ; à 21h, ce qui n'est pas
+  fait arme le blocage jusqu'à ce qu'il le soit.
+- **La semaine a son écran**, dans l'onglet Projets : lisible tous les jours,
+  modifiable le dimanche seulement.
+- Proposition unique côté serveur : projet, durée, note. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - **Le jeu (§12)** : arbre de compétences par branche — quarante heures
   dispersées sur trois projets de moteur de jeu restent quarante heures de

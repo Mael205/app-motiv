@@ -5,6 +5,7 @@ import { Icon } from '../components/art/Icons'
 import { NewProject } from '../components/NewProject'
 import { Ponctuels } from '../components/Ponctuels'
 import { Roadmap } from '../components/Roadmap'
+import { Semaine } from '../components/Semaine'
 import { EnCharge, EnErreur } from '../components/EtatCharge'
 import { animerAnneau, quandVisible, useInclinaison, useRevelation } from '../juice'
 import './Projects.css'
@@ -88,10 +89,15 @@ export function Projects({ onChanged }: { onChanged: () => void }) {
           aucune ligne ne se lisait d'un seul regard. Ce qu'on fait à gauche,
           ce qu'on range à droite. */}
       <div className="projects__main">
+        {/* La semaine d'abord : c'est elle qui décide de quoi les soirées sont
+            faites, et les cartes de projet ne se lisent qu'ensuite. */}
+        <Semaine />
+
         <section>
-          <h2 className="section-title display">Les trois slots</h2>
+          <h2 className="section-title display">Les slots</h2>
           <p className="section-hint">
-            Trois projets actifs, pas quatre. Une nouvelle idée va au frigo, pas dans un slot.
+            Cinq projets actifs au plus, deux par domaine. Une idée de plus va au frigo, et on
+            change de projet entre deux saisons.
           </p>
 
           {slots.map((project) => (

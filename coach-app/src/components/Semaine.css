@@ -1,0 +1,84 @@
+/* La semaine, en sept lignes. Une grille plutôt qu'un calendrier à l'heure :
+   ce qui compte est « quel projet, quel jour », pas la durée dessinée à
+   l'échelle — une soirée de 25 minutes vue en hauteur ne dit rien de plus. */
+
+.semaine__grille {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.semaine__jour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.semaine__jour--vide {
+  background: transparent;
+}
+
+.semaine__nom {
+  width: 2.6rem;
+  flex: none;
+}
+
+.semaine__creneau {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border-left: 3px solid var(--project, var(--accent));
+  background: color-mix(in srgb, var(--project, var(--accent)) 14%, transparent);
+  font-size: 13px;
+}
+
+.semaine__heure {
+  font-variant-numeric: tabular-nums;
+}
+
+.semaine__libre,
+.semaine__plus {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.semaine__retirer {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.semaine__retirer:hover {
+  color: var(--text);
+}
+
+.semaine__ajout {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.semaine__erreur {
+  font-size: 13px;
+  color: var(--rose);
+}
+
+@media (max-width: 480px) {
+  .semaine__jour {
+    align-items: flex-start;
+  }
+}

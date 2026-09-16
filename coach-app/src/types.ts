@@ -543,6 +543,32 @@ export interface RoutineCheckResult {
   panel: EntretienPanel
 }
 
+/** Un rendez-vous hebdomadaire : quel projet, quel jour, quelle heure (§11.2). */
+export interface Creneau {
+  id: number
+  project_id: number
+  weekday: number
+  heure: string
+  minutes: number
+}
+
+/** La grille de la semaine. `ouvert` n'est vrai que le dimanche : la semaine se
+ *  règle au calme et ne se renégocie pas un soir de fatigue. */
+export interface CreneauxPanel {
+  ouvert: boolean
+  motif: string
+  jours_avant_ouverture: number
+  requis_minutes: number
+  heure_de_blocage: number
+  projets: {
+    id: number
+    name: string
+    color: string
+    emblem: string
+    creneaux: Creneau[]
+  }[]
+}
+
 /** Un projet qui a rendez-vous aujourd'hui, et où il en est. */
 export interface JourAttendu {
   project_id: number

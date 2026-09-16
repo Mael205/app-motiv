@@ -501,6 +501,7 @@ Le streak du §4.2 n'est **pas** touché : dix minutes sur n'importe quoi le tie
 "Je bosserai ce soir" se rate ; "mardi 20h30, bot STS2" se tient.
 
 - Chaque projet actif porte des **créneaux hebdomadaires fixes** (jour + heure), définis lors du contrat du dimanche.
+- **La grille de la semaine a son écran** *(13 septembre 2026)*, dans l'onglet Projets : sept lignes, un rendez-vous par ligne. Elle se **lit tous les jours** — c'est elle qui dit ce que la journée demande (§11.11) — et ne s'**écrit que le dimanche**. Déplacer mardi soir le rendez-vous de mardi soir n'est pas un ajustement, c'est l'annuler avec une étape de plus. Une semaine et non une saison : un emploi du temps dépend de cours et d'horaires qui bougent, un projet non (§4.3).
 - Export `.ics`, notification native 10 min avant sur les deux surfaces.
 - Le gardien du soir (§5.4) ne se déclenche que si le créneau du jour a été manqué.
 

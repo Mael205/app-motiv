@@ -4,6 +4,8 @@ import type {
   BilanDuJour,
   CapacitePanel,
   Briefing,
+  Creneau,
+  CreneauxPanel,
   DebriefSuggestion,
   Derive,
   EntretienPanel,
@@ -125,6 +127,15 @@ export const api = {
   home: () => request<HomeState>('/home'),
 
   projects: () => request<ProjectDetail[]>('/projects'),
+
+  /** La semaine (§11.2). Lisible tous les jours, modifiable le dimanche. */
+  creneaux: () => request<CreneauxPanel>('/creneaux'),
+
+  poserCreneau: (body: { project_id: number; weekday: number; heure: string; minutes?: number }) =>
+    request<Creneau>('/creneaux', { method: 'POST', body: JSON.stringify(body) }),
+
+  retirerCreneau: (id: number) =>
+    request<{ removed: boolean }>(`/creneaux/${id}`, { method: 'DELETE' }),
 
   briefing: () => request<Briefing>('/briefing'),
 
