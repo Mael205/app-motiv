@@ -85,7 +85,9 @@ claude          # ouvre la connexion, puis quitte avec /exit
 ```
 
 Pour vérifier, ouvre l'accueil : le bloc de décision se recharge après quelques
-secondes et affiche « Décidé pour ce soir » au lieu de « Ton amorce ».
+secondes et affiche « Proposé pour ce soir » — ce qui n'arrive que sur un projet
+sans note de séance précédente : depuis le §11.11, c'est ta note qui passe
+devant, sous le titre « Ta note de la dernière fois ».
 
 Deux réglages, tous deux facultatifs :
 
