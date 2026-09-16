@@ -212,13 +212,6 @@ def draw_card(
     lot = buff_rules.lot_de_saison(saison.index if saison else 1)
 
     depuis_rare, depuis_epique = _pity(user)
-    if day is not None:
-        # La carte « Main chanceuse » : le tirage part d'un cran plus haut. Elle
-        # incline, elle ne garantit rien — comme la faveur de l'effort.
-        chance = buff_arme(user, buff_rules.TIRAGE_CHANCEUX, day=day)
-        if chance is not None:
-            faveur = min(1.0, faveur + consommer_buff(chance))
-
     carte = _tirer_dans_le_lot(
         lot,
         draws_since_rare=depuis_rare,

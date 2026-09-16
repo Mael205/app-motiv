@@ -387,11 +387,13 @@ jamais été essayé.
 - Proposition unique côté serveur : projet, durée, note. Aucun écran de choix.
 - Amorce obligatoire à la clôture d'une session.
 - **Les cartes donnent des buffs, les hauts faits donnent l'apparence** *(16 sept.
-  2026)*. Une carte est une **charge** à dépenser dans la journée — sas rallongé,
-  XP ou dégâts au boss majorés sur une séance —, jamais un passif ; les reliques
-  restent les passifs, et se gagnent par un haut fait. Chaque saison ouvre son
-  propre lot de cartes tirables. Ce qui reste interdit : qu'une carte touche au
-  cadre (blocage, couvre-feu, streak, rang, gardes), sauf le sas, et qu'elle
+  2026)*. Une carte rend du **temps d'écran**, jamais des chiffres : sas rallongé
+  de 10 à 45 min, second sas, sas gratuit, sas sans attente, sas mis de côté pour
+  demain, sas jusqu'au couvre-feu, ou une journée sans notification. C'est une
+  **charge** à dépenser dans la journée, jamais un passif ; les reliques restent
+  les passifs et se gagnent par un haut fait. Chaque saison ouvre son propre lot
+  de cartes tirables. Ce qui reste interdit : qu'une carte touche au cadre
+  (blocage, couvre-feu, streak, rang, gardes) ailleurs que par le sas, et qu'elle
   tombe sans travail.
 - **Le jeu (§12)** : arbre de compétences par branche — quarante heures
   dispersées sur trois projets de moteur de jeu restent quarante heures de

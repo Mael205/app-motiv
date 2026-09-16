@@ -96,82 +96,31 @@ class TestLaRotation:
 @pytest.mark.django_db
 class TestDepenserUneCharge:
     def test_armer_consomme_une_charge(self, user):
-        carte(user, "etincelle", charges=2)
+        carte(user, "respiration", charges=2)
 
-        progression.armer_buff(user, "etincelle", today=LUNDI)
+        progression.armer_buff(user, "respiration", today=LUNDI)
 
-        assert LootCard.objects.get(user=user, key="etincelle").copies == 1
+        assert LootCard.objects.get(user=user, key="respiration").copies == 1
 
     def test_sans_charge_rien_ne_s_arme(self, user):
         with pytest.raises(ValueError, match="Aucune charge"):
-            progression.armer_buff(user, "etincelle", today=LUNDI)
+            progression.armer_buff(user, "respiration", today=LUNDI)
 
-    def test_deux_effets_du_meme_genre_ne_s_empilent_pas(self, user):
-        """Deux « ×2 » sur la même séance donneraient un ×4 que personne n'a calibré."""
-        carte(user, "etincelle")
-        carte(user, "braise_ardente")
+    def test_deux_rallonges_ne_s_empilent_pas(self, user):
+        """Deux rallonges sur le même sas donneraient une durée que rien n'a calibrée."""
+        carte(user, "respiration")
+        carte(user, "longue_respiration")
 
-        progression.armer_buff(user, "etincelle", today=LUNDI)
+        progression.armer_buff(user, "respiration", today=LUNDI)
 
         with pytest.raises(ValueError, match="doublon"):
-            progression.armer_buff(user, "braise_ardente", today=LUNDI)
+            progression.armer_buff(user, "longue_respiration", today=LUNDI)
 
     def test_un_buff_arme_hier_ne_joue_pas_aujourd_hui(self, user):
-        carte(user, "etincelle")
-        progression.armer_buff(user, "etincelle", today=LUNDI - timedelta(days=1))
+        carte(user, "respiration")
+        progression.armer_buff(user, "respiration", today=LUNDI - timedelta(days=1))
 
-        assert progression.buff_arme(user, buff_rules.XP_SEANCE, day=LUNDI) is None
-
-
-@pytest.mark.django_db
-class TestCeQueLesBuffsFont:
-    def cloturer(self, user, minutes=30) -> dict:
-        """Une séance de trente minutes, clôturée comme l'app le fait."""
-        from django.utils import timezone as dj
-
-        projet, _ = Project.objects.get_or_create(
-            user=user, track=Track.objects.get(user=user), name="Evolve", defaults={"slot": 1}
-        )
-        debut = dj.now() - timedelta(minutes=minutes)
-        session = Session.objects.create(
-            user=user,
-            project=projet,
-            planned_minutes=minutes,
-            status=Session.RUNNING,
-            coach_day=_aujourdhui(user),
-            started_at=debut,
-        )
-        return session, services.end_session(session, next_action="la suite")
-
-    def test_l_xp_de_la_seance_est_majoree_et_la_charge_consommee(self, user):
-        """Deux séances du même jour ne se comparent pas — la seconde rapporte
-        moins par construction (forfait de première séance, dégressivité). C'est
-        donc le facteur inscrit au détail qui fait foi, et le barème qui est
-        testé ailleurs."""
-        jour = _aujourdhui(user)
-        carte(user, "braise_ardente")       # ×1,5
-        progression.armer_buff(user, "braise_ardente", today=jour)
-
-        _, resultat = self.cloturer(user)
-
-        assert resultat["breakdown"]["buff_xp"] == 1.5
-        assert resultat["breakdown"]["base_total"] > resultat["breakdown"]["base"]
-        assert progression.buff_arme(user, buff_rules.XP_SEANCE, day=jour) is None
-
-    def test_sans_carte_le_facteur_reste_a_un(self, user):
-        _, resultat = self.cloturer(user)
-
-        assert resultat["breakdown"]["buff_xp"] == 1.0
-
-    def test_les_minutes_ne_bougent_jamais(self, user):
-        """Le fantôme compare des minutes (§12.7) : une carte ne doit pas les toucher."""
-        carte(user, "coup_franc")
-        progression.armer_buff(user, "coup_franc", today=_aujourdhui(user))
-
-        session, _ = self.cloturer(user)
-
-        session.refresh_from_db()
-        assert session.actual_minutes == 30
+        assert progression.buff_arme(user, buff_rules.SAS_PLUS, day=LUNDI) is None
 
 
 @pytest.mark.django_db
@@ -256,3 +205,71 @@ def _aujourdhui(user):
 
     profile = user.profile
     return coach_day(dj.now(), profile.timezone_name, profile.day_rollover_hour)
+
+
+@pytest.mark.django_db
+class TestLesQuatreAutresCartes:
+    """Ce que les cartes rendent, c'est du temps — jamais des chiffres."""
+
+    def client(self, user):
+        api = APIClient()
+        api.force_authenticate(user=user)
+        return api
+
+    def test_la_bouffee_d_air_supprime_l_attente(self, user):
+        carte(user, "bouffee_d_air")
+        progression.armer_buff(user, "bouffee_d_air", today=_aujourdhui(user))
+
+        reponse = self.client(user).post("/api/relax/start")
+
+        assert reponse.json()["attente_secondes"] == 0
+
+    def test_sans_carte_l_attente_reste(self, user):
+        reponse = self.client(user).post("/api/relax/start")
+
+        assert reponse.json()["attente_secondes"] == 60
+
+    def test_plein_ciel_court_jusqu_au_couvre_feu_et_s_y_arrete(self, user):
+        """La carte la plus généreuse du jeu n'ouvre toujours pas la nuit."""
+        from forge.models import RelaxWindow
+
+        carte(user, "plein_ciel")
+        progression.armer_buff(user, "plein_ciel", today=_aujourdhui(user))
+
+        self.client(user).post("/api/relax/start")
+
+        fenetre = RelaxWindow.objects.get(user=user)
+        fin = fenetre.ends_at.astimezone(PARIS)
+        assert (fin.hour, fin.minute) <= (23, 0), "le couvre-feu tient"
+
+    def test_la_reserve_arme_un_sas_pour_demain(self, user):
+        jour = _aujourdhui(user)
+        carte(user, "reserve")
+        progression.armer_buff(user, "reserve", today=jour)
+
+        self.client(user).post("/api/relax/start")
+
+        demain = progression.buff_arme(user, buff_rules.SAS_SECOND, day=jour + timedelta(days=1))
+        assert demain is not None
+
+    def test_le_silence_fait_taire_les_notifications_pas_le_cadre(self, user):
+        """Ce qui se tait est le rappel. Le blocage ne change pas d'un pouce."""
+        from datetime import datetime as dt
+
+        from forge import triggers
+        from forge.models import NotificationLog
+        from forge.notifications import Notification
+
+        jour = _aujourdhui(user)
+        carte(user, "silence")
+        progression.armer_buff(user, "silence", today=jour)
+
+        envoye = triggers._deliver(
+            user, "test", jour, Notification(title="Gardien", body="20h30 est passé.")
+        )
+
+        assert envoye is False
+        assert not NotificationLog.objects.filter(user=user).exists()
+        # Le cadre, lui, est intact : le blocage s'arme toujours le soir venu.
+        tard = datetime.combine(jour, time(22, 30), tzinfo=PARIS)
+        assert "armed" in services.agent_state(user, now=tard)["block_scroll"]

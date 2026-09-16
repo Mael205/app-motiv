@@ -3,6 +3,12 @@
 *(Inversé le 16 septembre 2026. Remplace la règle du §17 « le loot est de
 l'apparence, jamais du pouvoir ».)*
 
+**Ce qu'une carte donne** *(resserré le 16 septembre 2026)* : du **temps d'écran
+rendu**, et rien d'autre. Ni XP, ni Éclats, ni dégâts au boss — un chiffre qui
+monte plus vite ne se ressent pas, et c'est précisément ce qu'on reprochait à
+l'ancienne collection de couleurs. Ce qu'une carte change, on le vit : vingt
+minutes de plus, un second sas, une soirée sans notification.
+
 **Ce que l'ancienne règle protégeait, et comment on le garde.** Une carte se
 tire : lui donner du pouvoir, c'est récompenser la chance. Trois garde-fous
 remplacent l'interdiction, et ils sont la moitié de ce module :
@@ -17,7 +23,8 @@ remplacent l'interdiction, et ils sont la moitié de ce module :
 3. **le cadre reste hors d'atteinte.** Aucune carte ne touche au blocage, au
    couvre-feu, au streak, aux boucliers, au rang, aux slots ni aux gardes. La
    seule brèche autorisée est le **sas** (§4.6), qui est déjà une soupape
-   bornée, payante et prévue. Aucune carte ne peut acheter une soirée.
+   bornée, payante et prévue — et même la plus généreuse des cartes s'arrête au
+   couvre-feu. Aucune carte ne peut acheter une soirée.
 
 **La rotation.** Chaque saison ouvre son propre lot de cartes tirables. Ce qui a
 été tiré reste acquis et utilisable pour toujours — seule la *pêche* change.
@@ -38,23 +45,30 @@ from .loot import COMMUN, EPIQUE, LEGENDAIRE, RARE
 SAS_PLUS = "sas_plus"              # le prochain sas dure plus longtemps
 SAS_SECOND = "sas_second"          # un sas de plus aujourd'hui
 SAS_GRATUIT = "sas_gratuit"        # le prochain sas ne coûte pas sa journée de réseaux
-XP_SEANCE = "xp_seance"            # la prochaine séance rapporte plus d'XP
-BOSS_SEANCE = "boss_seance"        # la prochaine séance frappe plus fort
-ECLATS_JOUR = "eclats_jour"        # les Éclats du jour sont majorés
-TIRAGE_CHANCEUX = "tirage_chanceux"  # le prochain tirage part d'un cran plus haut
+SAS_IMMEDIAT = "sas_immediat"      # le prochain sas s'ouvre sans les soixante secondes
+SAS_DEMAIN = "sas_demain"          # un sas de plus, demain
+SAS_JUSQU_AU_COUVRE_FEU = "sas_jusqu_au_couvre_feu"   # le sas court jusqu'à 23h
+SILENCE = "silence"                # le coach ne notifie pas aujourd'hui
 
 EFFETS = (
     SAS_PLUS,
     SAS_SECOND,
     SAS_GRATUIT,
-    XP_SEANCE,
-    BOSS_SEANCE,
-    ECLATS_JOUR,
-    TIRAGE_CHANCEUX,
+    SAS_IMMEDIAT,
+    SAS_DEMAIN,
+    SAS_JUSQU_AU_COUVRE_FEU,
+    SILENCE,
 )
 
 # Les effets qui touchent au sas — la seule brèche autorisée dans le cadre.
-EFFETS_DE_SAS = (SAS_PLUS, SAS_SECOND, SAS_GRATUIT)
+EFFETS_DE_SAS = (
+    SAS_PLUS,
+    SAS_SECOND,
+    SAS_GRATUIT,
+    SAS_IMMEDIAT,
+    SAS_DEMAIN,
+    SAS_JUSQU_AU_COUVRE_FEU,
+)
 
 
 @dataclass(frozen=True)
@@ -77,59 +91,50 @@ class Buff:
             return "Un second sas aujourd'hui."
         if self.effect == SAS_GRATUIT:
             return "Le prochain sas ne compte pas dans ton budget réseaux."
-        if self.effect == XP_SEANCE:
-            return f"La prochaine séance rapporte ×{self.value:g} d'XP."
-        if self.effect == BOSS_SEANCE:
-            return f"La prochaine séance inflige ×{self.value:g} de dégâts au boss."
-        if self.effect == ECLATS_JOUR:
-            return f"Les Éclats gagnés aujourd'hui sont majorés de {int(self.value * 100)} %."
-        return "Le prochain tirage part d'un cran plus haut."
+        if self.effect == SAS_IMMEDIAT:
+            return "Le prochain sas s'ouvre tout de suite, sans les soixante secondes."
+        if self.effect == SAS_DEMAIN:
+            return "Un sas de plus demain."
+        if self.effect == SAS_JUSQU_AU_COUVRE_FEU:
+            return "Le prochain sas court jusqu'au couvre-feu."
+        return "Le coach ne t'envoie aucune notification aujourd'hui."
 
 
 CATALOGUE: tuple[Buff, ...] = (
-    # ---- Le souffle : la brèche du sas, bornée ------------------------
+    # ---- Le souffle : du temps d'écran rendu, et rien d'autre ---------
     Buff("respiration", "Respiration", COMMUN, SAS_PLUS, 10,
          "Dix minutes de plus. Rien qui change une soirée, assez pour finir ce qu'on regardait."),
+    Buff("bouffee_d_air", "Bouffée d'air", COMMUN, SAS_IMMEDIAT, 1,
+         "Le sas s'ouvre à l'instant. L'attente existe pour laisser passer l'impulsion ; "
+         "cette carte est la seule chose qui la saute, et elle se paie."),
     Buff("longue_respiration", "Longue respiration", RARE, SAS_PLUS, 20,
          "Le double du sas d'une saison douce, en une fois."),
     Buff("second_souffle", "Second souffle", RARE, SAS_SECOND, 1,
          "La soupape s'ouvre deux fois. Le couvre-feu, lui, ne bouge pas."),
+    Buff("reserve", "Réserve", RARE, SAS_DEMAIN, 1,
+         "Un sas mis de côté pour demain. C'est la seule carte qui prête à la journée suivante."),
+    Buff("grand_large", "Grand large", EPIQUE, SAS_PLUS, 45,
+         "Trois quarts d'heure. Une vraie soirée de rien, décidée d'avance."),
     Buff("blanc_seing", "Blanc-seing", EPIQUE, SAS_GRATUIT, 1,
          "Un sas qui ne s'inscrit nulle part. Le compteur de jours tenus ne bouge pas."),
+    Buff("plein_ciel", "Plein ciel", LEGENDAIRE, SAS_JUSQU_AU_COUVRE_FEU, 1,
+         "Le sas court jusqu'au couvre-feu. C'est la carte la plus généreuse du jeu, "
+         "et elle s'arrête quand même à 23h — rien n'ouvre la nuit."),
 
-    # ---- Le travail : ce qu'une séance rapporte -----------------------
-    Buff("etincelle", "Étincelle", COMMUN, XP_SEANCE, 1.25,
-         "Un quart d'XP en plus sur la prochaine. À dépenser sur une séance qu'on sait longue."),
-    Buff("braise_ardente", "Braise ardente", RARE, XP_SEANCE, 1.5,
-         "La moitié en plus. Le soir où l'on s'y met vraiment."),
-    Buff("forge_blanche", "Forge blanche", LEGENDAIRE, XP_SEANCE, 2.0,
-         "Le double. Une fois, et on s'en souvient."),
-
-    # ---- Le boss : ce qu'une séance abat ------------------------------
-    Buff("lame_ebrechee", "Lame ébréchée", COMMUN, BOSS_SEANCE, 1.5,
-         "Le boss encaisse une fois et demie ce que la séance vaut."),
-    Buff("coup_franc", "Coup franc", RARE, BOSS_SEANCE, 2.0,
-         "Deux fois les dégâts. Le compte des minutes, lui, ne bouge pas."),
-    Buff("estocade", "Estocade", EPIQUE, BOSS_SEANCE, 3.0,
-         "Trois fois. Gardée pour le dernier jour d'une saison qui se joue de peu."),
-
-    # ---- Les Éclats et la chance --------------------------------------
-    Buff("butin", "Butin", COMMUN, ECLATS_JOUR, 0.5,
-         "La moitié en plus sur tout ce que la journée rapporte en Éclats."),
-    Buff("filon", "Filon", RARE, ECLATS_JOUR, 1.0,
-         "Le double, sur une journée entière."),
-    Buff("main_chanceuse", "Main chanceuse", EPIQUE, TIRAGE_CHANCEUX, 1,
-         "Le prochain tirage monte d'un cran. Rien n'est garanti, tout est incliné."),
+    # ---- Le silence : le coach se tait -------------------------------
+    Buff("silence", "Silence", COMMUN, SILENCE, 1,
+         "Aucune notification aujourd'hui. Le blocage, lui, ne se tait pas : "
+         "ce qui disparaît est le rappel, jamais le cadre."),
 )
 
 PAR_CLE = {b.key: b for b in CATALOGUE}
 
 # La rotation : combien de cartes une saison rend tirables.
 #
-# Huit sur treize : assez pour que deux saisons ne se ressemblent pas, assez peu
+# Six sur neuf : assez pour que deux saisons ne se ressemblent pas, assez peu
 # pour qu'un lot se complète. Un lot qu'on ne peut pas finir ne donne pas envie
 # de le poursuivre — c'est le défaut des collections de trois cents pièces.
-TAILLE_DU_LOT = 8
+TAILLE_DU_LOT = 6
 
 
 def lot_de_saison(index: int) -> tuple[Buff, ...]:

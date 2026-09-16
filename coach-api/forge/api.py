@@ -6,7 +6,8 @@ décision à recomposer, il affiche ce que le serveur a décidé (SPEC §11.1).
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime, parse_time
@@ -34,6 +35,7 @@ from . import (
 )
 from .models import (
     ActionLink,
+    BuffActif,
     FridgeIdea,
     Garde,
     Ponctuel,
@@ -1397,18 +1399,39 @@ def start_relax(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    minutes = _regime(request.user, today).sas_minutes
-    # Les trois cartes qui touchent au sas — la seule brèche autorisée dans le
-    # cadre (§12.6). Elles s'appliquent ici et nulle part ailleurs.
+    regle = _regime(request.user, today)
+    minutes = regle.sas_minutes
+
+    # Les cartes qui touchent au sas — la seule brèche autorisée dans le cadre
+    # (§12.6). Elles s'appliquent ici et nulle part ailleurs.
     rallonge = progression.buff_arme(request.user, buff_rules.SAS_PLUS, day=today)
     if rallonge is not None:
         minutes += int(progression.consommer_buff(rallonge))
     second = progression.buff_arme(request.user, buff_rules.SAS_SECOND, day=today)
     gratuit = progression.buff_arme(request.user, buff_rules.SAS_GRATUIT, day=today)
-    # Soixante secondes avant qu'il ouvre, comme la porte de sortie du §8.5.
-    # L'attente **est** le mécanisme, pas un délai technique : elle laisse passer
-    # l'impulsion, et c'est l'impulsion qu'on cherche à ne pas servir.
-    debut = now + timedelta(seconds=services.SAS_ATTENTE_SECONDES)
+
+    # « Bouffée d'air » saute les soixante secondes. C'est la seule chose qui les
+    # saute, et c'est pour ça qu'elle est une carte : l'attente **est** le
+    # mécanisme — elle laisse passer l'impulsion —, donc la contourner doit se
+    # payer d'un tirage plutôt que d'un bouton.
+    immediat = progression.buff_arme(request.user, buff_rules.SAS_IMMEDIAT, day=today)
+    attente = 0 if immediat is not None else services.SAS_ATTENTE_SECONDES
+    if immediat is not None:
+        progression.consommer_buff(immediat)
+
+    debut = now + timedelta(seconds=attente)
+
+    # « Plein ciel » : le sas court jusqu'au couvre-feu — et s'y arrête. La carte
+    # la plus généreuse du jeu n'ouvre toujours pas la nuit.
+    grand = progression.buff_arme(request.user, buff_rules.SAS_JUSQU_AU_COUVRE_FEU, day=today)
+    if grand is not None:
+        progression.consommer_buff(grand)
+        couvre_feu = datetime.combine(
+            today, regle.couvre_feu, tzinfo=ZoneInfo(profile.timezone_name)
+        )
+        if couvre_feu > debut:
+            minutes = max(minutes, int((couvre_feu - debut).total_seconds() // 60))
+
     window, created = RelaxWindow.objects.get_or_create(
         user=request.user,
         coach_day=today,
@@ -1422,6 +1445,20 @@ def start_relax(request):
         services.marquer_garde_reseaux(request.user, day=today, motif="sas")
     elif created and gratuit is not None:
         progression.consommer_buff(gratuit)
+
+    # « Réserve » prête un sas à demain. C'est la seule carte qui déborde sur la
+    # journée suivante, et elle le fait en armant l'effet là-bas — pas en
+    # laissant une fenêtre ouverte, qui se lirait comme un sas en cours.
+    reserve = progression.buff_arme(request.user, buff_rules.SAS_DEMAIN, day=today)
+    if created and reserve is not None:
+        progression.consommer_buff(reserve)
+        BuffActif.objects.create(
+            user=request.user,
+            key=reserve.key,
+            effect=buff_rules.SAS_SECOND,
+            value=1,
+            day=today + timedelta(days=1),
+        )
     if not created and second is not None:
         # Un second sas : la fenêtre du jour est remplacée, la carte consommée.
         progression.consommer_buff(second)
@@ -1446,7 +1483,7 @@ def start_relax(request):
         {
             "started_at": window.started_at.isoformat(),
             "ends_at": window.ends_at.isoformat(),
-            "attente_secondes": services.SAS_ATTENTE_SECONDES,
+            "attente_secondes": attente,
             "minutes": minutes,
         },
         status=status.HTTP_201_CREATED,

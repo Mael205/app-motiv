@@ -185,12 +185,12 @@ class TestLaForge:
         user.profile.shards = 10_000
         user.profile.save()
         with pytest.raises(ValueError, match="pas ouverte"):
-            progression.forger(user, "etincelle")
+            progression.forger(user, "respiration")
 
     def test_elle_fait_enfin_descendre_les_eclats(self, user):
         """Le seul endroit du produit où des Éclats sortent."""
         _ouvrir_la_forge(user, eclats=1000)
-        carte = buff_rules.PAR_CLE["braise_ardente"]
+        carte = buff_rules.PAR_CLE["longue_respiration"]
 
         resultat = progression.forger(user, carte.key)
 
@@ -202,7 +202,7 @@ class TestLaForge:
     def test_sans_assez_d_eclats_elle_refuse(self, user):
         _ouvrir_la_forge(user, eclats=5)
         with pytest.raises(ValueError, match="Éclats demandés"):
-            progression.forger(user, "etincelle")
+            progression.forger(user, "respiration")
 
     def test_une_carte_deja_possedee_se_recharge(self, user):
         """Depuis le 16 septembre 2026, une carte est une charge, pas un objet.
@@ -211,10 +211,10 @@ class TestLaForge:
         n'a plus de sens : une seconde charge se dépense comme la première.
         """
         _ouvrir_la_forge(user, eclats=2000)
-        progression.forger(user, "etincelle")
-        progression.forger(user, "etincelle")
+        progression.forger(user, "respiration")
+        progression.forger(user, "respiration")
 
-        assert LootCard.objects.get(user=user, key="etincelle").copies == 2
+        assert LootCard.objects.get(user=user, key="respiration").copies == 2
 
     def test_forger_coute_bien_plus_que_ce_qu_un_doublon_rapporte(self):
         """Si forger devenait rentable, l'ouverture d'une carte perdrait son sens."""
@@ -225,7 +225,7 @@ class TestLaForge:
         """Un achat n'est pas un tirage : l'y compter reviendrait à acheter sa chance."""
         _ouvrir_la_forge(user, eclats=1000)
         avant = progression._pity(user)
-        progression.forger(user, "braise_ardente")
+        progression.forger(user, "longue_respiration")
         assert progression._pity(user) == avant
 
 

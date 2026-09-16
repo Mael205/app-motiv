@@ -797,7 +797,9 @@ Ce que cette règle protégeait : une carte se tire, donc lui donner du pouvoir 
 2. **une charge, pas un passif.** Une carte donne une charge qu'on dépense quand on veut, et qui vaut pour la journée. La malchance coûte donc une occasion, jamais une puissance qui manquerait tous les jours — c'est ce qui la distingue d'une relique (§12.8), permanente et gagnée par un haut fait, donc par du travail nommé ;
 3. **le cadre reste hors d'atteinte.** Aucune carte ne touche au blocage, au couvre-feu, au streak, aux boucliers, au rang, aux slots ni aux gardes. La seule brèche est le **sas** (§4.6) — déjà une soupape bornée et payante. Aucune carte ne peut acheter une soirée.
 
-Sept effets, énumération fermée : rallonger le sas, en ouvrir un second, en épargner le coût, majorer l'XP d'une séance, ses dégâts au boss, les Éclats du jour, ou incliner le prochain tirage.
+**Ce qu'une carte donne : du temps d'écran rendu, et rien d'autre** *(resserré le 16 septembre 2026)*. Ni XP, ni Éclats, ni dégâts au boss — un chiffre qui monte plus vite ne se ressent pas, et c'est exactement ce qu'on reprochait à l'ancienne collection de couleurs. Ce qu'une carte change, on le vit.
+
+Sept effets, énumération fermée, tous dans la brèche du sas sauf le dernier : rallonger le sas (+10, +20, +45 min), en ouvrir un second, en épargner le coût en journée de réseaux, sauter ses soixante secondes d'attente, en mettre un de côté pour demain, le faire courir **jusqu'au couvre-feu** — et « Silence », qui coupe les notifications du jour. Même la carte légendaire s'arrête au couvre-feu : rien n'ouvre la nuit. Et ce que « Silence » fait taire est le **rappel**, jamais le cadre — blocage, couvre-feu et projet du jour ne bougent pas d'un pouce.
 
 - **Rotation par saison.** Chaque saison ouvre son propre lot de cartes tirables, et la fenêtre glisse d'une carte par saison : deux saisons voisines partagent une partie de leur lot, donc une carte manquée revient — plus tard, pas jamais. Ce qui a été tiré reste acquis ; seule la pêche change.
 - **Un doublon n'est plus une déception** : il ajoute une charge au lieu de se convertir en Éclats.

@@ -714,6 +714,16 @@ def _deliver(user, kind: str, day: date, notification: Notification) -> bool:
     violation d'unicité — qui est le cas *nominal* d'un second passage — casse
     la transaction englobante et rend inutilisable tout ce qui suit.
     """
+    # La carte « Silence » (§12.6) : aucune notification aujourd'hui. Ce qui se
+    # tait est le **rappel**, jamais le cadre — le blocage, le couvre-feu et le
+    # projet du jour ne changent pas d'un pouce. La carte n'est pas consommée
+    # ici : elle vaut pour la journée entière, pas pour un message.
+    from . import progression
+    from .rules import buffs as buff_rules
+
+    if progression.buff_arme(user, buff_rules.SILENCE, day=day) is not None:
+        return False
+
     try:
         with transaction.atomic():
             log = NotificationLog.objects.create(

@@ -8,7 +8,6 @@ règles, et d'écrire le résultat.
 from __future__ import annotations
 
 import random
-from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -49,7 +48,6 @@ from .models import (
 )
 from . import achievements, filescan, gitscan, progression
 from .rules import bossphases as bossphase_rules
-from .rules import buffs as buff_rules
 from .rules import contract as contract_rules
 from .rules import capacite as capacite_rules
 from .rules import corps as corps_rules
@@ -1096,16 +1094,6 @@ def end_session(
         ),
         full_xp_sessions=effets.full_xp_sessions,
     )
-    # La carte de buff armée pour aujourd'hui, s'il y en a une (§12.6). Elle
-    # s'applique **avant** le critique et se consomme ici : une charge dépensée
-    # sur une séance qu'on abandonne serait perdue, ce que le §17 refuse — la
-    # consommation suit donc la clôture, jamais le démarrage.
-    facteur_xp = progression.consommer_buff(
-        progression.buff_arme(session.user, buff_rules.XP_SEANCE, day=session.coach_day)
-    )
-    if facteur_xp != 1.0:
-        breakdown = replace(breakdown, total=round(breakdown.total * facteur_xp))
-
     # Le coup critique se tire **après** le barème et ne touche que l'XP : les
     # minutes et les dégâts au boss restent la mesure du travail, et le §12.7
     # compare des minutes. Gravé dans le détail plutôt que rejoué : une session
@@ -1127,7 +1115,6 @@ def end_session(
         "crit_multiplier": critique.multiplier,
         "crit_forced": critique.forced,
         "crit_bonus": critique.bonus,
-        "buff_xp": facteur_xp,
         "total": critique.xp_after,
         "notes": breakdown.notes + ([critique.line] if critique.hit else []),
     }
@@ -1139,16 +1126,10 @@ def end_session(
         )
 
     piste_corps = session.project.track.kind == Track.CORPS
-    facteur_boss = progression.consommer_buff(
-        progression.buff_arme(session.user, buff_rules.BOSS_SEANCE, day=session.coach_day)
-    )
     damage = round(
         season_rules.damage_of(minutes=session.actual_minutes)
         * (1 + bonus.boss_damage_bonus)
         * (effets.body_damage_multiplier if piste_corps else 1.0)
-        # Une carte frappe plus fort, elle ne travaille pas plus longtemps : les
-        # minutes restent intactes, et c'est elles que le fantôme compare (§12.7).
-        * facteur_boss
     )
 
     # Le boss tombe-t-il **maintenant** ? C'est le franchissement qui se met en
