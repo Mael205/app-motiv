@@ -559,7 +559,7 @@ export interface CreneauxPanel {
   motif: string
   jours_avant_ouverture: number
   requis_minutes: number
-  heure_de_blocage: number
+  heure_de_blocage: string
   projets: {
     id: number
     name: string
@@ -586,7 +586,7 @@ export interface JourState {
   libre: boolean
   tenu: boolean
   requis_minutes: number
-  heure_de_blocage: number
+  heure_de_blocage: string
   phrase: string
   attendus: JourAttendu[]
 }
@@ -622,6 +622,23 @@ export interface HomeState {
   entretien: EntretienPanel
   gardes: GardesPanel
   relax_used: boolean
+  /** Le sas (§4.6) : il interrompt la soirée au lieu de la précéder. */
+  relax: {
+    minutes: number
+    used: boolean
+    ends_at: string | null
+    active: boolean
+  }
+  /** Le régime de la saison : les trois heures qui décident de la soirée. Il se
+   *  resserre d'une saison à l'autre et ne bouge jamais en cours de saison. */
+  regime: {
+    index: number
+    blocage: string
+    couvre_feu: string
+    sas_minutes: number
+    dur: boolean
+    lignes: string[]
+  }
   /** Les cartes équipées, enfin appliquées. */
   cosmetics: Cosmetics
 }

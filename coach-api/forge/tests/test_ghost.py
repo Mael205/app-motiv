@@ -195,7 +195,7 @@ class TestEtatDeLAgent:
         Profile.objects.create(user=user)
 
         etat = services.agent_state(user)
-        assert set(etat["block_scroll"]) == {"armed_from", "armed"}
+        assert set(etat["block_scroll"]) == {"armed_from", "armed", "niveau", "curfew_from"}
 
     def test_l_interrupteur_coupe_le_blocage_meme_a_l_heure(self, django_user_model, settings):
         from datetime import datetime, time, timezone as tz

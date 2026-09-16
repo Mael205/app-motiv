@@ -55,7 +55,7 @@ class TestLecture:
         assert corps["ouvert"] is False
         assert corps["jours_avant_ouverture"] == 5
         assert corps["projets"][0]["creneaux"][0]["heure"] == "20:30"
-        assert corps["requis_minutes"] == 25 and corps["heure_de_blocage"] == 21
+        assert corps["requis_minutes"] == 25 and corps["heure_de_blocage"] == "21h00"
 
     def test_le_dimanche_elle_est_ouverte(self, client, jour):
         jour(DIMANCHE)

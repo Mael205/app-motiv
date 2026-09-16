@@ -130,7 +130,6 @@ COACH = {
     "SEASON_DAYS": 28,
     "SEASON_PAUSE_DAYS": 2,
     "MAX_ACTIVE_SLOTS": 3,
-    "RELAX_MINUTES": 30,          # durée du sas de détente
     "MAX_DAYS_OFF_PER_WEEK": 2,
     # Web Push. Générer les clés avec `python manage.py vapid_keys`.
     "VAPID_PUBLIC_KEY": os.getenv("VAPID_PUBLIC_KEY", ""),

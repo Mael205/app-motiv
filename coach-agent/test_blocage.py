@@ -168,3 +168,27 @@ class TestSynchronisation:
         pause.write_text("pas une date", encoding="utf-8")
         monkeypatch.setattr(blocage, "PAUSE_PATH", pause)
         assert not blocage.en_pause()
+
+
+class TestCouvreFeu:
+    """« nuit » ferme YouTube en plus, et seulement la nuit (16 septembre 2026)."""
+
+    def test_l_ordre_de_nuit_ajoute_youtube(self, monkeypatch):
+        import blocage
+
+        envoyes = []
+        monkeypatch.setattr(blocage, "envoyer", lambda ordre: envoyes.append(ordre) or True)
+
+        blocage.synchroniser({"block_scroll": {"armed": True, "niveau": "nuit"}})
+        blocage.synchroniser({"block_scroll": {"armed": True, "niveau": "projet"}})
+        blocage.synchroniser({"block_scroll": {"armed": False, "niveau": ""}})
+
+        assert envoyes == ["nuit", "block", "unblock"]
+
+    def test_youtube_n_est_pas_dans_la_liste_du_soir(self):
+        """Le §9.1 l'interdit avant le couvre-feu : chercher n'est pas scroller."""
+        import blocage
+
+        domaines = blocage.domaines_a_fermer(blocage._categories())
+
+        assert not any("youtube" in d for d in domaines)

@@ -224,10 +224,17 @@ Le rang **ne redescend jamais** : il compte les semaines tenues cumulées, pas l
 
 Il veut parfois scroller avant de bosser. Ne pas l'interdire — le cadrer.
 
-> **Rendu inutile le 13 septembre 2026 par le §11.11.** La journée est libre
-> jusqu'à 21h : c'est un sas permanent, et un bouton qui ouvre une permission
-> déjà acquise ne sert plus à rien. Le bouton reste affiché tant qu'il n'a pas
-> été retiré, mais il ne commande plus le blocage.
+> **Le sas interrompt la soirée au lieu de la précéder** *(16 septembre 2026)*.
+> La journée est libre jusqu'à l'heure de blocage : un sas qui précède n'ouvre
+> donc plus rien. Il sert désormais **pendant** un blocage — celui du projet du
+> jour comme le couvre-feu — et rouvre tout le temps que le régime de la saison
+> lui laisse (§11.12) : vingt minutes la première saison, dix au plancher. Une
+> fois par jour, et pas par soirée : l'utiliser à 23h30 le consomme.
+>
+> C'est la soupape qui évite que la seule issue soit la porte de sortie de
+> l'extension, qui lève **deux heures** d'un coup. Entre une permission de vingt
+> minutes et une permission de deux heures, c'est la première qu'on veut rendre
+> facile.
 
 - Bouton **"Sas de détente : 30 min"**. Pendant ce temps, rien n'est bloqué, aucune notification, aucun jugement.
 - À la fin du sas : notification ferme sur les deux surfaces, et l'agent PC arme le blocage du scroll passif jusqu'à la validation de la session du jour.
@@ -483,9 +490,32 @@ Ce qui se vérifie, c'est **sur quoi** et **combien de temps** :
 - **la tâche** redevient la **note laissée à soi-même** à la fin de la séance précédente (§11.3). L'étape de roadmap s'affiche dessous, comme contexte et jamais comme consigne. Le modèle ne propose plus une tâche que le premier soir d'un projet, quand aucune note n'existe ;
 - **travailler ailleurs ne libère pas la soirée.** Les minutes posées sur un autre projet comptent partout — XP, heures, boss — et laissent le rendez-vous entier. Sans quoi un créneau n'est qu'une préférence ;
 - **un jour sans créneau est un jour libre.** Rien n'est dû, rien ne se bloque. La contrainte vient du contrat signé au calme, pas d'une app qui voudrait qu'on travaille tous les soirs ;
-- **à 21h**, ce qui n'est pas fait se voit : le blocage du §8.5 s'arme, et se lève dès que le rendez-vous est tenu. L'heure est fixe et se récite de mémoire.
+- **à l'heure du régime** — 21h la première saison (§11.12) —, ce qui n'est pas fait se voit : le blocage du §8.5 s'arme, et se lève dès que le rendez-vous est tenu. L'heure est fixe pour toute la saison et se récite de mémoire ;
+- **à 23h, le couvre-feu** *(16 septembre 2026)* : tout se ferme **quoi qu'il arrive**, journée tenue comprise, et YouTube y ferme en entier — la seule raison de l'épargner le soir était de ne pas punir le travail, et à 23h passées personne ne cherche une réponse technique. Seul le sas (§4.6) le lève, vingt minutes, une fois.
 
 Le streak du §4.2 n'est **pas** touché : dix minutes sur n'importe quoi le tiennent toujours. Les deux compteurs répondent à deux questions différentes — « est-ce que je m'y suis mis » et « est-ce que j'ai tenu le rendez-vous d'aujourd'hui ».
+
+### 11.12 Le régime de la saison — un cadre qui se resserre
+
+*(Tranché le 16 septembre 2026.)*
+
+Un cadre fixe cesse d'être un cadre : on s'y installe, et la marge qu'il laissait devient la norme. Trois heures avancent donc d'une saison à l'autre, d'un cran par saison — soit un cran par mois :
+
+| | Départ | Pas par saison | Plancher |
+|---|---|---|---|
+| Blocage du projet (§11.11) | 21h00 | −15 min | **19h00** |
+| Sas de détente (§4.6) | 20 min | −2 min | **10 min** |
+| Couvre-feu (§11.11) | 23h00 | −10 min | **22h00** |
+
+Le pas de quinze minutes n'est pas un chiffre rond : il place le plancher de 19h à la **neuvième saison**, soit fin avril, et la première saison entièrement en régime dur en mai. C'est l'horizon choisi ; les deux autres pentes sont calées dessus.
+
+Trois garde-fous, qui sont la moitié de la mécanique :
+
+1. **des planchers, jamais dépassés.** Sans eux, la pente finit à un système qui interdit tout, c'est-à-dire qu'on désinstalle ;
+2. **rien ne change en cours de saison.** Le régime se lit à l'ouverture et tient vingt-huit jours. Une règle qui bouge un mardi soir n'est pas une règle, c'est une surprise ;
+3. **aucune sanction ici.** Le §14 punit un décrochage ; ce module ne connaît que le numéro de la saison. Rater une saison ne durcit rien — et la réussir non plus, sinon réussir deviendrait une raison de craindre la suite.
+
+Hors saison — avant la première, ou pendant une pause —, c'est le régime le plus doux qui s'applique. Une pause n'est pas le moment de serrer.
 
 ### 11.1 L'app décide, l'utilisateur exécute
 
@@ -952,6 +982,7 @@ Projets et slots, sessions avec timer, streak et boucliers, jours off, journal m
 - Pas de qualité de session, de temps d'écran ni de fuite de temps dans le bilan envoyé à l'ami.
 - Pas d'animation sur le chemin critique d'une action.
 - Pas de sanction rétroactive : jamais de retrait d'XP acquise, d'heures travaillées, d'étapes terminées, de niveau ou de haut fait. Une sanction éteint ou verrouille temporairement, elle n'efface rien (§14).
+- Pas de durcissement sans plancher (§11.12), et jamais de régime qui change en cours de saison.
 - Pas de sanction qui s'empile au-delà du troisième jour de décrochage. Passé ce seuil, le système devient une rampe de retour, pas une facture.
 
 ---

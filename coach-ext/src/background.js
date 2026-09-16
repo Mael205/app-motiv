@@ -155,30 +155,33 @@ async function flush() {
  */
 const ETAT_TTL_MS = 30_000
 
-let etat = { arme: false, vu: 0 }
+let etat = { arme: false, niveau: '', vu: 0 }
 
 async function etatDuServeur() {
-  if (Date.now() - etat.vu < ETAT_TTL_MS) return etat.arme
+  if (Date.now() - etat.vu < ETAT_TTL_MS) return etat
 
   const { apiUrl, token } = await settings()
-  if (!token) return false
+  if (!token) return { arme: false, niveau: '' }
 
   try {
     const response = await fetch(`${apiUrl.replace(/\/$/, '')}/api/agent/state`, {
       headers: { 'X-Probe-Token': token },
     })
-    if (!response.ok) return etat.arme      // on garde le dernier état connu
+    if (!response.ok) return etat           // on garde le dernier état connu
     const data = await response.json()
-    etat = { arme: Boolean(data.block_scroll && data.block_scroll.armed), vu: Date.now() }
+    const bloc = data.block_scroll || {}
+    // Le niveau dit **quoi** fermer, jamais pourquoi (§8) : « projet » ferme le
+    // scroll passif, « nuit » y ajoute YouTube en entier.
+    etat = { arme: Boolean(bloc.armed), niveau: bloc.niveau || '', vu: Date.now() }
     await api.storage.local.set({ armed: etat.arme })
   } catch {
     // Serveur éteint : on ne bloque pas plus fort parce qu'on ne sait plus. Un
     // blocage qui survit à la panne du système qui l'a décidé est un blocage
     // que plus personne ne peut lever.
-    etat = { arme: false, vu: Date.now() }
+    etat = { arme: false, niveau: '', vu: Date.now() }
     await api.storage.local.set({ armed: false })
   }
-  return etat.arme
+  return etat
 }
 
 /** L'état effectif, pause locale comprise.
@@ -190,7 +193,7 @@ async function etatDuServeur() {
  */
 async function bloqueMaintenant() {
   const { pauseUntil } = await api.storage.local.get('pauseUntil')
-  if (pauseUntil && Date.now() < pauseUntil) return false
+  if (pauseUntil && Date.now() < pauseUntil) return { arme: false, niveau: '' }
   return etatDuServeur()
 }
 
@@ -212,17 +215,19 @@ api.runtime.onMessage.addListener((message, _sender, repondre) => {
 
   if (message.type === 'coach-etat') {
     // Le panneau demande l'état pour l'afficher : il ne parle d'aucune page.
-    bloqueMaintenant().then((arme) => repondre({ arme }))
+    bloqueMaintenant().then(({ arme, niveau }) => repondre({ arme, niveau }))
     return true
   }
 
   if (message.type !== 'coach-page') return false
 
-  bloqueMaintenant().then((arme) =>
+  bloqueMaintenant().then(({ arme, niveau }) =>
     repondre({
       arme,
-      redirection: arme ? redirection(message.url) : null,
-      surface: arme ? surfaceMasquee(message.url) : '',
+      // La nuit, on ne redirige plus un Short vers la vidéo : la page entière
+      // est fermée, et rediriger vers une page fermée ne ferait que clignoter.
+      redirection: arme && niveau !== 'nuit' ? redirection(message.url) : null,
+      surface: arme ? surfaceMasquee(message.url, niveau) : '',
     }),
   )
   return true                              // réponse asynchrone

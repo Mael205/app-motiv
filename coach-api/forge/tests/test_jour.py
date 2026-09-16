@@ -14,8 +14,9 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from forge import services
-from forge.models import Profile, Project, Session, TimeSlot, Track
+from forge.models import Profile, Project, RelaxWindow, Session, TimeSlot, Track
 from forge.rules import jour as jour_rules
+from forge.rules import regime as regime_rules
 
 PARIS = ZoneInfo("Europe/Paris")
 LUNDI = date(2026, 9, 14)
@@ -151,10 +152,10 @@ class TestBlocageDeVingtEtUneHeures:
 
         assert self.etat(user, a(22))["armed"] is False
 
-    def test_un_jour_libre_ne_bloque_jamais(self, user):
+    def test_un_jour_libre_ne_bloque_pas_le_soir(self, user):
         projet(user, "Evolve", slot=1, jour_semaine=None)
 
-        assert self.etat(user, a(23))["armed"] is False
+        assert self.etat(user, a(22, 30))["armed"] is False
 
     def test_dix_minutes_ne_suffisent_plus_a_lever_le_blocage(self, user):
         """Le streak s'en contente (§4.2), le rendez-vous non."""
@@ -174,4 +175,90 @@ class TestBlocageDeVingtEtUneHeures:
         """§8 : l'agent reçoit une heure et un booléen, jamais un historique."""
         projet(user, "Evolve", slot=1)
 
-        assert set(self.etat(user, a(21, 30))) == {"armed", "armed_from"}
+        assert set(self.etat(user, a(21, 30))) == {"armed", "armed_from", "niveau", "curfew_from"}
+
+
+@pytest.mark.django_db
+class TestCouvreFeuEtSas:
+    """23h ferme tout, le sas rouvre vingt minutes (16 septembre 2026)."""
+
+    def etat(self, user, quand: datetime) -> dict:
+        return services.agent_state(user, now=quand)["block_scroll"]
+
+    def test_a_vingt_trois_heures_tout_ferme_meme_la_journee_tenue(self, user):
+        p = projet(user, "Evolve", slot=1)
+        poser(user, p, 60)
+
+        avant = self.etat(user, a(22, 59))
+        apres = self.etat(user, a(23, 1))
+
+        assert avant["armed"] is False
+        assert apres["armed"] is True and apres["niveau"] == "nuit"
+
+    def test_le_couvre_feu_ferme_aussi_un_jour_libre(self, user):
+        projet(user, "Evolve", slot=1, jour_semaine=None)
+
+        assert self.etat(user, a(23, 30))["niveau"] == "nuit"
+
+    def test_avant_le_couvre_feu_le_niveau_reste_celui_du_projet(self, user):
+        projet(user, "Evolve", slot=1)
+
+        assert self.etat(user, a(21, 30))["niveau"] == "projet"
+
+    def test_le_sas_leve_le_blocage_du_projet(self, user):
+        projet(user, "Evolve", slot=1)
+        RelaxWindow.objects.create(
+            user=user, coach_day=LUNDI, started_at=a(21, 10), ends_at=a(21, 30)
+        )
+
+        assert self.etat(user, a(21, 20))["armed"] is False
+        assert self.etat(user, a(21, 31))["armed"] is True
+
+    def test_le_sas_leve_aussi_le_couvre_feu(self, user):
+        """Une seule soupape, et elle vaut la nuit aussi (choix du 16/09/2026)."""
+        projet(user, "Evolve", slot=1)
+        RelaxWindow.objects.create(
+            user=user, coach_day=LUNDI, started_at=a(23, 10), ends_at=a(23, 30)
+        )
+
+        assert self.etat(user, a(23, 20))["armed"] is False
+        assert self.etat(user, a(23, 40))["niveau"] == "nuit"
+
+
+class TestRegimeDeSaison:
+    """Le durcissement : un quart d'heure par saison, et des planchers."""
+
+    def test_la_premiere_saison_est_la_plus_douce(self):
+        r = regime_rules.pour(1)
+
+        assert (r.blocage.hour, r.blocage.minute) == (21, 0)
+        assert r.sas_minutes == 20
+        assert (r.couvre_feu.hour, r.couvre_feu.minute) == (23, 0)
+        assert r.dur is False
+
+    def test_chaque_saison_avance_d_un_quart_d_heure(self):
+        assert regime_rules.pour(2).blocage == time(20, 45)
+        assert regime_rules.pour(3).blocage == time(20, 30)
+
+    def test_le_plancher_de_dix_neuf_heures_arrive_a_la_neuvieme(self):
+        """Neuf saisons de trente jours depuis le 1er septembre : fin avril."""
+        assert regime_rules.pour(9).blocage == time(19)
+        assert regime_rules.pour(9).dur is True
+
+    def test_rien_ne_descend_sous_les_planchers(self):
+        loin = regime_rules.pour(50)
+
+        assert loin.blocage == time(19)
+        assert loin.sas_minutes == 10
+        assert loin.couvre_feu == time(22)
+
+    def test_hors_saison_le_regime_est_le_plus_doux(self):
+        """Une pause entre deux saisons n'est pas le moment de serrer."""
+        assert regime_rules.pour(0) == regime_rules.pour(1)
+
+    def test_les_lignes_annoncent_les_trois_heures_sans_menacer(self):
+        lignes = " ".join(regime_rules.pour(3).lignes()).lower()
+
+        assert "20h30" in lignes and "22h40" in lignes and "16 min" in lignes
+        for mot in ("attention", "sinon", "puni", "mérite"):
+            assert mot not in lignes

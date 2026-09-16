@@ -166,9 +166,12 @@ export function Home({
             un oubli. */}
         <p className={`jour${state.jour.tenu ? ' jour--tenu' : ''}`}>
           <span className="jour__phrase">{state.jour.phrase}</span>
+          {state.jour.tenu && (
+            <span className="jour__heure">Couvre-feu à {state.regime.couvre_feu}</span>
+          )}
           {!state.jour.tenu && !state.jour.libre && (
             <span className="jour__heure">
-              Réseaux bloqués à partir de {state.jour.heure_de_blocage}h
+              Réseaux bloqués à partir de {state.jour.heure_de_blocage}
             </span>
           )}
         </p>
@@ -202,9 +205,13 @@ export function Home({
           validated={state.validated_today}
         />
 
-        {!state.validated_today && (
+        {/* Le sas ne s'affiche plus toute la soirée : il sert quand quelque
+            chose est fermé. Avant l'heure de blocage, il n'ouvrirait rien. */}
+        {(!state.jour.tenu || state.relax.active) && (
           <RelaxGate
-            used={state.relax_used}
+            used={state.relax.used}
+            minutes={state.relax.minutes}
+            actif={state.relax.active}
             revoked={state.sanctions.relax_revoked}
             onStarted={onStarted}
           />

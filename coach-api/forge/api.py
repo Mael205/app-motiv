@@ -52,6 +52,7 @@ from .models import (
 from .probeauth import ProbeTokenAuthentication
 from .rules import hiatus as hiatus_rules
 from .rules import jour as jour_rules
+from .rules import regime as regime_rules
 from .rules import seasons as season_rules
 from .rules import signals as signal_rules
 from .rules import slots as slot_rules
@@ -828,7 +829,7 @@ def creneaux(request):
             "motif": motif,
             "jours_avant_ouverture": slot_rules.prochain_dimanche(today.weekday()),
             "requis_minutes": jour_rules.MINUTES_REQUISES,
-            "heure_de_blocage": jour_rules.HEURE_DE_BLOCAGE,
+            "heure_de_blocage": f"{_regime(request.user, today).blocage:%Hh%M}",
             "projets": [
                 {
                     "id": p.id,
@@ -843,6 +844,11 @@ def creneaux(request):
             ],
         }
     )
+
+
+def _regime(user, today: date) -> regime_rules.Regime:
+    saison = services.current_season(user, today=today)
+    return regime_rules.pour(saison.index if saison else 1)
 
 
 def _creneau_json(creneau: TimeSlot) -> dict:
@@ -1341,7 +1347,13 @@ def action_link(request, token: str):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def start_relax(request):
-    """Le sas de détente : 30 minutes sans jugement, une fois par soir."""
+    """Le sas : il interrompt la soirée au lieu de la précéder (§4.6, 16/09/2026).
+
+    Une fois par jour, il rouvre tout — blocage du projet **et** couvre-feu — le
+    temps que le régime de la saison lui laisse : vingt minutes la première,
+    dix au plancher. C'est la soupape qui évite que la seule issue soit la porte
+    de sortie de l'extension, qui lève deux heures d'un coup.
+    """
     from django.conf import settings
 
     from .models import RelaxWindow
@@ -1358,7 +1370,8 @@ def start_relax(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    minutes = settings.COACH["RELAX_MINUTES"]
+    saison = services.current_season(request.user, today=today)
+    minutes = regime_rules.pour(saison.index if saison else 1).sas_minutes
     window, created = RelaxWindow.objects.get_or_create(
         user=request.user,
         coach_day=today,

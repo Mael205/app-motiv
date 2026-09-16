@@ -17,6 +17,31 @@ html[data-coach-block='accueil'] ytd-rich-section-renderer {
   display: none !important;
 }
 
+/* Le couvre-feu (16 septembre 2026) : la nuit, YouTube ferme en entier.
+ *
+ * On masque le corps plutôt que de rediriger : une redirection se refait d'un
+ * clic, et surtout elle effacerait l'adresse qu'on avait ouverte. Le message
+ * reste factuel — le §17 interdit la morale, et une page qui fait la leçon à
+ * 23h est une page qu'on contourne par un autre navigateur. */
+html[data-coach-block='nuit'] body > *:not(#coach-nuit) {
+  display: none !important;
+}
+
+html[data-coach-block='nuit'] body::before {
+  content: 'Couvre-feu. YouTube rouvre demain.';
+  display: block;
+  margin: 30vh auto 0;
+  max-width: 30rem;
+  padding: 0 24px;
+  font: 400 16px/1.7 system-ui, sans-serif;
+  color: #9a8cae;
+  text-align: center;
+}
+
+html[data-coach-block='nuit'] body {
+  background: #0f0b14 !important;
+}
+
 /* Le rail de gauche garde ses Shorts en évidence : les enlever évite d'y
    retourner d'un clic depuis la page où l'on vient d'être renvoyé. */
 html[data-coach-block] ytd-guide-entry-renderer a[title='Shorts'],

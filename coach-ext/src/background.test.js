@@ -20,6 +20,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { surfaceMasquee } from './blocking.js'
+
 /** Un faux navigateur, réduit à ce que le script de fond touche vraiment. */
 function faireNavigateur() {
   const stockage = new Map()
@@ -243,5 +245,23 @@ describe('la mesure du temps par catégorie', () => {
     // Trente secondes ne font pas une minute pleine : rien de plus à envoyer,
     // et surtout pas les deux minutes déjà transmises.
     expect(envois.find((e) => e.url.endsWith('/api/signals'))).toBeUndefined()
+  })
+})
+
+describe('le couvre-feu ferme YouTube en entier', () => {
+  it('masque toute la page la nuit, pas seulement le feed', () => {
+    expect(surfaceMasquee('https://www.youtube.com/watch?v=abc', 'nuit')).toBe('nuit')
+    expect(surfaceMasquee('https://www.youtube.com/results?q=unreal', 'nuit')).toBe('nuit')
+    expect(surfaceMasquee('https://www.youtube.com/', 'nuit')).toBe('nuit')
+  })
+
+  it('laisse le soir intact : seul l’accueil est masqué', () => {
+    expect(surfaceMasquee('https://www.youtube.com/watch?v=abc', 'projet')).toBe('')
+    expect(surfaceMasquee('https://www.youtube.com/results?q=unreal', 'projet')).toBe('')
+    expect(surfaceMasquee('https://www.youtube.com/', 'projet')).toBe('accueil')
+  })
+
+  it('ne touche à rien hors de YouTube, même la nuit', () => {
+    expect(surfaceMasquee('https://fr.wikipedia.org/wiki/Nuit', 'nuit')).toBe('')
   })
 })

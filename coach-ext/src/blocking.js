@@ -48,11 +48,17 @@ export function redirection(adresse) {
 
 /** La surface à masquer sur la page courante, ou une chaîne vide.
  *
- * Seul l'accueil est concerné. `/results`, `/watch`, `/feed/subscriptions` et
- * tout le reste sont laissés intacts : chercher une vidéo est un geste
- * volontaire, tomber dans le feed n'en est pas un.
+ * Deux régimes, et c'est l'heure qui les sépare (16 septembre 2026) :
+ *
+ * - **le soir** (`niveau` vide ou `projet`), seul l'accueil est concerné.
+ *   `/results`, `/watch`, `/feed/subscriptions` et tout le reste sont laissés
+ *   intacts : chercher une vidéo est un geste volontaire, tomber dans le feed
+ *   n'en est pas un ;
+ * - **la nuit** (`niveau` à `nuit`), YouTube ferme **en entier**. La seule
+ *   raison de l'épargner le soir était de ne pas punir le travail ; à 23h
+ *   passées, personne ne cherche une réponse technique.
  */
-export function surfaceMasquee(adresse) {
+export function surfaceMasquee(adresse, niveau = '') {
   let url
   try {
     url = new URL(adresse)
@@ -61,5 +67,6 @@ export function surfaceMasquee(adresse) {
   }
   if (!estYoutube(url.hostname)) return ''
 
+  if (niveau === 'nuit') return 'nuit'
   return url.pathname === '/' || url.pathname === '' ? 'accueil' : ''
 }

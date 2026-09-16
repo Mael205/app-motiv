@@ -13,7 +13,7 @@ moindre faille une machine ouverte.
 D'où la coupure en deux, telle que le §8.5 la décrit :
 
 - **le service** (``python blocage.py --service``, lancé élevé) n'accepte que
-  deux ordres, ``block`` et ``unblock``, sur un tube local. Il ne prend aucune
+  trois ordres — ``block``, ``nuit`` et ``unblock`` — sur un tube local. Il ne prend aucune
   liste de domaines de l'extérieur : elle est lue ici, sur cette machine, dans
   ``categories.toml``. Un tube compromis ne peut donc pas faire fermer un
   domaine arbitraire — il ne peut que rejouer l'un des deux ordres ;
@@ -39,7 +39,12 @@ MARQUEUR_DEBUT = "# --- coach : blocage du scroll passif (SPEC §8.5) ---"
 MARQUEUR_FIN = "# --- coach : fin du blocage ---"
 
 TUBE = r"\\.\pipe\coach-blocage"
-ORDRES = ("block", "unblock")
+# Trois ordres, et toujours aucune liste qui vienne de l'extérieur.
+#
+# « nuit » est le couvre-feu du 16 septembre 2026 : à 23h tout ferme, quoi qu'il
+# arrive, et YouTube y ferme **en entier** — à cette heure-là on ne cherche plus
+# une réponse technique, ce qui était la seule raison de l'épargner le soir.
+ORDRES = ("block", "unblock", "nuit")
 
 HOSTS = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "drivers" / "etc" / "hosts"
 PAUSE_PATH = Path(__file__).with_name("pause.local")
@@ -61,6 +66,11 @@ ATTENTE_SECONDES = 60
 # un fichier lisible par n'importe qui sur la machine une liste que le §11.10
 # refuse de faire sortir où que ce soit — y compris dans une notification.
 CATEGORIES_FERMEES = ("scroll_passif", "reseaux")
+
+# Ce que le couvre-feu ajoute. Écrit ici et pas lu d'un fichier de catégories :
+# fermer YouTube en entier est une décision de produit, pas un réglage, et le
+# §9.1 interdit de le faire aux heures où l'on travaille.
+DOMAINES_DE_NUIT = ("youtube.com", "youtu.be", "m.youtube.com")
 
 
 # --------------------------------------------------------------------------
@@ -248,7 +258,10 @@ def servir() -> int:
             print(f"Ordre refusé : {ordre!r}")
             continue
 
-        applique = appliquer_au_fichier(domaines, bloquer=ordre == "block")
+        liste = list(domaines)
+        if ordre == "nuit":
+            liste += [d for d in DOMAINES_DE_NUIT if d not in liste]
+        applique = appliquer_au_fichier(liste, bloquer=ordre != "unblock")
         print(f"{ordre} : {'appliqué' if applique else 'échoué'}.")
 
 
@@ -301,7 +314,12 @@ def synchroniser(etat: dict) -> str | None:
         return None
 
     arme = bool(bloc["armed"]) and not en_pause()
-    ordre = "block" if arme else "unblock"
+    if not arme:
+        ordre = "unblock"
+    else:
+        # Le serveur dit **quoi** fermer, jamais pourquoi (§8). « nuit » ajoute
+        # YouTube ; tout autre niveau reste le scroll passif du §8.5.
+        ordre = "nuit" if bloc.get("niveau") == "nuit" else "block"
     return ordre if envoyer(ordre) else None
 
 

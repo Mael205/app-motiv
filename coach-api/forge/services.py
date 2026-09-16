@@ -57,6 +57,7 @@ from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
 from .rules import ghost as ghost_rules
 from .rules import jour as jour_rules
+from .rules import regime as regime_rules
 from .rules import sommeil as sommeil_rules
 from .rules import modifiers as modifier_rules
 from .rules import ranks as rank_rules
@@ -1976,6 +1977,10 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
     # qui les rend fiables sur un hébergement qui s'endort.
     sanctions_on = settings.COACH_SANCTIONS_ENABLED
     jour = projet_du_jour(user, today=today)
+    # Le régime de la saison : les trois heures qui décident de la soirée. Lu
+    # une fois ici, et jamais recalculé côté client — c'est une règle.
+    regle = regime_rules.pour(season.index if season else 1)
+    sas = RelaxWindow.objects.filter(user=user, coach_day=today).first()
     regen = sync_boss_regen(season, history)
     forfeited = sync_stake_forfeit(user, season, state)
     sanctions = sanction_state(
@@ -2045,7 +2050,7 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
             "libre": jour.libre,
             "tenu": jour.tenu,
             "requis_minutes": jour_rules.MINUTES_REQUISES,
-            "heure_de_blocage": jour_rules.HEURE_DE_BLOCAGE,
+            "heure_de_blocage": f"{regle.blocage:%Hh%M}",
             "phrase": jour_rules.phrase(jour),
             "attendus": [
                 {
@@ -2159,7 +2164,21 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
         "corps": corps_panel(user, today=today),
         "entretien": routine_panel(user, today=today),
         "gardes": gardes_panel(user, today=today),
-        "relax_used": RelaxWindow.objects.filter(user=user, coach_day=today).exists(),
+        "relax_used": sas is not None,
+        "relax": {
+            "minutes": regle.sas_minutes,
+            "used": sas is not None,
+            "ends_at": sas.ends_at.isoformat() if sas else None,
+            "active": bool(sas and sas.started_at <= now < sas.ends_at),
+        },
+        "regime": {
+            "index": regle.index,
+            "blocage": f"{regle.blocage:%Hh%M}",
+            "couvre_feu": f"{regle.couvre_feu:%Hh%M}",
+            "sas_minutes": regle.sas_minutes,
+            "dur": regle.dur,
+            "lignes": list(regle.lignes()),
+        },
     }
 
 
@@ -2762,26 +2781,55 @@ def _block_scroll(user, profile: Profile, *, today: date, now: datetime) -> dict
     **Le serveur dit quand, l'agent décide comment.** Sans cet état « armé », ni
     l'agent ni l'extension n'ont de quoi savoir s'ils doivent bloquer.
 
-    **21h, et le projet du jour** *(13 septembre 2026)*. L'heure est fixe et se
-    récite de mémoire, là où « fin de fenêtre moins quatre-vingt-dix minutes »
-    se calculait. Ce qui lève le blocage n'est plus dix minutes sur n'importe
-    quoi, mais les vingt-cinq minutes dues au projet qui avait rendez-vous :
-    une soirée passée ailleurs compte partout ailleurs, et laisse le rendez-vous
-    entier. Un **jour libre** — aucun créneau — ne bloque rien.
+    **Deux niveaux, et un sas** *(13 puis 16 septembre 2026)* :
 
-    Le sas de détente ne joue plus : la journée est libre jusqu'à 21h, ce qui en
-    fait un sas permanent et rend le bouton inutile.
+    - **le projet du jour**, à l'heure du régime — 21h la première saison. Il se
+      lève en tenant le rendez-vous : vingt-cinq minutes sur le projet qui
+      l'avait. Une soirée passée ailleurs compte partout ailleurs et laisse le
+      rendez-vous entier ; un **jour libre** ne bloque rien ;
+    - **le couvre-feu**, à 23h la première saison, **quoi qu'il arrive** —
+      journée tenue comprise. Rien ne le lève, et YouTube y ferme en entier.
 
-    **Un instant, un booléen, rien d'autre.** Le motif ne sort pas d'ici : il
+    Le **sas** (§4.6) retrouve un rôle en changeant de moment : il ne précède
+    plus la soirée, il l'interrompt. Vingt minutes qui rouvrent tout, une fois
+    par jour, couvre-feu compris — c'est la soupape qui évite que la seule issue
+    soit la porte de sortie de l'extension, celle qui lève deux heures d'un coup.
+
+    **Un instant, un niveau, rien d'autre.** Le motif ne sort pas d'ici : il
     dirait à qui lit le jeton de sonde ce qu'on n'a pas fait, et le §8 refuse à
-    l'agent tout ce qui ressemble à de l'historique.
+    l'agent tout ce qui ressemble à de l'historique. Le niveau, lui, ne dit pas
+    pourquoi — il dit **quoi fermer**, et l'agent n'a pas d'autre moyen de le
+    savoir.
     """
     zone = ZoneInfo(profile.timezone_name)
-    depuis = datetime.combine(today, time(jour_rules.HEURE_DE_BLOCAGE), tzinfo=zone)
-    jour = projet_du_jour(user, today=today)
+    saison = current_season(user, today=today)
+    regle = regime_rules.pour(saison.index if saison else 1)
 
-    arme = settings.COACH_BLOCKING_ENABLED and not jour.tenu and now >= depuis
-    return {"armed_from": depuis.isoformat(), "armed": arme}
+    depuis = datetime.combine(today, regle.blocage, tzinfo=zone)
+    couvre_feu = datetime.combine(today, regle.couvre_feu, tzinfo=zone)
+    if couvre_feu <= depuis:                    # un couvre-feu avant le blocage n'existe pas
+        couvre_feu += timedelta(days=1)
+
+    jour = projet_du_jour(user, today=today)
+    sas = RelaxWindow.objects.filter(user=user, coach_day=today).first()
+    en_sas = bool(sas and sas.started_at <= now < sas.ends_at)
+
+    if not settings.COACH_BLOCKING_ENABLED or en_sas:
+        niveau = ""
+    elif now >= couvre_feu:
+        niveau = "nuit"
+    elif now >= depuis and not jour.tenu:
+        niveau = "projet"
+    else:
+        niveau = ""
+
+    return {
+        "armed_from": depuis.isoformat(),
+        "armed": bool(niveau),
+        # « projet » ferme le scroll passif, « nuit » y ajoute YouTube en entier.
+        "niveau": niveau,
+        "curfew_from": couvre_feu.isoformat(),
+    }
 
 
 @transaction.atomic
