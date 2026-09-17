@@ -96,58 +96,6 @@
   color: var(--dim);
 }
 
-/* Anneau de complétion : le pourcentage se lit en forme, pas seulement en chiffre.
- *
- * Un seul enfant centré. La version précédente en empilait deux — l'emblème du
- * projet et le pourcentage — dans la même cellule de grille de soixante
- * pixels ; l'emoji débordait de sa taille de police et venait manger le
- * chiffre. L'emblème vit maintenant sur la ligne du titre. */
-.ring-mini {
-  position: relative;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-}
-
-.ring-mini svg {
-  position: absolute;
-  inset: 0;
-  transform: rotate(-90deg);
-}
-
-.ring-mini__track {
-  fill: none;
-  stroke: rgba(237, 230, 245, 0.09);
-  stroke-width: 4;
-}
-
-.ring-mini__fill {
-  fill: none;
-  stroke: var(--project);
-  stroke-width: 4;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 6px var(--project));
-}
-
-.ring-mini__percent {
-  display: flex;
-  align-items: baseline;
-  font-size: var(--t-lg);
-  line-height: 1;
-  color: var(--text);
-}
-
-/* Le signe pour cent, plus petit et gris : le nombre est l'information, le
-   signe n'est que son unité. */
-.ring-mini__percent i {
-  font-size: var(--t-xs);
-  font-style: normal;
-  color: var(--muted);
-  margin-left: 1px;
-}
-
 /* L'emblème de piste, sur la ligne du titre. Il porte la couleur du projet,
    comme le liseré gauche de la carte : deux marques, une seule identité. */
 .pcard__emblem {
@@ -204,10 +152,6 @@
  * qui est le frigo et pas l'attente. */
 .pcard--hold {
   opacity: 0.78;
-}
-
-.pcard--hold .ring-mini__fill {
-  opacity: 0.5;
 }
 
 /* La mise en attente. Elle était le seul bloc arrondi d'une interface

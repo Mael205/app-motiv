@@ -59,8 +59,6 @@ export interface RoadmapStepView {
   id: number
   label: string
   state: 'todo' | 'doing' | 'done'
-  estimated_sessions: number
-  needs_split: boolean
   /** Ce qui rend l'étape exécutable sans réfléchir (§4.5). Tous facultatifs :
    *  « appeler le plombier » n'a ni ressource ni charge. Le critère de sortie
    *  est le seul qui manque vraiment quand il manque — sans lui, on ne sait pas
@@ -137,13 +135,12 @@ export interface ProjectDetail {
   verification: string
   verification_label: string
   repos: number
-  completion: number
   weekly_commitment: number
   is_coach_project: boolean
   objective: string
   frame: string
   hold: ProjectHold | null
-  current_step: { id: number; label: string; needs_split: boolean; exit_criterion: string } | null
+  current_step: { id: number; label: string; exit_criterion: string } | null
   steps: RoadmapStepView[]
   parcours: ProjectBlocView[]
   ecartees: DiscardedResourceView[]
@@ -278,37 +275,12 @@ export interface Evening {
   blocks: EveningBlock[]
 }
 
-/** Un morceau de soirée passé sur une étape (§4.1). */
-export interface PlanPortion {
-  step_id: number
-  label: string
-  /** Les minutes qu'on y consacre ce soir. */
-  minutes: number
-  /** Ce qu'il restait à faire sur l'étape avant ce soir. */
-  reste_avant: number
-  /** La part de ce reste que la soirée couvre, de 0 à 100. */
-  pourcentage: number
-  /** L'étape est couverte en entier ce soir. */
-  entiere: boolean
-  /** Le temps estimé est déjà consommé : il reste à la déclarer finie. */
-  a_clore: boolean
-  exit_criterion: string
-}
-
 export interface Proposal {
   /** Quelle piste la décision engage. L'Atelier la plupart du temps ; le Corps
    *  quand sa semaine est sur le point d'être ratée (§11.4). */
   track: 'atelier' | 'corps'
-  project: { id: number; name: string; color: string; emblem: string; completion: number }
+  project: { id: number; name: string; color: string; emblem: string }
   minutes: number
-  /** Ce que le créneau couvre, étape par étape, dans l'ordre de la roadmap.
-   *  Plusieurs entrées = la soirée enchaîne ; la dernière peut être une
-   *  fraction quand l'étape déborde du temps disponible. */
-  plan?: PlanPortion[]
-  /** La dernière étape du plan sera laissée en cours. */
-  plan_coupe?: boolean
-  /** La soirée couvre plus d'une étape. */
-  plan_enchaine?: boolean
   /** Le bloc suivant du parcours, quand la roadmap vient de se vider. C'est le
    *  seul moment où la question se pose — et sans lui, un parcours de quatorze
    *  blocs s'arrêtait au premier. */
@@ -330,7 +302,6 @@ export interface Proposal {
   step: {
     id: number
     label: string
-    needs_split: boolean
     exit_criterion: string
     resource: string
     url: string
@@ -408,8 +379,6 @@ export interface Quest {
 export interface ParsedStep {
   label: string
   state: string
-  estimated_sessions: number
-  needs_split: boolean
   resource: string
   url: string
   scope: string

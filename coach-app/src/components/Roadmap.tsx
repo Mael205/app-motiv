@@ -59,17 +59,11 @@ export function Roadmap({
 
             <div className="rm__meta">
               {step.state === 'doing' && <span className="rm__badge rm__badge--doing">en cours</span>}
-              {step.needs_split && (
-                <span className="rm__badge rm__badge--split" title="Plus de 3 sessions : trop grosse pour être démarrée telle quelle">
-                  à découper
-                </span>
-              )}
+              {/* Plus de pastilles d'estimation ni de badge « à découper »
+                  *(17 septembre 2026)* : les deux se lisaient sur un nombre de
+                  séances écrit avant d'avoir commencé. La charge reste — c'est
+                  une intensité ressentie, pas une durée annoncée. */}
               {step.load && <span className="rm__load">{step.load}</span>}
-              <span className="rm__pips" title={`${step.estimated_sessions} session(s) estimée(s)`}>
-                {Array.from({ length: Math.min(step.estimated_sessions, 6) }, (_, i) => (
-                  <span key={i} className="rm__pip" />
-                ))}
-              </span>
             </div>
 
             {/* Le plan ne s'affiche que s'il a quelque chose à dire. Sans cette

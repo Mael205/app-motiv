@@ -120,34 +120,6 @@
   background: color-mix(in srgb, var(--project) 12%, transparent);
 }
 
-.rm__badge--split {
-  color: var(--rose);
-  border: 1px solid color-mix(in srgb, var(--rose) 40%, transparent);
-}
-
-/* Une pastille par session estimée : le poids de l'étape se lit sans chiffre.
- *
- * Elles étaient poussées au bord droit par `margin-left: auto`. Sur un écran
- * de téléphone la distance restait lisible ; sur une carte de bureau, le
- * libellé de l'étape et son poids se retrouvaient à six cents pixels l'un de
- * l'autre, et plus rien ne disait qu'ils parlaient de la même étape. Elles
- * suivent maintenant le libellé. */
-.rm__pips {
-  display: inline-flex;
-  gap: 3px;
-}
-
-.rm__pip {
-  width: 5px;
-  height: 5px;
-  background: rgba(237, 230, 245, 0.22);
-  transform: rotate(45deg);
-}
-
-.rm__step--doing .rm__pip {
-  background: color-mix(in srgb, var(--project) 70%, transparent);
-}
-
 /* La charge annoncée de l'étape — « 6–8 h ». Elle vit à côté des pastilles,
    qui comptent des sessions : les deux ne mesurent pas la même chose, et l'une
    dément parfois l'autre. C'est utile qu'on le voie. */

@@ -138,19 +138,18 @@ def projects(request):
                     project.verification, project.verification
                 ),
                 "repos": project.repos.count(),
-                "completion": project.completion,
+                # Plus de pourcentage d'avancement *(17 septembre 2026)* : il
+                # supposait une liste stable, or la roadmap bouge, et un
+                # compteur qui recule parce qu'on a ajouté une étape mesure la
+                # liste plutôt que le travail. Le serveur garde le calcul pour
+                # savoir si un projet est fini (§4.3) ; l'écran ne le voit plus.
                 "weekly_commitment": project.weekly_commitment,
                 "is_coach_project": project.is_coach_project,
                 "objective": project.objective,
                 "frame": project.frame,
                 "hold": services.hold_payload(request.user, project, today=today),
                 "current_step": (
-                    {
-                        "id": step.id,
-                        "label": step.label,
-                        "needs_split": step.needs_split,
-                        "exit_criterion": step.exit_criterion,
-                    }
+                    {"id": step.id, "label": step.label, "exit_criterion": step.exit_criterion}
                     if step
                     else None
                 ),
@@ -159,8 +158,6 @@ def projects(request):
                         "id": s.id,
                         "label": s.label,
                         "state": s.state,
-                        "estimated_sessions": s.estimated_sessions,
-                        "needs_split": s.needs_split,
                         "resource": s.resource,
                         "url": s.url,
                         "scope": s.scope,

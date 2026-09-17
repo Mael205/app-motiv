@@ -136,10 +136,10 @@ def etat_pour_le_modele(user, *, today: date) -> str:
         ouvertes = [e for e in projet.steps.all() if e.state != RoadmapStep.DONE]
         for etape in ouvertes:
             marque = "en cours" if etape.state == RoadmapStep.DOING else "à faire"
-            lignes.append(
-                f"      étape « {etape.label} » — {marque}, "
-                f"{etape.estimated_sessions} session(s) estimée(s)"
-            )
+            # Sans estimation *(17 septembre 2026)* : un modèle à qui l'on
+            # donne « 3 sessions estimées » raisonne dessus et rend des plans
+            # qui supposent une vitesse que personne ne connaît.
+            lignes.append(f"      étape « {etape.label} » — {marque}")
         if not ouvertes:
             lignes.append("      aucune étape ouverte")
         for creneau in projet.timeslots.all():

@@ -233,14 +233,9 @@ def briefing(user, *, now: datetime | None = None) -> dict | None:
             "name": projet.name,
             "color": projet.color,
             "emblem": projet.emblem,
-            "completion": projet.completion,
         },
         "minutes": valide["minutes"],
-        "step": (
-            {"id": etape.id, "label": etape.label, "needs_split": etape.needs_split}
-            if etape
-            else None
-        ),
+        "step": ({"id": etape.id, "label": etape.label} if etape else None),
         "amorce": valide["tache"],
         "reason": valide["pourquoi"] or repli["reason"],
         "definition_de_fini": valide["definition_de_fini"],

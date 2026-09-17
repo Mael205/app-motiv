@@ -212,8 +212,16 @@ Le rang **ne redescend jamais** : il compte les semaines tenues cumulées, pas l
 
 ### 4.5 Roadmap, heures, journal
 
-- Chaque projet a une **roadmap** : liste ordonnée d'étapes, chacune avec état (à faire / en cours / fait) et estimation en sessions. Pourcentage de complétion affiché.
-- **Granularité imposée (§0.9) :** une étape estimée à plus de 3 sessions est marquée *à découper*, et le découpage est proposé par l'IA (§5.1). Une roadmap dont l'étape courante est floue est traitée comme un défaut du système, pas comme un état normal.
+- Chaque projet a une **roadmap** : liste ordonnée d'étapes, chacune avec son état (à faire / en cours / fait) et son critère de sortie.
+
+**La roadmap est un cap, pas un plan** *(tranché le 17 septembre 2026)*. Tout ce qui y prédisait une vitesse a été retiré, parce que la vitesse n'est pas connue d'avance et que la liste elle-même bouge :
+
+- **plus d'estimation en séances.** Elle servait à trois choses — le plan de soirée, l'avertissement « à découper », les pastilles de la roadmap — et toutes les trois annonçaient un reste à faire calculé sur un chiffre écrit avant d'avoir commencé ;
+- **plus de pourcentage de complétion.** Il mesurait une fraction d'une liste variable : ajouter une étape le faisait *reculer*, ce qui se lit comme un recul du travail alors que c'est l'inverse — on vient de voir plus loin ;
+- **plus de plan de soirée.** Il découpait la durée annoncée entre les étapes suivantes et promettait « ça tient en cinquante minutes » ;
+- **plus d'avertissement « étape trop grosse ».** Une étape trop grosse se découvre en la faisant, et se coupe à ce moment-là.
+
+Ce qui reste, et qui est vérifiable : l'**ordre**, l'**étape en cours** affichée comme contexte sous la note du soir (§11.11), le **critère de sortie** — « fini quand » —, et les **minutes réellement passées** sur une étape, qui inclinent le tirage quand elle est terminée (§12.6). Terminer une étape continue de payer : c'est un fait, pas une prévision.
 - Un projet actif doit avoir **au moins une étape `à faire` ou `en cours`** en permanence. Si la roadmap est vide ou terminée, l'app réclame le prochain jalon avant d'autoriser une session sur ce projet.
 - **Import de roadmap** depuis un `TODO.md` / `ROADMAP.md` du dépôt déclaré : l'agent lit le fichier, l'IA le convertit en étapes, confirmation en un tap.
 - **Création par collage, en attendant le §5.6.** Tant que la couche IA n'est pas construite, l'interrogation qui produit une roadmap se fait dans un chat, avec le prompt de `docs/prompt-nouveau-projet.md`, et le markdown se colle dans l'app. L'écran affiche ce qu'il a compris **avant** d'écrire quoi que ce soit : étapes, états, estimations, et les avertissements du §4.5. Aucun avertissement ne bloque la création — une étape trop grosse est un défaut à corriger, pas un refus. Le format est le même que celui de l'import automatique, et le jour où le §5.6 existe la conversation in-app alimente le même parseur : rien n'est à refaire.

@@ -131,12 +131,6 @@ export const DecisionBlock = memo(function DecisionBlock({
    */
   const task = vue.amorce || vue.step?.label
 
-  // Le plan de la soirée. `coupee` est la portion qu'on ne finira pas ce soir —
-  // toujours la dernière, par construction du planificateur.
-  const plan = vue.plan ?? []
-  const coupee = plan.length && !plan[plan.length - 1].entiere ? plan[plan.length - 1] : null
-  const aClore = plan.some((p) => p.a_clore)
-
   // D'ou vient la tache affichee. Le dire n'est pas de la transparence pour la
   // forme : une tache decidee par un modele et une amorce qu'on a ecrite
   // soi-meme la veille ne se relisent pas avec la meme confiance.
@@ -183,16 +177,10 @@ export const DecisionBlock = memo(function DecisionBlock({
         <h2 className="decision__name display">{vue.project.name}</h2>
       </div>
 
-      {/* Une activité physique n'a pas de roadmap : la barre resterait à zéro
-          en permanence, ce qui se lirait comme un projet à l'arrêt. */}
-      {vue.track !== 'corps' && (
-        <div className="decision__progress" title={`${Math.round(vue.project.completion * 100)}% de la roadmap`}>
-          <div
-            className="decision__progress-fill"
-            style={{ transform: `scaleX(${vue.project.completion})` }}
-          />
-        </div>
-      )}
+      {/* Plus de barre d'avancement *(17 septembre 2026)*. Elle affichait un
+          pourcentage de roadmap, donc une fraction d'une liste qui bouge : elle
+          reculait quand on ajoutait une étape, ce qui se lit comme un recul du
+          travail alors que c'est l'inverse — on vient de voir plus loin. */}
 
       {vue.track === 'corps' ? (
         /* Une séance de sport n'a ni étape ni jalon. Réclamer « le prochain
@@ -235,44 +223,11 @@ export const DecisionBlock = memo(function DecisionBlock({
               {vue.step.scope && <span className="muted"> · {vue.step.scope}</span>}
             </p>
           )}
-          {/* Ce que le créneau couvre. Le dire avant de démarrer est tout
-              l'intérêt : sinon on découvre à 22h qu'on est au milieu de
-              quelque chose, ce qui se lit comme un échec alors que c'était un
-              calibrage annoncé. La première portion est déjà le titre
-              ci-dessus ; on n'affiche la liste que si la soirée enchaîne. */}
-          {plan.length > 1 && (
-            <ol className="decision__plan">
-              {plan.map((portion) => (
-                <li key={portion.step_id} className={portion.entiere ? undefined : 'decision__plan--coupe'}>
-                  <span className="decision__plan-minutes num">{portion.minutes}</span>
-                  <span className="decision__plan-label">{portion.label}</span>
-                  {!portion.entiere && (
-                    <span className="muted"> · {portion.pourcentage} %</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
+          {/* Plus de plan de soirée *(17 septembre 2026)*. Il annonçait « ça
+              tient en cinquante minutes » à partir d'estimations en séances,
+              donc d'une vitesse supposée connue avant d'avoir commencé. Ce qui
+              reste est un cap — l'étape en cours — et non une promesse. */}
 
-          {/* La coupe, en toutes lettres. « Tu en fais la moitié » est une
-              information, pas un reproche : le reste est crédité et la
-              prochaine séance reprendra où celle-ci s'arrête. */}
-          {coupee && (
-            <p className="decision__warn">
-              {coupee.pourcentage} % de « {coupee.label} » ce soir — {coupee.minutes} min sur
-              les {coupee.reste_avant} qui restent. Le temps passé est gardé, la suite reprendra là.
-            </p>
-          )}
-
-          {aClore && (
-            <p className="decision__warn">
-              Le temps estimé de cette étape est écoulé. Termine-la et coche-la, ou découpe ce qui reste.
-            </p>
-          )}
-
-          {vue.step?.needs_split && (
-            <p className="decision__warn">Cette étape est trop grosse : elle demande un découpage.</p>
-          )}
         </div>
       ) : (
         <div className="decision__task decision__task--empty">

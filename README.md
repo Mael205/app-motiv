@@ -311,6 +311,11 @@ jamais été essayé.
   refuse la todo-list, et cette liste n'en devient une que si on lui donne de la
   valeur : elle n'en a aucune, par construction et par test. Elle existe pour la
   raison inverse — une course qu'on garde en tête occupe la place d'une session.
+- **La roadmap est un cap, pas un plan** *(17 sept. 2026)* : plus d'estimation en
+  séances, plus de pourcentage de complétion, plus de plan de soirée, plus
+  d'avertissement « étape à découper ». Tout ça prédisait une vitesse inconnue,
+  sur une liste qui bouge. Restent l'ordre, l'étape en cours, le « fini quand »
+  et les minutes réellement passées dessus.
 - **Un plan de travail, pas une liste de tâches (§4.5)** : un projet porte son
   objectif — sa condition de fin —, son cadre, son **parcours** en blocs de
   plusieurs mois, les ressources **écartées** avec leur raison, et cinq attributs

@@ -76,20 +76,6 @@
   color: var(--text);
 }
 
-.decision__progress {
-  height: 3px;
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.decision__progress-fill {
-  height: 100%;
-  width: 100%;
-  transform-origin: left center;
-  background: var(--project);
-  box-shadow: 0 0 10px var(--project);
-  transition: transform 500ms var(--ease-out);
-}
-
 .decision__task {
   display: flex;
   flex-direction: column;
@@ -258,40 +244,3 @@
   }
 }
 
-/* Le plan de la soirée : ce que le créneau couvre, étape par étape. Il
-   n'apparaît que si la soirée enchaîne — pour une seule étape, le titre
-   au-dessus dit déjà tout, et répéter donnerait deux fois la même ligne. */
-.decision__plan {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding: 0;
-  font-size: 13px;
-}
-
-.decision__plan li {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.decision__plan-minutes {
-  min-width: 34px;
-  padding: 1px 6px;
-  font-size: 11.5px;
-  color: var(--project, var(--muted));
-  border: 1px solid var(--line);
-  text-align: center;
-}
-
-.decision__plan-label {
-  color: var(--text);
-}
-
-/* L'étape qu'on ne finira pas ce soir. Assombrie, pas barrée : elle est bien
-   au programme, simplement pas en entier. */
-.decision__plan--coupe .decision__plan-label {
-  color: var(--muted);
-}

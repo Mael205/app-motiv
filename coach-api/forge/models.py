@@ -241,26 +241,14 @@ class RoadmapStep(models.Model):
     def __str__(self) -> str:
         return self.label
 
-    @property
-    def needs_split(self) -> bool:
-        """Plus de 3 sessions estimées : l'étape est trop grosse (SPEC §4.5)."""
-        return self.estimated_sessions > 3
-
-    @property
-    def minutes_estimees(self) -> int:
-        """L'estimation, en minutes. Une session vaut vingt-cinq minutes (§4.1)."""
-        return max(1, self.estimated_sessions) * 25
-
-    @property
-    def minutes_restantes(self) -> int:
-        """Ce qu'il reste à faire d'après l'estimation. Zéro = à clore."""
-        return max(0, self.minutes_estimees - self.minutes_done)
-
-    @property
-    def avancement(self) -> float:
-        """De 0 à 1. Sert à l'écran, jamais à décider qu'une étape est finie —
-        c'est le critère de sortie qui tranche, pas le chronomètre (§6)."""
-        return min(1.0, self.minutes_done / self.minutes_estimees)
+    # Plus d'estimation lue nulle part *(17 septembre 2026)*. ``needs_split``,
+    # ``minutes_estimees``, ``minutes_restantes`` et ``avancement`` dérivaient
+    # tous de ``estimated_sessions`` : ils annonçaient un reste à faire à partir
+    # d'une vitesse supposée connue. Le champ reste en base — le §17 interdit
+    # d'effacer ce qui a été écrit — mais plus rien ne le lit.
+    #
+    # Ce qui subsiste est ``minutes_done``, qui est un fait : le temps passé sur
+    # cette étape, et non le temps qu'elle « devrait » prendre.
 
 
 class ProjectBloc(models.Model):

@@ -192,12 +192,11 @@ export function NewProject({ onCreated }: { onCreated: () => void }) {
 
           <ul className="newproject__steps">
             {preview.steps.map((step, i) => (
-              <li key={i} className={step.needs_split ? 'newproject__step--split' : undefined}>
+              <li key={i}>
                 <span className="newproject__mark" aria-hidden>
                   {MARKS[step.state] ?? '◇'}
                 </span>
                 {step.label}
-                <span className="newproject__estimate">{step.estimated_sessions}</span>
               </li>
             ))}
           </ul>

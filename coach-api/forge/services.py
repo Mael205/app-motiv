@@ -52,7 +52,6 @@ from .rules import buffs as buff_rules
 from .rules import contract as contract_rules
 from .rules import capacite as capacite_rules
 from .rules import corps as corps_rules
-from .rules import creneau as creneau_rules
 from .rules import crit as crit_rules
 from .rules import loot as loot_rules
 from .rules import gardes as garde_rules
@@ -879,10 +878,10 @@ def start_session(
     if etape and etape.doing_since is None:
         RoadmapStep.objects.filter(pk=etape.pk).update(doing_since=now)
 
-    # Le plan est figé ici, sur la durée annoncée. Une séance prolongée déborde
-    # sur les étapes suivantes du plan et pas au-delà : le temps en trop
-    # profite au travail prévu, il n'ouvre pas une étape qu'on n'a pas vue.
-    plan = creneau_rules.plan_pour(planned_minutes, list(project.steps.all()))
+    # Plus de plan de soirée *(17 septembre 2026)*. Il découpait la durée
+    # annoncée entre les étapes suivantes à partir de leurs estimations — donc
+    # d'une vitesse supposée connue, qui ne l'est pas. Ce qui reste écrit sur la
+    # séance est l'étape en cours, et rien de prédit.
 
     return Session.objects.create(
         user=user,
@@ -895,10 +894,7 @@ def start_session(
         rank_in_day=rank,
         client_uuid=client_uuid,
         verification=Session.SERVER if verified else Session.UNVERIFIED,
-        plan=[
-            {"step_id": p.etape.id, "minutes": p.minutes, "reste_avant": p.reste_avant}
-            for p in plan.portions
-        ],
+        plan=[{"step_id": etape.id}] if etape else [],
     )
 
 
@@ -942,38 +938,26 @@ def extend_session(
 
 
 @transaction.atomic
-def _crediter_le_plan(session: Session) -> None:
-    """Reporte les minutes travaillées sur les étapes prévues au démarrage.
+def _crediter_l_etape(session: Session) -> None:
+    """Reporte les minutes travaillées sur l'étape ouverte au démarrage.
 
-    Ne clôt rien et ne change aucun état : seul le compteur ``minutes_done``
-    bouge. Une session antérieure au plan — il n'y en a plus, mais la base en
-    garde — n'a pas de plan et ne crédite donc rien, ce qui est le bon repli.
+    Un **fait**, pas une prévision : on sait sur quelle étape la séance a été
+    lancée, et on sait combien de temps elle a duré. C'est ce compteur qui
+    incline le tirage d'une étape terminée (§12.6), et rien d'autre n'en dépend.
+
+    Depuis le 17 septembre 2026, la séance ne porte plus qu'une étape : le plan
+    qui répartissait la durée entre plusieurs d'entre elles supposait une
+    vitesse connue d'avance. Une séance d'avant, qui portait un vrai plan,
+    crédite sa première étape — le repli est bon, et c'est le passé.
     """
     portions = session.plan or []
-    if not portions:
+    step_id = portions[0].get("step_id") if portions else None
+    if not step_id or session.actual_minutes <= 0:
         return
 
-    etapes = {
-        e.id: e
-        for e in RoadmapStep.objects.filter(
-            id__in=[p.get("step_id") for p in portions if p.get("step_id")]
-        )
-    }
-
-    restant = session.actual_minutes
-    for portion in portions:
-        if restant <= 0:
-            break
-        etape = etapes.get(portion.get("step_id"))
-        if etape is None:
-            continue
-        part = min(int(portion.get("minutes") or 0), restant)
-        if part <= 0:
-            continue
-        RoadmapStep.objects.filter(pk=etape.pk).update(
-            minutes_done=F("minutes_done") + part
-        )
-        restant -= part
+    RoadmapStep.objects.filter(pk=step_id).update(
+        minutes_done=F("minutes_done") + session.actual_minutes
+    )
 
 
 def end_session(
@@ -1047,7 +1031,7 @@ def end_session(
     # dit « le temps prévu est écoulé », ce qui n'est pas la même chose que
     # « c'est fait » — et la différence est exactement ce qui distingue une
     # roadmap d'un minuteur.
-    _crediter_le_plan(session)
+    _crediter_l_etape(session)
 
     track = session.project.track
     history_before = resolve_days(
@@ -1690,15 +1674,13 @@ def propose(
     chosen = max(projects, key=score)
     plancher = floor_minutes(user, today=today)
 
-    # Le créneau décide de ce qu'on fait. C'est tout le sujet du module
-    # ``creneau`` : « Longue · 50 » sur une étape de trois sessions engageait
-    # soixante-quinze minutes en en promettant cinquante, et personne ne le
-    # voyait avant 22h. Le plan enchaîne plusieurs étapes si elles tiennent, et
-    # coupe la dernière si elle déborde.
+    # L'étape en cours, et rien de plus *(17 septembre 2026)*. Le plan de soirée
+    # découpait la durée entre les étapes suivantes d'après leurs estimations :
+    # il annonçait « ça tient en cinquante minutes » à partir d'un chiffre que
+    # personne ne peut connaître. Ce qui reste est un cap — où l'on en est — et
+    # non une promesse sur la vitesse.
     duree = DEGRADED_MINUTES if comeback else (minutes or plancher)
-    plan = creneau_rules.plan_pour(duree, list(chosen.steps.all()))
-    premiere = plan.premiere
-    step = premiere.etape if premiere else None
+    step = chosen.current_step
     slot = next(
         (ts for ts in chosen.timeslots.all() if ts.weekday == today.weekday() and ts.active), None
     )
@@ -1717,7 +1699,6 @@ def propose(
             "name": chosen.name,
             "color": chosen.color,
             "emblem": chosen.emblem,
-            "completion": chosen.completion,
         },
         # **La durée proposée est le plancher du rang, toujours** — jamais celle
         # déclarée sur le créneau (corrigé le 20 août 2026).
@@ -1735,29 +1716,6 @@ def propose(
         # La durée du créneau reste ce qu'elle a toujours été : une intention,
         # que le rappel de créneau et le gardien continuent d'annoncer.
         "minutes": duree,
-        # Le plan de la soirée : ce que le créneau couvre, étape par étape.
-        # L'écran le montre avant de démarrer — enchaîner deux étapes ou n'en
-        # faire que la moitié se décide à froid, pas à 22h quand on découvre
-        # qu'on est au milieu de quelque chose.
-        "plan": [
-            {
-                "step_id": p.etape.id,
-                "label": p.etape.label,
-                "minutes": p.minutes,
-                "reste_avant": p.reste_avant,
-                "pourcentage": p.pourcentage,
-                "entiere": p.entiere,
-                "a_clore": p.a_clore,
-                "exit_criterion": p.etape.exit_criterion,
-            }
-            for p in plan.portions
-        ],
-        # Les deux faits que l'écran annonce en une phrase. Redondants avec le
-        # plan, et c'est voulu : un composant qui doit recalculer « est-ce que ça
-        # rentre » à partir d'une liste finit par le calculer autrement que le
-        # serveur.
-        "plan_coupe": plan.coupe,
-        "plan_enchaine": plan.enchaine,
         # Le bloc suivant du parcours, quand la roadmap vient de se vider. C'est
         # le seul moment où la question se pose, et c'est aussi le moment où,
         # sans cette ligne, le produit s'arrêtait : quatorze blocs planifiés, la
@@ -1776,7 +1734,6 @@ def propose(
             {
                 "id": step.id,
                 "label": step.label,
-                "needs_split": step.needs_split,
                 "exit_criterion": step.exit_criterion,
                 "resource": step.resource,
                 "url": step.url,
@@ -1956,7 +1913,7 @@ def home_state(user, *, now: datetime | None = None, minutes: int | None = None)
     """L'écran d'accueil. ``minutes`` est le créneau choisi, s'il l'a été.
 
     Il ne sert qu'à la proposition, où il change la tâche autant que le
-    chronomètre — voir ``propose`` et ``rules.creneau``.
+    chronomètre — voir ``propose``.
     """
     now = now or timezone.now()
     profile: Profile = user.profile

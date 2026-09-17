@@ -494,12 +494,10 @@ def _add_warnings(parsed: ParsedProject) -> None:
         parsed.warnings.append("Aucune étape trouvée : il faut au moins une ligne « - [ ] … ».")
         return
 
-    for step in parsed.steps:
-        if step.needs_split:
-            parsed.warnings.append(
-                f"« {step.label} » est estimée à {step.estimated_sessions} sessions. "
-                "Au-delà de trois, l'étape est à découper (§4.5)."
-            )
+    # Plus d'avertissement « étape à découper » *(17 septembre 2026)* : il se
+    # déclenchait sur une estimation en séances, donc sur une vitesse supposée
+    # connue. Une étape trop grosse se découvre en la faisant, et se coupe à ce
+    # moment-là — pas à l'import, sur un chiffre écrit avant d'avoir commencé.
 
     if parsed.open_steps == 0:
         parsed.warnings.append(

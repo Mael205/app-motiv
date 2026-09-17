@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { DiscardedResourceView, ProjectBlocView, ProjectDetail } from '../types'
 import { Icon } from '../components/art/Icons'
@@ -7,7 +7,7 @@ import { Ponctuels } from '../components/Ponctuels'
 import { Roadmap } from '../components/Roadmap'
 import { Semaine } from '../components/Semaine'
 import { EnCharge, EnErreur } from '../components/EtatCharge'
-import { animerAnneau, quandVisible, useInclinaison, useRevelation } from '../juice'
+import { useInclinaison, useRevelation } from '../juice'
 import './Projects.css'
 
 /** L'onglet Projets : les trois slots, leurs roadmaps, le frigo.
@@ -209,7 +209,6 @@ function ProjectCard({
   onHold?: (project: ProjectDetail, endsOn: string, reason: string) => Promise<void>
 }) {
   const done = project.steps.filter((s) => s.state === 'done').length
-  const percent = Math.round(project.completion * 100)
 
   return (
     <article
@@ -217,7 +216,6 @@ function ProjectCard({
       style={{ ['--project' as string]: project.color }}
     >
       <header className="pcard__head">
-        <ProgressRing percent={percent} />
 
         <div className="pcard__titles">
           <h3 className="pcard__name">
@@ -486,56 +484,6 @@ function dansUneSemaine(): string {
   const d = new Date()
   d.setDate(d.getDate() + 7)
   return d.toISOString().slice(0, 10)
-}
-
-/** Anneau de complétion. Le pourcentage, seul, au centre.
- *
- * L'emblème du projet y tenait aussi, et les deux se chevauchaient : un glyphe
- * emoji déborde largement de sa taille de police, et soixante pixels de
- * diamètre ne logent pas deux textes centrés. L'emblème est parti sur la ligne
- * du titre, où il a la place de se lire — l'anneau ne dit plus qu'une chose,
- * qui est ce qu'on vient y chercher. */
-function ProgressRing({ percent }: { percent: number }) {
-  const radius = 26
-  const circumference = 2 * Math.PI * radius
-  const cercle = useRef<SVGCircleElement>(null)
-  const chiffre = useRef<HTMLSpanElement>(null)
-
-  /* Le trait se trace au lieu d'apparaître tracé, et le chiffre monte avec
-     lui. La feuille de style demandait déjà une transition sur
-     `stroke-dashoffset`, mais une transition n'a rien à interpoler au premier
-     rendu — l'anneau arrivait plein — et ne sait pas écrire dans un texte.
-     Les deux sont sur la même horloge : un chiffre qui atteindrait sa valeur
-     avant la fin du tour ferait mentir la forme. */
-  useEffect(() => {
-    const trait = cercle.current
-    if (!trait) return
-    return quandVisible(trait, () => animerAnneau(trait, circumference, percent, chiffre.current))
-  }, [circumference, percent])
-
-  return (
-    <div className="ring-mini">
-      <svg viewBox="0 0 64 64" width="64" height="64" aria-label={`${percent}% de la roadmap`}>
-        <circle className="ring-mini__track" cx="32" cy="32" r={radius} />
-        <circle
-          ref={cercle}
-          className="ring-mini__fill"
-          cx="32"
-          cy="32"
-          r={radius}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference}
-        />
-      </svg>
-      <span className="ring-mini__percent num" aria-hidden="true">
-        {/* Le contenu du chiffre est écrit par l'animation, pas par React :
-            c'est pourquoi il part de zéro ici. La valeur juste reste portée
-            par l'`aria-label` du SVG, qui, lui, ne bouge jamais. */}
-        <span ref={chiffre}>0</span>
-        <i>%</i>
-      </span>
-    </div>
-  )
 }
 
 /** L'horizon d'un projet : long, ou court.

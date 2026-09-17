@@ -27,7 +27,7 @@ import { DecisionBlock } from './DecisionBlock'
  * les aurait laissés passer avec un objet à moitié faux. */
 const ROADMAP_VIDE: Proposal = {
   track: 'atelier',
-  project: { id: 7, name: 'Outils Dofus 3', color: '#4fc4b4', emblem: '◆', completion: 1 },
+  project: { id: 7, name: 'Outils Dofus 3', color: '#4fc4b4', emblem: '◆' },
   minutes: 25,
   creneau: null,
   step: null,

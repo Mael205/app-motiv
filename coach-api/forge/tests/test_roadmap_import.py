@@ -85,10 +85,18 @@ class TestTolerance:
 
 
 class TestAvertissements:
-    def test_etape_trop_grosse_est_signalee_sans_bloquer(self):
+    def test_une_grosse_etape_ne_declenche_plus_rien(self):
+        """§4.5 assoupli le 17 septembre 2026.
+
+        L'avertissement « à découper » se déclenchait sur une estimation en
+        séances — donc sur une vitesse supposée connue avant d'avoir commencé.
+        Une étape trop grosse se découvre en la faisant, et se coupe à ce
+        moment-là.
+        """
         projet = parse("# P\n\n## Roadmap\n- [ ] Étape fleuve (6)\n")
-        assert projet.valid, "une étape trop grosse n'empêche pas la création"
-        assert any("à découper" in w for w in projet.warnings)
+
+        assert projet.valid
+        assert not any("découper" in w for w in projet.warnings)
 
     def test_roadmap_entierement_faite_est_signalee(self):
         projet = parse("# P\n\n## Roadmap\n- [x] Faite (1)\n")
