@@ -538,7 +538,7 @@ function ProgressRing({ percent }: { percent: number }) {
   )
 }
 
-/** L'horizon d'un projet : long cours, ou court terme.
+/** L'horizon d'un projet : long, ou court.
  *
  * *(16 septembre 2026.)* **Aucune règle n'en dépend**, et c'est ce qui permet
  * de le changer d'un clic, n'importe quand : la vitesse d'avancement varie, la
@@ -567,9 +567,9 @@ function HorizonTag({ project }: { project: ProjectDetail }) {
       className={`horizon horizon--${horizon}`}
       onClick={basculer}
       disabled={busy}
-      title="Long cours ou court terme — une étiquette, sans effet sur les règles"
+      title="Projet long ou projet court — une étiquette, sans effet sur les règles"
     >
-      {horizon === 'long' ? 'Long cours' : 'Court terme'}
+      {horizon === 'long' ? 'Projet long' : 'Projet court'}
     </button>
   )
 }

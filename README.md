@@ -58,7 +58,13 @@ L'interface est sur `http://localhost:5173`, et proxifie `/api` vers Django.
 powershell -ExecutionPolicy Bypass -File demarrer.ps1             # lance ce qui manque
 powershell -ExecutionPolicy Bypass -File demarrer.ps1 -Installer  # + à chaque ouverture de session
 powershell -ExecutionPolicy Bypass -File demarrer.ps1 -Arreter    # coupe tout
+powershell -ExecutionPolicy Bypass -File demarrer.ps1 -Recharger  # relance l'API seule
 ```
+
+`-Recharger` est le bon geste après une modification de code Python : il coupe
+Django et l'horloge, laisse l'app et l'agent debout, et l'API revient en cinq
+secondes. Un `-Arreter` suivi d'un démarrage complet reconstruit l'app et laisse
+le site injoignable une minute — vu du téléphone, ça ressemble à une panne.
 
 L'API, l'horloge (`tick --loop`), l'app construite sur `http://localhost:4173`
 et l'agent, en fond et sans fenêtre. L'app est reconstruite d'abord si son code
@@ -399,7 +405,7 @@ jamais été essayé.
   de cartes tirables. Ce qui reste interdit : qu'une carte touche au cadre
   (blocage, couvre-feu, streak, rang, gardes) ailleurs que par le sas, et qu'elle
   tombe sans travail.
-- **Long cours ou court terme** : une étiquette par projet, sans effet sur aucune
+- **Projet long ou projet court** : une étiquette par projet, sans effet sur aucune
   règle, qui se change d'un clic. Ce qui varie — la vitesse, la roadmap — rendrait
   fausse toute mécanique qu'on y accrocherait.
 - **Le jeu (§12)** : arbre de compétences par branche — quarante heures

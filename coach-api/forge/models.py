@@ -138,7 +138,7 @@ class Project(models.Model):
     # lire sa liste de projets et savoir ce qu'on regarde — « la basse, c'est
     # l'année ; le bot STS2, c'est trois semaines ».
     LONG, COURT = "long", "court"
-    HORIZONS = [(LONG, "Long cours"), (COURT, "Court terme")]
+    HORIZONS = [(LONG, "Projet long"), (COURT, "Projet court")]
     horizon = models.CharField(
         max_length=8,
         choices=HORIZONS,

@@ -11,7 +11,7 @@
 # Les journaux vont dans %LOCALAPPDATA%\coach\logs, hors du dépôt et hors de
 # OneDrive : quatre fichiers qui grossissent n'ont rien à faire dans une synchro.
 
-param([switch]$Installer, [switch]$Arreter)
+param([switch]$Installer, [switch]$Arreter, [switch]$Recharger)
 
 $ErrorActionPreference = 'Stop'
 $racine = $PSScriptRoot
@@ -41,6 +41,19 @@ $env:COACH_HOSTS = 'pc-mal.taild78169.ts.net'
 
 function Trouver($motif) {
     Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like $motif }
+}
+
+# Relancer le serveur **sans couper le reste** (17 septembre 2026).
+#
+# Jusqu'ici, la moindre mise à jour passait par -Arreter puis un démarrage
+# complet : l'app se reconstruisait, le navigateur et le téléphone tombaient sur
+# un site mort pendant une minute, et ça ressemblait à une panne. Or Django est
+# le seul morceau qui doive redémarrer quand du code Python change.
+if ($Recharger) {
+    foreach ($m in $morceaux | Where-Object { $_.Nom -in 'api', 'horloge' }) {
+        foreach ($p in Trouver $m.Motif) { Stop-Process -Id $p.ProcessId -Force -Confirm:$false }
+    }
+    Start-Sleep -Milliseconds 500
 }
 
 if ($Arreter) {
